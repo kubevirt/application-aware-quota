@@ -1,0 +1,15 @@
+apiVersion: aaq.kubevirt.io/v1alpha1
+kind: AAQ
+metadata:
+  name: {{.CrName}}
+spec:
+  imagePullPolicy: {{.PullPolicy}}
+  infra:
+    nodeSelector:
+      kubernetes.io/os: linux
+    tolerations:
+    - key: CriticalAddonsOnly
+      operator: Exists
+  workload:
+    nodeSelector:
+      kubernetes.io/os: linux

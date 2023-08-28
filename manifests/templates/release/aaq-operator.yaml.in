@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    aaq.kubevirt.io: ""
+  name: {{.Namespace}}
+{{index .GeneratedManifests "operator-everything.yaml.in"}}
