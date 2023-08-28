@@ -3,6 +3,7 @@ package aaq_operator
 import (
 	"context"
 	"fmt"
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -149,6 +150,24 @@ func (r *ReconcileAAQ) Reconcile(_ context.Context, request reconcile.Request) (
 		}
 		reqLogger.Error(err, "Failed to get AAQ object")
 		return reconcile.Result{}, err
+	}
+	if cr == nil || cr.Spec.GatedNamespaces == nil || len(cr.Spec.GatedNamespaces) == 0 {
+		mhc := &admissionregistrationv1.MutatingWebhookConfiguration{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "admissionregistration.k8s.io/v1",
+				Kind:       "MutatingWebhookConfiguration",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: aaqcluster.MutatingWebhookConfigurationName,
+			},
+		}
+		err := r.client.Delete(context.TODO(), mhc, &client.DeleteOptions{
+			PropagationPolicy: &[]metav1.DeletionPropagation{metav1.DeletePropagationForeground}[0],
+		})
+		if err != nil && !errors.IsNotFound(err) {
+			reqLogger.Error(err, "Error deleting cdi controller deployment")
+			r.recorder.Event(cr, corev1.EventTypeWarning, "DeleteResourceFailed", fmt.Sprintf("Failed to delete MutatingWebhookConfiguration %s, %v", mhc.Name, err))
+		}
 	}
 
 	return r.reconciler.Reconcile(request, operatorVersion, reqLogger)

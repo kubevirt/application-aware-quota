@@ -14,7 +14,8 @@ import (
 )
 
 const (
-	aaqServerResourceName = "aaq-lock"
+	aaqServerResourceName            = "aaq-lock"
+	MutatingWebhookConfigurationName = "gating-mutator"
 )
 
 func createStaticAAQLockResources(args *FactoryArgs) []client.Object {
@@ -73,12 +74,11 @@ func createGatingMutatingWebhook(namespace string, c client.Client, l logr.Logge
 			Kind:       "MutatingWebhookConfiguration",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "gating-mutator",
+			Name: MutatingWebhookConfigurationName,
 			Labels: map[string]string{
 				utils.AAQLabel: aaq_server.AaqServerServiceName,
 			},
 		},
-
 		Webhooks: []admissionregistrationv1.MutatingWebhook{
 			{
 				Name:                    "gater.cqo.kubevirt.io",
