@@ -71,8 +71,8 @@ func checkConfigMap(client kubernetes.Interface, namespace, name string, exists 
 }
 
 func checkCerts(client kubernetes.Interface, namespace string, exists bool) {
-	checkSecret(client, namespace, "aaq-lock", exists)
-	checkConfigMap(client, namespace, "aaq-lock-signer-bundle", exists)
+	checkSecret(client, namespace, "aaq-server", exists)
+	checkConfigMap(client, namespace, "aaq-server-signer-bundle", exists)
 	checkSecret(client, namespace, namespaced.SecretResourceName, exists)
 }
 
@@ -120,7 +120,7 @@ var _ = Describe("Cert rotation tests", func() {
 			err := cm.Sync(certs)
 			Expect(err).ToNot(HaveOccurred())
 
-			apiCA := getCertNotBefore(client, namespace, "aaq-lock")
+			apiCA := getCertNotBefore(client, namespace, "aaq-server")
 			apiServer := getCertNotBefore(client, namespace, namespaced.SecretResourceName)
 
 			n := time.Now()
@@ -137,7 +137,7 @@ var _ = Describe("Cert rotation tests", func() {
 			err = cm.Sync(certs)
 			Expect(err).ToNot(HaveOccurred())
 
-			apiCA2 := getCertNotBefore(client, namespace, "aaq-lock")
+			apiCA2 := getCertNotBefore(client, namespace, "aaq-server")
 			apiServer2 := getCertNotBefore(client, namespace, namespaced.SecretResourceName)
 
 			Expect(apiCA2.After(n))
@@ -146,7 +146,7 @@ var _ = Describe("Cert rotation tests", func() {
 			Expect(apiCA2.After(apiCA))
 			Expect(apiServer2.After(apiServer))
 
-			apiCAConfig2 := getCertConfigAnno(client, namespace, "aaq-lock")
+			apiCAConfig2 := getCertConfigAnno(client, namespace, "aaq-server")
 			apiServerConfig2 := getCertConfigAnno(client, namespace, namespaced.SecretResourceName)
 
 			scc := toSerializedCertConfig(50*time.Hour, 25*time.Hour)

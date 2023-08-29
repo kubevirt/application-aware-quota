@@ -6,15 +6,22 @@ import (
 	"fmt"
 	admissionv1 "k8s.io/api/admission/v1"
 	"k8s.io/klog/v2"
-	"kubevirt.io/applications-aware-quota/pkg/aaq-server/mutation"
+	handlerv1 "kubevirt.io/applications-aware-quota/pkg/aaq-server/handler"
+	"kubevirt.io/applications-aware-quota/pkg/util"
+	"kubevirt.io/client-go/kubecli"
 	"net/http"
 )
 
 type AaqServerHandler struct {
+	virtCli kubecli.KubevirtClient
 }
 
 func NewAaqServerHandler() *AaqServerHandler {
-	return &AaqServerHandler{}
+	virtCli, err := util.GetVirtCli()
+	if err != nil {
+		panic(err)
+	}
+	return &AaqServerHandler{virtCli}
 }
 
 func (ash *AaqServerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -24,11 +31,9 @@ func (ash *AaqServerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	validator := mutation.Mutator{
-		Request: in.Request,
-	}
+	handler := handlerv1.NewHandler(in.Request, ash.virtCli)
 
-	out, err := validator.Mutate()
+	out, err := handler.Handle()
 	if err != nil {
 		e := fmt.Sprintf("could not generate admission response: %v", err)
 		klog.Error(err.Error())
@@ -76,7 +81,7 @@ func parseRequest(r http.Request) (*admissionv1.AdmissionReview, error) {
 	}
 
 	if a.Request == nil {
-		return nil, fmt.Errorf("admission review can't be used: Request field is nil")
+		return nil, fmt.Errorf("admission review can't be used: request field is nil")
 	}
 
 	return &a, nil

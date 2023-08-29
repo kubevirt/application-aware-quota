@@ -21,7 +21,7 @@ type factoryFunc func(*FactoryArgs) []client.Object
 type factoryFuncMap map[string]factoryFunc
 
 var staticFactoryFunctions = factoryFuncMap{
-	"aaq-lock-rbac":   createStaticAAQLockResources,
+	"aaq-server-rbac":   createStaticAAQLockResources,
 	"controller-rbac": createStaticControllerResources,
 	"crd-resources":   createCRDResources,
 }

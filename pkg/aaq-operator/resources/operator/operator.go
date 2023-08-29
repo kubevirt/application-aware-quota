@@ -96,6 +96,7 @@ func getClusterPolicyRules() []rbacv1.PolicyRule {
 			},
 			Resources: []string{
 				"mutatingwebhookconfigurations",
+				"validatingwebhookconfigurations",
 			},
 			Verbs: []string{
 				"update",

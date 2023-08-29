@@ -134,10 +134,10 @@ func (r *ReconcileAAQ) SetController(controller controller.Controller) {
 // Reconcile reads that state of the cluster for a AAQ object and makes changes based on the state read
 // and what is in the AAQ.Spec
 // Note:
-// The Controller will requeue the Request to be processed again if the returned error is non-nil or
+// The Controller will requeue the request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileAAQ) Reconcile(_ context.Context, request reconcile.Request) (reconcile.Result, error) {
-	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
+	reqLogger := log.WithValues("request.Namespace", request.Namespace, "request.Name", request.Name)
 	reqLogger.Info("Reconciling AAQ CR")
 	operatorVersion := r.namespacedArgs.OperatorVersion
 	cr := &v1alpha1.AAQ{}

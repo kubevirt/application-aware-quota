@@ -32,7 +32,7 @@ var _ = Describe("Cert rotation tests", func() {
 		})
 
 		It("check secret re read", func() {
-			serviceName := "aaq-lock"
+			serviceName := "aaq-server"
 			secretName := "aaq-server-cert"
 			var (
 				err      error
@@ -82,8 +82,8 @@ var _ = Describe("Cert rotation tests", func() {
 	})
 
 	It("check secret updated", func() {
-		configMapName := "aaq-lock-signer-bundle"
-		secretName := "aaq-lock"
+		configMapName := "aaq-server-signer-bundle"
+		secretName := "aaq-server"
 		var oldBundle *corev1.ConfigMap
 		oldSecret, err := f.K8sClient.CoreV1().Secrets(f.AAQInstallNs).Get(context.TODO(), secretName, metav1.GetOptions{})
 		Expect(err).ToNot(HaveOccurred())

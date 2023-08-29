@@ -103,12 +103,12 @@ func createCertificateDefinitions() []CertificateDefinition {
 	return []CertificateDefinition{
 		{
 			Configurable: true,
-			SignerSecret: createSecret("aaq-lock"),
+			SignerSecret: createSecret("aaq-server"),
 			SignerConfig: CertificateConfig{
 				Lifetime: 48 * time.Hour,
 				Refresh:  24 * time.Hour,
 			},
-			CertBundleConfigmap: createConfigMap("aaq-lock-signer-bundle"),
+			CertBundleConfigmap: createConfigMap("aaq-server-signer-bundle"),
 			TargetSecret:        createSecret(namespaced.SecretResourceName),
 			TargetConfig: CertificateConfig{
 				Lifetime: 24 * time.Hour,

@@ -36,7 +36,7 @@ const (
 	AAQServerLabelSelector     = resourcesutils.AAQLabel + "=" + resourcesutils.AaqServerPodName
 
 	aaqControllerPodPrefix = "aaq-controller-"
-	aaqServerPodPrefix     = "aaq-lock-"
+	aaqServerPodPrefix     = "aaq-server-"
 )
 
 var _ = Describe("ALL Operator tests", func() {
@@ -235,7 +235,7 @@ var _ = Describe("ALL Operator tests", func() {
 				deployAAQOperator(f, tempAaqCr, aaqOperatorDeploymentBackup)
 
 				By("Testing all infra deployments have the chosen node placement")
-				for _, deploymentName := range []string{"aaq-lock", "aaq-controller"} {
+				for _, deploymentName := range []string{"aaq-server", "aaq-controller"} {
 					deployment, err := f.K8sClient.AppsV1().Deployments(f.AAQInstallNs).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 					Expect(err).ToNot(HaveOccurred())
 					err = f.PodSpecHasTestNodePlacementValues(deployment.Spec.Template.Spec, localSpec.Infra)
@@ -264,7 +264,7 @@ var _ = Describe("ALL Operator tests", func() {
 			})
 
 			It("Service spec.selector restored on overwrite attempt", func() {
-				service, err := f.K8sClient.CoreV1().Services(f.AAQInstallNs).Get(context.TODO(), "aaq-lock", metav1.GetOptions{})
+				service, err := f.K8sClient.CoreV1().Services(f.AAQInstallNs).Get(context.TODO(), "aaq-server", metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 				originalSelectorVal := service.Spec.Selector[resourcesutils.AAQLabel]
 
@@ -274,7 +274,7 @@ var _ = Describe("ALL Operator tests", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				Eventually(func() error {
-					svc, err := f.K8sClient.CoreV1().Services(f.AAQInstallNs).Get(context.TODO(), "aaq-lock", metav1.GetOptions{})
+					svc, err := f.K8sClient.CoreV1().Services(f.AAQInstallNs).Get(context.TODO(), "aaq-server", metav1.GetOptions{})
 					Expect(err).ToNot(HaveOccurred())
 					if svc.Spec.Selector[resourcesutils.AAQLabel] != originalSelectorVal {
 						return fmt.Errorf("original spec.selector value: %s\n should Matches current: %s\n", originalSelectorVal, svc.Spec.Selector[resourcesutils.AAQLabel])
@@ -305,7 +305,7 @@ var _ = Describe("ALL Operator tests", func() {
 			})
 
 			It("Certificate restored to ConfigMap on deletion attempt", func() {
-				configMap, err := f.K8sClient.CoreV1().ConfigMaps(f.AAQInstallNs).Get(context.TODO(), "aaq-lock-signer-bundle", metav1.GetOptions{})
+				configMap, err := f.K8sClient.CoreV1().ConfigMaps(f.AAQInstallNs).Get(context.TODO(), "aaq-server-signer-bundle", metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 
 				By("Empty ConfigMap's data")
@@ -316,10 +316,10 @@ var _ = Describe("ALL Operator tests", func() {
 
 				By("Waiting until ConfigMap's data is not empty")
 				Eventually(func() error {
-					cm, err := f.K8sClient.CoreV1().ConfigMaps(f.AAQInstallNs).Get(context.TODO(), "aaq-lock-signer-bundle", metav1.GetOptions{})
+					cm, err := f.K8sClient.CoreV1().ConfigMaps(f.AAQInstallNs).Get(context.TODO(), "aaq-server-signer-bundle", metav1.GetOptions{})
 					Expect(err).ToNot(HaveOccurred())
 					if len(cm.Data) == 0 {
-						return fmt.Errorf("aaq-lock-signer-bundle data should be filled by aaq-operator if modified")
+						return fmt.Errorf("aaq-server-signer-bundle data should be filled by aaq-operator if modified")
 					}
 					return nil
 				}, 2*time.Minute, 1*time.Second).ShouldNot(HaveOccurred())
@@ -364,7 +364,7 @@ var _ = Describe("ALL Operator tests", func() {
 
 			It("should allow update", func() {
 				origNotAfterTime := map[string]time.Time{}
-				caSecret, err := f.K8sClient.CoreV1().Secrets(f.AAQInstallNs).Get(context.TODO(), "aaq-lock", metav1.GetOptions{})
+				caSecret, err := f.K8sClient.CoreV1().Secrets(f.AAQInstallNs).Get(context.TODO(), "aaq-server", metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
 				serverSecret, err := f.K8sClient.CoreV1().Secrets(f.AAQInstallNs).Get(context.TODO(), namespaced.SecretResourceName, metav1.GetOptions{})
 				Expect(err).ToNot(HaveOccurred())
@@ -414,7 +414,7 @@ var _ = Describe("ALL Operator tests", func() {
 
 				By("Verify secrets have the right values")
 				Eventually(func() error {
-					caSecret, err := f.K8sClient.CoreV1().Secrets(f.AAQInstallNs).Get(context.TODO(), "aaq-lock", metav1.GetOptions{})
+					caSecret, err := f.K8sClient.CoreV1().Secrets(f.AAQInstallNs).Get(context.TODO(), "aaq-server", metav1.GetOptions{})
 					Expect(err).ToNot(HaveOccurred())
 
 					serverSecret, err := f.K8sClient.CoreV1().Secrets(f.AAQInstallNs).Get(context.TODO(), namespaced.SecretResourceName, metav1.GetOptions{})
@@ -590,7 +590,7 @@ func removeAAQ(f *framework.Framework, cr *aaqv1.AAQ) {
 	By("Waiting for AAQ CR and infra deployments to be gone now that we are sure there's no AAQ CR")
 
 	EventuallyWithOffset(1, func() error {
-		for _, deploymentName := range []string{"aaq-lock", "aaq-controller"} {
+		for _, deploymentName := range []string{"aaq-server", "aaq-controller"} {
 			_, err := f.K8sClient.AppsV1().Deployments(f.AAQInstallNs).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 			if !errors.IsNotFound(err) {
 				return fmt.Errorf(deploymentName + " should be deleted")
@@ -721,7 +721,7 @@ func infraDeploymentAvailable(f *framework.Framework, cr *aaqv1.AAQ) bool {
 		return false
 	}
 
-	for _, deploymentName := range []string{"aaq-lock", "aaq-controller"} {
+	for _, deploymentName := range []string{"aaq-server", "aaq-controller"} {
 		_, err := f.K8sClient.AppsV1().Deployments(f.AAQInstallNs).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 		if errors.IsNotFound(err) {
 			return false

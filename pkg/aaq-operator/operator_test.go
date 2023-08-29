@@ -1373,20 +1373,20 @@ func createNotReadyEventValidationMap() map[string]bool {
 	match["Normal DeployStarted Started Deployment"] = false
 	match[normalCreateSuccess+" *v1.ClusterRole aaq-controller"] = false
 	match[normalCreateSuccess+" *v1.ClusterRoleBinding aaq-controller"] = false
-	match[normalCreateSuccess+" *v1.ClusterRole aaq-lock"] = false
-	match[normalCreateSuccess+" *v1.ClusterRoleBinding aaq-lock"] = false
-	match[normalCreateSuccess+" *v1.Role aaq-lock"] = false
-	match[normalCreateSuccess+" *v1.RoleBinding aaq-lock"] = false
+	match[normalCreateSuccess+" *v1.ClusterRole aaq-server"] = false
+	match[normalCreateSuccess+" *v1.ClusterRoleBinding aaq-server"] = false
+	match[normalCreateSuccess+" *v1.Role aaq-server"] = false
+	match[normalCreateSuccess+" *v1.RoleBinding aaq-server"] = false
 	match[normalCreateSuccess+" *v1.Role aaq-controller"] = false
 	match[normalCreateSuccess+" *v1.RoleBinding aaq-controller"] = false
 	match[normalCreateSuccess+" *v1.ServiceAccount aaq-controller"] = false
-	match[normalCreateSuccess+" *v1.ServiceAccount aaq-lock"] = false
-	match[normalCreateSuccess+" *v1.Service aaq-lock"] = false
-	match[normalCreateSuccess+" *v1.Deployment aaq-lock"] = false
+	match[normalCreateSuccess+" *v1.ServiceAccount aaq-server"] = false
+	match[normalCreateSuccess+" *v1.Service aaq-server"] = false
+	match[normalCreateSuccess+" *v1.Deployment aaq-server"] = false
 	match[normalCreateSuccess+" *v1.Deployment aaq-controller"] = false
 	match[normalCreateSuccess+" *v1.CustomResourceDefinition applicationsresourcequotas.aaq.kubevirt.io"] = false
-	match[normalCreateSuccess+" *v1.Secret aaq-lock"] = false
-	match[normalCreateSuccess+" *v1.ConfigMap aaq-lock-signer-bundle"] = false
+	match[normalCreateSuccess+" *v1.Secret aaq-server"] = false
+	match[normalCreateSuccess+" *v1.ConfigMap aaq-server-signer-bundle"] = false
 	match[normalCreateSuccess+" *v1.Secret aaq-server-cert"] = false
 
 	return match
@@ -1401,7 +1401,7 @@ type fakeCertManager struct {
 
 func (tcm *fakeCertManager) Sync(certs []cert.CertificateDefinition) error {
 	cm := &corev1.ConfigMap{}
-	key := client.ObjectKey{Namespace: tcm.namespace, Name: "aaq-lock-signer-bundle"}
+	key := client.ObjectKey{Namespace: tcm.namespace, Name: "aaq-server-signer-bundle"}
 	err := tcm.client.Get(context.TODO(), key, cm)
 	// should exist
 	if err != nil {
