@@ -55,6 +55,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 	// Group=aaq.kubevirt.io, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithResource("aaqs"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Aaq().V1alpha1().AAQs().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("aaqjobqueueconfigs"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Aaq().V1alpha1().AAQJobQueueConfigs().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("applicationsresourcequotas"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Aaq().V1alpha1().ApplicationsResourceQuotas().Informer()}, nil
 

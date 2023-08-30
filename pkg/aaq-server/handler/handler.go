@@ -43,7 +43,7 @@ func (v Handler) Handle() (*admissionv1.AdmissionReview, error) {
 	return nil, fmt.Errorf("AAQ webhook doesn't recongnize request: %+v", v.request)
 }
 
-func (v Handler) mutatePod() (*admissionv1.AdmissionReview, error) {
+func (v Handler) mutatePod() (*admissionv1.AdmissionReview, error) { //todo: check that we don't replace all schedulingGates with our's
 	patch := `[{"op": "add", "path": "/spec/schedulingGates", "value": [{"name": "ApplicationsAwareQuotaGate"}]}]`
 	return reviewResponseWithPatch(v.request.UID, true, http.StatusAccepted, allowPodRequest, []byte(patch)), nil
 }
@@ -85,7 +85,6 @@ func (v Handler) validateApplicationsResourceQuota() (*admissionv1.AdmissionRevi
 	rq.Name = createRQName()
 	rq.Spec.Hard = arq.Spec.Hard
 	_, err := v.virtCli.CoreV1().ResourceQuotas(arq.Namespace).Create(context.Background(), rq, metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}})
-
 	if err != nil {
 		return reviewResponse(v.request.UID, false, http.StatusForbidden, ignoreRqErr(err.Error())), nil
 	}

@@ -32,6 +32,10 @@ func (c *FakeAaqV1alpha1) AAQs() v1alpha1.AAQInterface {
 	return &FakeAAQs{c}
 }
 
+func (c *FakeAaqV1alpha1) AAQJobQueueConfigs(namespace string) v1alpha1.AAQJobQueueConfigInterface {
+	return &FakeAAQJobQueueConfigs{c, namespace}
+}
+
 func (c *FakeAaqV1alpha1) ApplicationsResourceQuotas(namespace string) v1alpha1.ApplicationsResourceQuotaInterface {
 	return &FakeApplicationsResourceQuotas{c, namespace}
 }

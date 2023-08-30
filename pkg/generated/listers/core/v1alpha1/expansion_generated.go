@@ -22,6 +22,14 @@ package v1alpha1
 // AAQLister.
 type AAQListerExpansion interface{}
 
+// AAQJobQueueConfigListerExpansion allows custom methods to be added to
+// AAQJobQueueConfigLister.
+type AAQJobQueueConfigListerExpansion interface{}
+
+// AAQJobQueueConfigNamespaceListerExpansion allows custom methods to be added to
+// AAQJobQueueConfigNamespaceLister.
+type AAQJobQueueConfigNamespaceListerExpansion interface{}
+
 // ApplicationsResourceQuotaListerExpansion allows custom methods to be added to
 // ApplicationsResourceQuotaLister.
 type ApplicationsResourceQuotaListerExpansion interface{}

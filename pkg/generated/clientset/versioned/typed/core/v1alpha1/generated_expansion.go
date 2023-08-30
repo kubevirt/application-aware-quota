@@ -20,4 +20,6 @@ package v1alpha1
 
 type AAQExpansion interface{}
 
+type AAQJobQueueConfigExpansion interface{}
+
 type ApplicationsResourceQuotaExpansion interface{}

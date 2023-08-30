@@ -21,10 +21,12 @@ package ApplicationsResourceQuota
 
 // GroupName is the group name used in this package
 const (
-	GroupName     = "aaq.kubevirt.io"
-	LatestVersion = "v1alpha1"
-	Kind          = "ApplicationsResourceQuota"
-	ListKind      = "ApplicationsResourceQuotaList"
+	GroupName                 = "aaq.kubevirt.io"
+	LatestVersion             = "v1alpha1"
+	AAQJobQueueConfigKind     = "AAQJobQueueConfig"
+	AAQJobQueueConfigListKind = "AAQJobQueueConfigList"
+	Kind                      = "ApplicationsResourceQuota"
+	ListKind                  = "ApplicationsResourceQuotaList"
 
 	ResourceVMResourceQuotaSingular = "applicationsresourcequota"
 	ResourceVMResourceQuotaPlural   = ResourceVMResourceQuotaSingular + "s"

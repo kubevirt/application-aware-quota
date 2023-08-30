@@ -21,13 +21,13 @@ type factoryFunc func(*FactoryArgs) []client.Object
 type factoryFuncMap map[string]factoryFunc
 
 var staticFactoryFunctions = factoryFuncMap{
-	"aaq-server-rbac":   createStaticAAQLockResources,
+	"aaq-server-rbac": createStaticAAQLockResources,
 	"controller-rbac": createStaticControllerResources,
 	"crd-resources":   createCRDResources,
 }
 
 var dynamicFactoryFunctions = factoryFuncMap{
-	"mutating-gating-server-registrations": createDynamicMutatingGatingServerResources,
+	"webhooks-server-registrations": createDynamicMutatingGatingServerResources,
 }
 
 // CreateAllStaticResources creates all static cluster-wide resources
@@ -67,6 +67,7 @@ func createResourceGroup(funcMap factoryFuncMap, group string, args *FactoryArgs
 func createCRDResources(args *FactoryArgs) []client.Object {
 	return []client.Object{
 		createApplicationsResourceQuotaCRD(),
+		createAaqJobQueueConfigsCRD(),
 	}
 }
 

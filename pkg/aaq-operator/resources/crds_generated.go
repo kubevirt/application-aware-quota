@@ -2009,6 +2009,78 @@ status:
   conditions: null
   storedVersions: null
 `,
+	"aaqjobqueueconfig": `apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.11.3
+  creationTimestamp: null
+  name: aaqjobqueueconfigs.aaq.kubevirt.io
+spec:
+  group: aaq.kubevirt.io
+  names:
+    categories:
+    - all
+    kind: AAQJobQueueConfig
+    listKind: AAQJobQueueConfigList
+    plural: aaqjobqueueconfigs
+    shortNames:
+    - aaqjqc
+    - aaqjqcs
+    singular: aaqjobqueueconfig
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: AAQJobQueueConfig
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: CA configuration CA certs are kept in the CA bundle as long
+              as they are valid
+            properties:
+              builtInCalculationConfigToApply:
+                description: BuiltInCalculationConfigToApply
+                items:
+                  type: string
+                type: array
+            type: object
+          status:
+            description: AAQJobQueueConfigStatus defines the status with metadata
+              for current jobs
+            properties:
+              podsInJobQueue:
+                description: BuiltInCalculationConfigToApply
+                items:
+                  type: string
+                type: array
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: null
+  storedVersions: null
+`,
 	"applicationsresourcequota": `apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:

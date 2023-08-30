@@ -29,6 +29,7 @@ import (
 type AaqV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	AAQsGetter
+	AAQJobQueueConfigsGetter
 	ApplicationsResourceQuotasGetter
 }
 
@@ -39,6 +40,10 @@ type AaqV1alpha1Client struct {
 
 func (c *AaqV1alpha1Client) AAQs() AAQInterface {
 	return newAAQs(c)
+}
+
+func (c *AaqV1alpha1Client) AAQJobQueueConfigs(namespace string) AAQJobQueueConfigInterface {
+	return newAAQJobQueueConfigs(c, namespace)
 }
 
 func (c *AaqV1alpha1Client) ApplicationsResourceQuotas(namespace string) ApplicationsResourceQuotaInterface {

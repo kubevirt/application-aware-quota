@@ -26,6 +26,8 @@ import (
 type Interface interface {
 	// AAQs returns a AAQInformer.
 	AAQs() AAQInformer
+	// AAQJobQueueConfigs returns a AAQJobQueueConfigInformer.
+	AAQJobQueueConfigs() AAQJobQueueConfigInformer
 	// ApplicationsResourceQuotas returns a ApplicationsResourceQuotaInformer.
 	ApplicationsResourceQuotas() ApplicationsResourceQuotaInformer
 }
@@ -44,6 +46,11 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 // AAQs returns a AAQInformer.
 func (v *version) AAQs() AAQInformer {
 	return &aAQInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+}
+
+// AAQJobQueueConfigs returns a AAQJobQueueConfigInformer.
+func (v *version) AAQJobQueueConfigs() AAQJobQueueConfigInformer {
+	return &aAQJobQueueConfigInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // ApplicationsResourceQuotas returns a ApplicationsResourceQuotaInformer.

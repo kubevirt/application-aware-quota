@@ -92,6 +92,34 @@ type AAQCertConfig struct {
 	Server *CertConfig `json:"server,omitempty"`
 }
 
+// AAQJobQueueConfig
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
+// +kubebuilder:resource:shortName=aaqjqc;aaqjqcs,categories=all
+// +kubebuilder:subresource:status
+type AAQJobQueueConfig struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+	// CA configuration
+	// CA certs are kept in the CA bundle as long as they are valid
+	Spec *AAQJobQueueConfigSpec `json:"spec"`
+	// +optional
+	Status AAQJobQueueConfigStatus `json:"status"`
+}
+
+// AAQJobQueueConfigSpec defines our specification for JobQueueConfigs
+type AAQJobQueueConfigSpec struct {
+	// BuiltInCalculationConfigToApply
+	BuiltInCalculationConfigsToApply []string `json:"builtInCalculationConfigToApply,omitempty"`
+}
+
+// AAQJobQueueConfigStatus defines the status with metadata for current jobs
+type AAQJobQueueConfigStatus struct {
+	// BuiltInCalculationConfigToApply
+	PodsInJobQueue []string `json:"podsInJobQueue,omitempty"`
+}
+
 // AAQSpec defines our specification for the AAQ installation
 type AAQSpec struct {
 	// +kubebuilder:validation:Enum=Always;IfNotPresent;Never
@@ -128,4 +156,14 @@ type AAQList struct {
 
 	// Items provides a list of AAQs
 	Items []AAQ `json:"items"`
+}
+
+// AAQJobQueueConfigList provides the needed parameters to do request a list of AAQJobQueueConfigs from the system
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+type AAQJobQueueConfigList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+
+	// Items provides a list of AAQs
+	Items []AAQJobQueueConfig `json:"items"`
 }
