@@ -1,0 +1,11 @@
+apiVersion: aaq.kubevirt.io/v1alpha1
+kind: ApplicationsResourceQuota
+metadata:
+  name: example-resource-quota
+spec:
+  hard:
+    pods: "10"                     # Maximum number of pods allowed in the namespace
+    requests.cpu: "1"              # Total CPU request allowed for all pods
+    requests.memory: 1Gi           # Total memory request allowed for all pods
+    limits.cpu: "2"                # Total CPU limit allowed for all pods
+    limits.memory: 2Gi

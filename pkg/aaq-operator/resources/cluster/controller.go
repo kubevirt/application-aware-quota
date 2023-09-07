@@ -93,6 +93,7 @@ func getControllerClusterPolicyRules() []rbacv1.PolicyRule {
 			},
 			Resources: []string{
 				"applicationsresourcequotas",
+				"aaqjobqueueconfigs",
 			},
 			Verbs: []string{
 				"get",

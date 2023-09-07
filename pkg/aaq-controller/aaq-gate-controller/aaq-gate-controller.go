@@ -85,7 +85,7 @@ func (ctrl *AaqGateController) addAllArqsInNamespace(ns string) {
 		log.Log.Infof("AaqGateController: Error failed to list pod from podInformer")
 	}
 	for _, obj := range objs {
-		arq := obj.(v1alpha12.ApplicationsResourceQuota)
+		arq := obj.(*v1alpha12.ApplicationsResourceQuota)
 		key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(arq)
 		if err != nil {
 			return
@@ -100,6 +100,13 @@ func (ctrl *AaqGateController) addAllArqsInNamespace(ns string) {
 
 // When a ApplicationsResourceQuota is deleted, enqueue all gated pods for revaluation
 func (ctrl *AaqGateController) deleteArq(obj interface{}) {
+	arq := obj.(*v1alpha12.ApplicationsResourceQuota)
+	ctrl.addAllArqsInNamespace(arq.Namespace)
+	return
+}
+
+// When a ApplicationsResourceQuota is updated, enqueue all gated pods for revaluation
+func (ctrl *AaqGateController) addArq(obj interface{}) {
 	arq := obj.(*v1alpha12.ApplicationsResourceQuota)
 	ctrl.addAllArqsInNamespace(arq.Namespace)
 	return
@@ -131,6 +138,18 @@ func (ctrl *AaqGateController) deleteAaqjqc(obj interface{}) {
 
 func (ctrl *AaqGateController) addPod(obj interface{}) {
 	pod := obj.(*v1.Pod)
+	log.Log.Infof(fmt.Sprintf("Barak: here %v", pod))
+
+	if pod.Spec.SchedulingGates != nil &&
+		len(pod.Spec.SchedulingGates) == 1 &&
+		pod.Spec.SchedulingGates[0].Name == "ApplicationsAwareQuotaGate" {
+		ctrl.addAllArqsInNamespace(pod.Namespace)
+	}
+}
+func (ctrl *AaqGateController) updatePod(old, curr interface{}) {
+	pod := curr.(*v1.Pod)
+	log.Log.Infof(fmt.Sprintf("Barak: here %v", pod))
+
 	if pod.Spec.SchedulingGates != nil &&
 		len(pod.Spec.SchedulingGates) == 1 &&
 		pod.Spec.SchedulingGates[0].Name == "ApplicationsAwareQuotaGate" {
@@ -144,6 +163,8 @@ func (ctrl *AaqGateController) runWorker() {
 }
 
 func (ctrl *AaqGateController) Execute() bool {
+	log.Log.Infof("Barak: here")
+
 	key, quit := ctrl.arqQueue.Get()
 	if quit {
 		return false
@@ -152,7 +173,7 @@ func (ctrl *AaqGateController) Execute() bool {
 
 	err, enqueueState := ctrl.execute(key.(string))
 	if err != nil {
-		klog.Errorf(fmt.Sprintf("AaqGateController: Error with key: %v", key))
+		klog.Errorf(fmt.Sprintf("AaqGateController: Error with key: %v err: %v", key, err))
 	}
 	switch enqueueState {
 	case BackOff:
@@ -167,6 +188,7 @@ func (ctrl *AaqGateController) Execute() bool {
 }
 
 func (ctrl *AaqGateController) execute(key string) (error, enqueueState) {
+
 	arqNS, _, err := cache.SplitMetaNamespaceKey(key)
 	aaqjqc, err := ctrl.aaqCli.AAQJobQueueConfigs(arqNS).Get(context.Background(), AaqjqcName, metav1.GetOptions{})
 	if !errors.IsNotFound(err) {
@@ -174,8 +196,12 @@ func (ctrl *AaqGateController) execute(key string) (error, enqueueState) {
 			&v1alpha12.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: AaqjqcName}},
 			metav1.CreateOptions{})
 		if err != nil {
+			log.Log.Infof(fmt.Sprintf("Barak: here %v", err.Error()))
 			return err, Immediate
 		}
+	} else if err != nil {
+		log.Log.Infof(fmt.Sprintf("Barak: here %v", err.Error()))
+		return err, Immediate
 	}
 	if len(aaqjqc.Status.PodsInJobQueue) != 0 {
 		ctrl.releasePods(aaqjqc.Status.PodsInJobQueue, arqNS)
@@ -193,6 +219,7 @@ func (ctrl *AaqGateController) execute(key string) (error, enqueueState) {
 	}
 	podObjs, err := ctrl.podInformer.GetIndexer().ByIndex(cache.NamespaceIndex, arqNS)
 	if err != nil {
+		log.Log.Infof(fmt.Sprintf("Barak: here %v", err.Error()))
 		return err, Immediate
 	}
 	for _, podObj := range podObjs {
@@ -212,6 +239,7 @@ func (ctrl *AaqGateController) execute(key string) (error, enqueueState) {
 			currPodLimitedResource, err := getCurrLimitedResource(ctrl.aaqEvaluator, podCopy)
 
 			if err != nil {
+				log.Log.Infof(fmt.Sprintf("Barak: here %v", err.Error()))
 				return nil, Immediate
 			}
 
@@ -226,11 +254,13 @@ func (ctrl *AaqGateController) execute(key string) (error, enqueueState) {
 	if len(aaqjqc.Status.PodsInJobQueue) > 0 {
 		aaqjqc, err = ctrl.aaqCli.AAQJobQueueConfigs(arqNS).Update(context.Background(), aaqjqc, metav1.UpdateOptions{})
 		if err != nil {
+			log.Log.Infof(fmt.Sprintf("Barak: here %v", err.Error()))
 			return err, Immediate
 		}
 	}
 	err = ctrl.releasePods(aaqjqc.Status.PodsInJobQueue, arqNS)
 	if err != nil {
+		log.Log.Infof(fmt.Sprintf("Barak: here %v", err.Error()))
 		return err, Immediate
 	}
 	return nil, Forget
@@ -264,7 +294,8 @@ func (ctrl *AaqGateController) Run(threadiness int, stop <-chan struct{}) error 
 	defer utilruntime.HandleCrash()
 
 	_, err := ctrl.podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: ctrl.addPod,
+		AddFunc:    ctrl.addPod,
+		UpdateFunc: ctrl.updatePod,
 	})
 	if err != nil {
 		return err
@@ -272,6 +303,7 @@ func (ctrl *AaqGateController) Run(threadiness int, stop <-chan struct{}) error 
 	_, err = ctrl.arqInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: ctrl.deleteArq,
 		UpdateFunc: ctrl.updateArq,
+		AddFunc:    ctrl.addArq,
 	})
 	if err != nil {
 		return err

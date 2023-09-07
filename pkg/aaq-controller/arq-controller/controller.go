@@ -168,13 +168,20 @@ func NewArqController(clientSet kubecli.KubevirtClient,
 
 	// do initial quota monitor setup.  If we have a discovery failure here, it's ok. We'll discover more resources when a later sync happens.
 	resources, err := quotacontroller.GetQuotableResources(discoveryFunction)
+	podResourceMap := make(map[schema.GroupVersionResource]struct{})
+	for resource := range resources {
+		if resource.Resource == "pods" {
+			podResourceMap[resource] = struct{}{}
+		}
+	}
+
 	if discovery.IsGroupDiscoveryFailedError(err) {
 		utilruntime.HandleError(fmt.Errorf("initial discovery check failure, continuing and counting on future sync update: %v", err))
 	} else if err != nil {
 		panic("NewArqController: something is wrong")
 	}
 
-	if err = qm.SyncMonitors(context.Background(), resources); err != nil {
+	if err = qm.SyncMonitors(context.Background(), podResourceMap); err != nil {
 		utilruntime.HandleError(fmt.Errorf("initial monitor sync has error: %v", err))
 	}
 
@@ -272,6 +279,16 @@ func (ctrl *ArqController) execute(key string) (error, enqueueState) {
 		return err, BackOff
 	}
 	aaqjqc, err := ctrl.aaqCli.AAQJobQueueConfigs(ns).Get(context.Background(), arq_controller.AaqjqcName, metav1.GetOptions{})
+	if !errors.IsNotFound(err) {
+		aaqjqc, err = ctrl.aaqCli.AAQJobQueueConfigs(ns).Create(context.Background(),
+			&v1alpha12.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: arq_controller.AaqjqcName}},
+			metav1.CreateOptions{})
+		if err != nil {
+			return err, Immediate
+		}
+	} else if err != nil {
+		return err, Immediate
+	}
 
 	arqObjs, err := ctrl.arqInformer.GetIndexer().ByIndex(cache.NamespaceIndex, ns)
 	if err != nil {

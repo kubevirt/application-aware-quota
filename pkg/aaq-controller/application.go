@@ -240,8 +240,9 @@ func (mca *AaqControllerApp) onStartedLeading() func(ctx context.Context) {
 
 		go func() {
 			mca.arqController.Run(context.Background(), 3, stop)
+		}()
+		go func() {
 			mca.aaqGateController.Run(3, stop)
-
 		}()
 		close(mca.InformersStarted)
 		close(mca.readyChan)
