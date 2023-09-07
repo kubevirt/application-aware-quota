@@ -143,8 +143,9 @@ type PodControllerRefManager struct {
 // If CanAdopt() returns a non-nil error, all adoptions will fail.
 //
 // NOTE: Once CanAdopt() is called, it will not be called again by the same
-// PodControllerRefManager instance. Create a new instance if it makes
-// sense to check CanAdopt() again (e.g. in a different sync pass).
+//
+//	PodControllerRefManager instance. Create a new instance if it makes
+//	sense to check CanAdopt() again (e.g. in a different sync pass).
 func NewPodControllerRefManager(
 	podControl PodControlInterface,
 	controller metav1.Object,
@@ -236,8 +237,8 @@ func (m *PodControllerRefManager) AdoptPod(ctx context.Context, pod *v1.Pod) err
 // ReleasePod sends a patch to free the pod from the control of the controller.
 // It returns the error if the patching fails. 404 and 422 errors are ignored.
 func (m *PodControllerRefManager) ReleasePod(ctx context.Context, pod *v1.Pod) error {
-	logger := klog.FromContext(ctx)
-	logger.V(2).Info("Patching pod to remove its controllerRef", "pod", klog.KObj(pod), "gvk", m.controllerKind, "controller", m.Controller.GetName())
+	klog.V(2).Infof("patching pod %s_%s to remove its controllerRef to %s/%s:%s",
+		pod.Namespace, pod.Name, m.controllerKind.GroupVersion(), m.controllerKind.Kind, m.Controller.GetName())
 	patchBytes, err := GenerateDeleteOwnerRefStrategicMergeBytes(pod.UID, []types.UID{m.Controller.GetUID()}, m.finalizers...)
 	if err != nil {
 		return err
@@ -283,8 +284,9 @@ type ReplicaSetControllerRefManager struct {
 // If CanAdopt() returns a non-nil error, all adoptions will fail.
 //
 // NOTE: Once CanAdopt() is called, it will not be called again by the same
-// ReplicaSetControllerRefManager instance. Create a new instance if it
-// makes sense to check CanAdopt() again (e.g. in a different sync pass).
+//
+//	ReplicaSetControllerRefManager instance. Create a new instance if it
+//	makes sense to check CanAdopt() again (e.g. in a different sync pass).
 func NewReplicaSetControllerRefManager(
 	rsControl RSControlInterface,
 	controller metav1.Object,
@@ -361,8 +363,8 @@ func (m *ReplicaSetControllerRefManager) AdoptReplicaSet(ctx context.Context, rs
 // ReleaseReplicaSet sends a patch to free the ReplicaSet from the control of the Deployment controller.
 // It returns the error if the patching fails. 404 and 422 errors are ignored.
 func (m *ReplicaSetControllerRefManager) ReleaseReplicaSet(ctx context.Context, replicaSet *apps.ReplicaSet) error {
-	logger := klog.FromContext(ctx)
-	logger.V(2).Info("Patching ReplicaSet to remove its controllerRef", "replicaSet", klog.KObj(replicaSet), "gvk", m.controllerKind, "controller", m.Controller.GetName())
+	klog.V(2).Infof("patching ReplicaSet %s_%s to remove its controllerRef to %s/%s:%s",
+		replicaSet.Namespace, replicaSet.Name, m.controllerKind.GroupVersion(), m.controllerKind.Kind, m.Controller.GetName())
 	patchBytes, err := GenerateDeleteOwnerRefStrategicMergeBytes(replicaSet.UID, []types.UID{m.Controller.GetUID()})
 	if err != nil {
 		return err
@@ -421,8 +423,9 @@ type ControllerRevisionControllerRefManager struct {
 // If canAdopt() returns a non-nil error, all adoptions will fail.
 //
 // NOTE: Once canAdopt() is called, it will not be called again by the same
-// ControllerRevisionControllerRefManager instance. Create a new instance if it
-// makes sense to check canAdopt() again (e.g. in a different sync pass).
+//
+//	ControllerRevisionControllerRefManager instance. Create a new instance if it
+//	makes sense to check canAdopt() again (e.g. in a different sync pass).
 func NewControllerRevisionControllerRefManager(
 	crControl ControllerRevisionControlInterface,
 	controller metav1.Object,
@@ -499,8 +502,8 @@ func (m *ControllerRevisionControllerRefManager) AdoptControllerRevision(ctx con
 // ReleaseControllerRevision sends a patch to free the ControllerRevision from the control of its controller.
 // It returns the error if the patching fails. 404 and 422 errors are ignored.
 func (m *ControllerRevisionControllerRefManager) ReleaseControllerRevision(ctx context.Context, history *apps.ControllerRevision) error {
-	logger := klog.FromContext(ctx)
-	logger.V(2).Info("Patching ControllerRevision to remove its controllerRef", "controllerRevision", klog.KObj(history), "gvk", m.controllerKind, "controller", m.Controller.GetName())
+	klog.V(2).Infof("patching ControllerRevision %s_%s to remove its controllerRef to %s/%s:%s",
+		history.Namespace, history.Name, m.controllerKind.GroupVersion(), m.controllerKind.Kind, m.Controller.GetName())
 	patchBytes, err := GenerateDeleteOwnerRefStrategicMergeBytes(history.UID, []types.UID{m.Controller.GetUID()})
 	if err != nil {
 		return err

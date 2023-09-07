@@ -99,6 +99,7 @@ func Execute() {
 
 	app.aaqCli = util.GetAAQCli()
 	app.arqInformer = util.GetApplicationsResourceQuotaInformer(app.aaqCli)
+	app.aaqjqcInformer = util.GetAAQJobQueueConfig(app.aaqCli)
 	app.podInformer = util.GetLauncherPodInformer(virtCli)
 
 	stop := ctx.Done()

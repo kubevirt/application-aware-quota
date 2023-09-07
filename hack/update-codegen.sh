@@ -24,7 +24,7 @@ CODEGEN_PKG=${CODEGEN_PKG:-$(
     cd ${SCRIPT_ROOT}
     ls -d -1 ./vendor/k8s.io/code-generator 2>/dev/null || echo ../code-generator
 )}
-  
+
 find "${SCRIPT_ROOT}/pkg/" -name "*generated*.go" -exec rm {} -f \;
 find "${SCRIPT_ROOT}/staging/src/kubevirt.io/applications-aware-quota-api/" -name "*generated*.go" -exec rm {} -f \;
 rm -rf "${SCRIPT_ROOT}/pkg/generated"
@@ -33,7 +33,7 @@ rm -rf "${SCRIPT_ROOT}/pkg/generated"
 # --output-base    because this script should also be able to run inside the vendor dir of
 #                  k8s.io/kubernetes. The output-base is needed for the generators to output into the vendor dir
 #                  instead of the $GOPATH directly. For normal projects this can be dropped.
-/bin/bash ${CODEGEN_PKG}/kube_codegen.sh "deepcopy,client,informer,lister" \
+/bin/bash ${CODEGEN_PKG}/generate-groups.sh  "deepcopy,client,informer,lister" \
   kubevirt.io/applications-aware-quota/pkg/generated \
   kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis  \
     "core:v1alpha1 " \

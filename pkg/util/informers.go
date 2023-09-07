@@ -56,6 +56,11 @@ func GetApplicationsResourceQuotaInformer(aaqCli v1alpha12.AaqV1alpha1Client) ca
 	return cache.NewSharedIndexInformer(listWatcher, &v1alpha13.ApplicationsResourceQuota{}, 1*time.Hour, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 }
 
+func GetAAQJobQueueConfig(aaqCli v1alpha12.AaqV1alpha1Client) cache.SharedIndexInformer {
+	listWatcher := NewListWatchFromClient(aaqCli.RESTClient(), "aaqjobqueueconfigs", k8sv1.NamespaceAll, fields.Everything(), labels.Everything())
+	return cache.NewSharedIndexInformer(listWatcher, &v1alpha13.AAQJobQueueConfig{}, 1*time.Hour, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+}
+
 func GetLauncherPodInformer(virtCli kubecli.KubevirtClient) cache.SharedIndexInformer {
 	labelSelector, err := labels.Parse(fmt.Sprintf(k6tv1.AppLabel+" in (%s)", LauncherLabel))
 	if err != nil {
