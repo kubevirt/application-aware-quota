@@ -61,7 +61,6 @@ var (
 )
 
 func main() {
-
 	templFile := flag.String("template", "", "")
 	resourceType := flag.String("resource-type", "", "")
 	resourceGroup := flag.String("resource-group", "everything", "")
