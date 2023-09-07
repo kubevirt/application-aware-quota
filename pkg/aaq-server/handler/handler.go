@@ -84,6 +84,7 @@ func (v Handler) validateApplicationsResourceQuota() (*admissionv1.AdmissionRevi
 	rq.Namespace = arq.Namespace
 	rq.Name = createRQName()
 	rq.Spec.Hard = arq.Spec.Hard
+	//todo: make sure we don't let users define services and pvcs in quota spec
 	_, err := v.virtCli.CoreV1().ResourceQuotas(arq.Namespace).Create(context.Background(), rq, metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}})
 	if err != nil {
 		return reviewResponse(v.request.UID, false, http.StatusForbidden, ignoreRqErr(err.Error())), nil

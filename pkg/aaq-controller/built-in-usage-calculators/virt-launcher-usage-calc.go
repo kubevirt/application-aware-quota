@@ -7,11 +7,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	v12 "k8s.io/apiserver/pkg/quota/v1"
 	"k8s.io/apiserver/pkg/quota/v1/generic"
-	"k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/client-go/tools/cache"
-	resourcehelper "k8s.io/kubernetes/pkg/api/v1/resource"
+	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/apis/core/v1/helper"
-	"k8s.io/kubernetes/pkg/features"
 	"k8s.io/kubernetes/pkg/quota/v1/evaluator/core"
 	"k8s.io/utils/clock"
 	v15 "kubevirt.io/api/core/v1"
@@ -22,18 +20,36 @@ import (
 
 var podObjectCountName = generic.ObjectCountQuotaResourceNameFor(corev1.SchemeGroupVersion.WithResource("pods").GroupResource())
 
-func NewVirtLauncherCalculator( vmiInformer cache.SharedIndexInformer, migrationInformer cache.SharedIndexInformer, podInformer cache.SharedIndexInformer) AaqAppUsageCalculator {
-	return VirtLauncherCalculator{
-		vmiInformer:      vmiInformer,
+func NewVirtLauncherCalculator(stop <-chan struct{}) *VirtLauncherCalculator {
+	virtCli, err := util.GetVirtCli()
+	if err != nil {
+		panic("NewVirtLauncherCalculator: couldn't get virtCli")
+	}
+	vmiInformer := util.GetVMIInformer(virtCli)
+	podInformer := util.GetLauncherPodInformer(virtCli)
+	migrationInformer := util.GetMigrationInformer(virtCli)
+	go migrationInformer.Run(stop)
+	go vmiInformer.Run(stop)
+	go podInformer.Run(stop)
+
+	if !cache.WaitForCacheSync(stop,
+		migrationInformer.HasSynced,
+		vmiInformer.HasSynced,
+		podInformer.HasSynced,
+	) {
+		klog.Warningf("failed to wait for caches to sync")
+	}
+	return &VirtLauncherCalculator{
+		vmiInformer:       vmiInformer,
 		migrationInformer: migrationInformer,
-		podInformer: podInformer,
+		podInformer:       podInformer,
 	}
 }
 
 type VirtLauncherCalculator struct {
-	vmiInformer cache.SharedIndexInformer
+	vmiInformer       cache.SharedIndexInformer
 	migrationInformer cache.SharedIndexInformer
-	podInformer cache.SharedIndexInformer
+	podInformer       cache.SharedIndexInformer
 }
 
 func (launchercalc *VirtLauncherCalculator) PodUsageFunc(obj runtime.Object, clock clock.Clock) (corev1.ResourceList, error, bool) {
@@ -42,7 +58,7 @@ func (launchercalc *VirtLauncherCalculator) PodUsageFunc(obj runtime.Object, clo
 		return corev1.ResourceList{}, err, false
 	}
 
-	if pod.OwnerReferences == nil || len(pod.OwnerReferences) == 0 || pod.OwnerReferences[0].Kind == v15.VirtualMachineInstanceGroupVersionKind.Kind || !core.QuotaV1Pod(pod, clock) {
+	if pod.OwnerReferences == nil || len(pod.OwnerReferences) == 0 || pod.OwnerReferences[0].Kind != v15.VirtualMachineInstanceGroupVersionKind.Kind || !core.QuotaV1Pod(pod, clock) {
 		return corev1.ResourceList{}, nil, false
 	}
 
@@ -67,8 +83,7 @@ func (launchercalc *VirtLauncherCalculator) PodUsageFunc(obj runtime.Object, clo
 		if len(launcherPods) > 1 {
 			return corev1.ResourceList{}, fmt.Errorf("something is wrong multiple launchers while not migrating"), true
 		}
-		return CalculateResourceListForLauncherPod(pod, vmi), nil, true
-
+		return CalculateResourceListForLauncherPod(vmi, true), nil, true
 	}
 
 	if len(launcherPods) != 2 {
@@ -82,31 +97,64 @@ func (launchercalc *VirtLauncherCalculator) PodUsageFunc(obj runtime.Object, clo
 	}
 
 	if pod.Name == sourcePod.Name { // we are calculating source resources
-		if targetPod.Spec.SchedulingGates != nil && len(targetPod.Spec.SchedulingGates) > 0 {
-			return CalculateResourceListForLauncherPod(pod, vmi), nil, true //target is still gated we should not consider it
-		}
-		return v12.Max(CalculateResourceListForLauncherPod(targetPod, vmi), CalculateResourceListForLauncherPod(sourcePod, vmi)), nil, true
+		return CalculateResourceListForLauncherPod(vmi, true), nil, true
 	}
 
-	return v12.SubtractWithNonNegativeResult(CalculateResourceListForLauncherPod(targetPod, vmi), CalculateResourceListForLauncherPod(sourcePod, vmi)), nil, true
+	return v12.SubtractWithNonNegativeResult(CalculateResourceListForLauncherPod(vmi, false), CalculateResourceListForLauncherPod(vmi, true)), nil, true
 }
-func CalculateResourceListForLauncherPod(pod *corev1.Pod, vmi *v15.VirtualMachineInstance) corev1.ResourceList {
+func CalculateResourceListForLauncherPod(vmi *v15.VirtualMachineInstance, isSourceOrSingleLauncher bool) corev1.ResourceList {
 	result := corev1.ResourceList{
 		podObjectCountName: *(resource.NewQuantity(1, resource.DecimalSI)),
 	}
-	opts := resourcehelper.PodResourcesOptions{
-		InPlacePodVerticalScalingEnabled: feature.DefaultFeatureGate.Enabled(features.InPlacePodVerticalScaling),
+	//todo: once memory hot-plug is implemented we need to update this
+	guestMemReq := v12.Max(corev1.ResourceList{corev1.ResourceRequestsMemory: *vmi.Spec.Domain.Memory.Guest}, vmi.Spec.Domain.Resources.Requests)
+	guestMemLim := v12.Max(corev1.ResourceList{corev1.ResourceLimitsMemory: *vmi.Spec.Domain.Memory.Guest}, vmi.Spec.Domain.Resources.Limits)
+	requests := corev1.ResourceList{
+		corev1.ResourceRequestsMemory: guestMemReq[corev1.ResourceRequestsMemory],
 	}
-	requests := corev1.ResourceList{corev1.ResourceRequestsMemory: *vmi.Spec.Domain.Memory.Guest}
-	limits := corev1.ResourceList{corev1.ResourceLimitsMemory: *vmi.Spec.Domain.Memory.Guest}
-	if cpuReqVal, ok := resourcehelper.PodRequests(pod, opts)[corev1.ResourceRequestsCPU]; ok {
-		requests[corev1.ResourceRequestsCPU] = cpuReqVal
+	limits := corev1.ResourceList{
+		corev1.ResourceLimitsMemory: guestMemLim[corev1.ResourceLimitsMemory],
 	}
-	if cpuLimVal, ok := resourcehelper.PodLimits(pod, opts)[corev1.ResourceLimitsCPU]; ok {
-		limits[corev1.ResourceLimitsCPU] = cpuLimVal
+
+	var cpuTopology *v15.CPUTopology
+	if isSourceOrSingleLauncher {
+		cpuTopology = vmi.Status.CurrentCPUTopology
+	} else {
+		cpuTopology = &v15.CPUTopology{
+			Cores:   vmi.Spec.Domain.CPU.Cores,
+			Sockets: vmi.Spec.Domain.CPU.Sockets,
+			Threads: vmi.Spec.Domain.CPU.Threads,
+		}
 	}
+	vcpus := GetNumberOfVCPUs(cpuTopology)
+	vcpuQuantity := *resource.NewQuantity(vcpus, resource.BinarySI)
+	guestCpuReq := v12.Max(corev1.ResourceList{corev1.ResourceRequestsCPU: vcpuQuantity}, vmi.Spec.Domain.Resources.Requests)
+	guestCpuLim := v12.Max(corev1.ResourceList{corev1.ResourceLimitsCPU: vcpuQuantity}, vmi.Spec.Domain.Resources.Limits)
+
+	requests[corev1.ResourceRequestsCPU] = guestCpuReq[corev1.ResourceRequestsCPU]
+	limits[corev1.ResourceLimitsCPU] = guestCpuLim[corev1.ResourceLimitsCPU]
 	result = v12.Add(result, podComputeUsageHelper(requests, limits))
+
 	return result
+}
+
+func GetNumberOfVCPUs(cpuSpec *v15.CPUTopology) int64 {
+	vCPUs := cpuSpec.Cores
+	if cpuSpec.Sockets != 0 {
+		if vCPUs == 0 {
+			vCPUs = cpuSpec.Sockets
+		} else {
+			vCPUs *= cpuSpec.Sockets
+		}
+	}
+	if cpuSpec.Threads != 0 {
+		if vCPUs == 0 {
+			vCPUs = cpuSpec.Threads
+		} else {
+			vCPUs *= cpuSpec.Threads
+		}
+	}
+	return int64(vCPUs)
 }
 
 func UnfinishedVMIPods(podInformer cache.SharedIndexInformer, vmi *v15.VirtualMachineInstance) (pods []*corev1.Pod) {
@@ -122,9 +170,22 @@ func UnfinishedVMIPods(podInformer cache.SharedIndexInformer, vmi *v15.VirtualMa
 		if app, ok := pod.Labels[v15.AppLabel]; !ok || app != util.LauncherLabel {
 			continue
 		}
-		if createdByUID, ok := pod.Labels[v15.AppLabel]; !ok || createdByUID != string(vmi.GetUID()) {
+		if pod.OwnerReferences != nil {
 			continue
 		}
+
+		ownerRefs := pod.GetOwnerReferences()
+		found := false
+		for _, ownerRef := range ownerRefs {
+			if ownerRef.UID != vmi.GetUID() {
+				found = true
+			}
+		}
+
+		if !found {
+			continue
+		}
+
 		pods = append(pods, pod)
 	}
 	return pods

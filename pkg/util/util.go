@@ -1,10 +1,9 @@
 package util
 
 import (
-	"context"
 	"crypto/tls"
 	"fmt"
-	"k8s.io/client-go/tools/cache"
+	v12 "k8s.io/api/core/v1"
 	"k8s.io/client-go/util/certificate"
 	"k8s.io/klog/v2"
 	v1 "kubevirt.io/api/core/v1"
@@ -135,31 +134,6 @@ func SetupTLS(certManager certificate.Manager) *tls.Config {
 	return tlsConfig
 }
 
-func GetKVNS() *string {
-	virtCli, err := GetVirtCli()
-	if err != nil {
-		klog.Error(err.Error())
-		os.Exit(1)
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	stop := ctx.Done()
-	kubevirtInformer := KubeVirtInformer(virtCli)
-	go kubevirtInformer.Run(stop)
-	if err != nil {
-		klog.Error(err.Error())
-		os.Exit(1)
-	}
-	if !cache.WaitForCacheSync(stop, kubevirtInformer.HasSynced) {
-		klog.Error("couldn't fetch kv install namespace")
-		os.Exit(1)
-	}
-	objs := kubevirtInformer.GetIndexer().List()
-	if len(objs) != 1 {
-		klog.Error("Single KV object should exist in the cluster.")
-		os.Exit(1)
-	}
-	kv := (objs[0]).(*v1.KubeVirt)
-
-	return &kv.Namespace
+func IsTerminalState(pod *v12.Pod) bool {
+	return pod.Status.Phase == v12.PodSucceeded || pod.Status.Phase == v12.PodFailed
 }

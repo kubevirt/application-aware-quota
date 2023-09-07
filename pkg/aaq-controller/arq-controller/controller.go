@@ -7,7 +7,6 @@ import (
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -28,16 +27,14 @@ import (
 	"k8s.io/kubernetes/pkg/quota/v1/evaluator/core"
 	"k8s.io/utils/clock"
 	aaq_evaluator "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-evaluator"
+	arq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-gate-controller"
 	built_in_usage_calculators "kubevirt.io/applications-aware-quota/pkg/aaq-controller/built-in-usage-calculators"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/utils"
 	v1alpha13 "kubevirt.io/applications-aware-quota/pkg/generated/clientset/versioned/typed/core/v1alpha1"
-	v1alpha15 "kubevirt.io/applications-aware-quota/pkg/generated/informers/externalversions/core/v1alpha1"
-	v1alpha14 "kubevirt.io/applications-aware-quota/pkg/generated/listers/core/v1alpha1"
 	v1alpha12 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	"kubevirt.io/client-go/kubecli"
 	"kubevirt.io/client-go/log"
 	"kubevirt.io/kubevirt/pkg/controller"
-	"strings"
 	"sync"
 	"time"
 )
@@ -58,7 +55,7 @@ type ArqController struct {
 	virtCli          kubecli.KubevirtClient
 	aaqCli           v1alpha13.AaqV1alpha1Client
 	// A lister/getter of resource quota objects
-	arqLister v1alpha14.ApplicationsResourceQuotaLister
+	arqInformer cache.SharedIndexInformer
 	// A list of functions that return true when their caches have synced
 	informerSyncedFuncs []cache.InformerSynced
 	arqQueue            workqueue.RateLimitingInterface
@@ -77,34 +74,31 @@ type ArqController struct {
 	workerLock sync.RWMutex
 
 	recorder     record.EventRecorder
-	podEvaluator v12.Evaluator
-	syncHandler  func(ctx context.Context, key string) error
+	aaqEvaluator v12.Evaluator
+	syncHandler  func(key string) error
 }
 
-func NewArqController(virtCli kubecli.KubevirtClient,
-	aaqNs string, aaqCli v1alpha13.AaqV1alpha1Client,
+func NewArqController(clientSet kubecli.KubevirtClient,
+	aaqCli v1alpha13.AaqV1alpha1Client,
 	podInformer cache.SharedIndexInformer,
-	arqInformer v1alpha15.ApplicationsResourceQuotaInformer,
+	arqInformer cache.SharedIndexInformer,
 	aaqjqcInformer cache.SharedIndexInformer,
 	stop <-chan struct{},
 	InformersStarted <-chan struct{},
 ) *ArqController {
 
 	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartRecordingToSink(&v14.EventSinkImpl{Interface: virtCli.CoreV1().Events(v1.NamespaceAll)})
+	eventBroadcaster.StartRecordingToSink(&v14.EventSinkImpl{Interface: clientSet.CoreV1().Events(v1.NamespaceAll)})
 	//todo: make this generic for now we will try only launcher calculator
-	InformerFactory := informers.NewSharedInformerFactoryWithOptions(virtCli, 1*time.Hour)
+	InformerFactory := informers.NewSharedInformerFactoryWithOptions(clientSet, 1*time.Hour)
 	calcRegistry := aaq_evaluator.NewAaqCalculatorsRegistry(10, clock.RealClock{}).AddCalculator(built_in_usage_calculators.NewVirtLauncherCalculator(stop))
 	listerFuncForResource := generic.ListerFuncForResourceFunc(InformerFactory.ForResource)
-	discoveryFunction := discovery.NewDiscoveryClient(virtCli.RestClient()).ServerPreferredNamespacedResources
+	discoveryFunction := discovery.NewDiscoveryClient(clientSet.RestClient()).ServerPreferredNamespacedResources
 
 	ctrl := &ArqController{
-		InformersStarted:    InformersStarted,
-		aaqNs:               aaqNs,
-		virtCli:             virtCli,
 		aaqCli:              aaqCli,
-		arqLister:           arqInformer.Lister(),
-		informerSyncedFuncs: []cache.InformerSynced{arqInformer.Informer().HasSynced},
+		arqInformer:         arqInformer,
+		informerSyncedFuncs: []cache.InformerSynced{arqInformer.HasSynced},
 		podInformer:         podInformer,
 		aaqjqcInformer:      aaqjqcInformer,
 		arqQueue:            workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq_primary"),
@@ -112,14 +106,13 @@ func NewArqController(virtCli kubecli.KubevirtClient,
 		enqueueAllQueue:     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq_enqueue_all"),
 		resyncPeriod:        pkgcontroller.StaticResyncPeriodFunc(metav1.Duration{Duration: 5 * time.Minute}.Duration),
 		recorder:            eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: utils.ControllerPodName}),
-		podEvaluator:        core.NewPodEvaluator(nil, clock.RealClock{}),
 		registry:            generic.NewRegistry([]v12.Evaluator{aaq_evaluator.NewAaqEvaluator(listerFuncForResource, calcRegistry, clock.RealClock{})}),
 	}
 	ctrl.syncHandler = ctrl.syncResourceQuotaFromKey
 
 	logger := klog.FromContext(context.Background())
 
-	arqInformer.Informer().AddEventHandlerWithResyncPeriod(
+	arqInformer.AddEventHandlerWithResyncPeriod(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				ctrl.addQuota(logger, obj)
@@ -193,49 +186,37 @@ func NewArqController(virtCli kubecli.KubevirtClient,
 	return ctrl
 }
 
-// When a ApplicationsResourceQuota is added, enqueue fake pod to namespace to trigger the reconciliation loop
-func (ctrl *ArqController) addArq(obj interface{}) {
-	arq := obj.(*v1alpha12.ApplicationsResourceQuota)
-	ctrl.addAllArqsInNamespace(arq.Namespace, &ctrl.arqQueue)
-	return
-}
-
 // When a ApplicationsResourceQuotaaqjqc.Status.PodsInJobQueuea is updated, enqueue all gated pods for revaluation
 func (ctrl *ArqController) updateAaqjqc(old, cur interface{}) {
 	aaqjqc := cur.(*v1alpha12.AAQJobQueueConfig)
 	if aaqjqc.Status.PodsInJobQueue != nil && len(aaqjqc.Status.PodsInJobQueue) > 0 {
-		ctrl.addAllArqsInNamespace(aaqjqc.Namespace, &ctrl.enqueueAllQueue)
+		ctrl.addAllArqsInNamespace(aaqjqc.Namespace)
 	}
 	return
 }
 
-func (ctrl *ArqController) addAllArqsInNamespace(ns string, queue *workqueue.RateLimitingInterface) {
-	arq, err := ctrl.arqLister.List(labels.Everything())
+func (ctrl *ArqController) addAllArqsInNamespace(ns string) {
+	arqs, err := ctrl.arqInformer.GetIndexer().ByIndex(cache.NamespaceIndex, ns)
 	if err != nil {
 		log.Log.Infof("AaqGateController: Error failed to list pod from podInformer")
 	}
-	for _, arq := range arq {
+	for _, arq := range arqs {
 		key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(arq)
 		if err != nil {
 			return
 		}
-		(*queue).Add(key)
+		ctrl.enqueueAllQueue.Add(key)
 	}
 }
 
 // enqueueAll is called at the fullResyncPeriod interval to force a full recalculation of quota usage statistics
-func (ctrl *ArqController) enqueueAll(ctx context.Context) {
-	logger := klog.FromContext(ctx)
-	defer logger.V(4).Info("Arq controller queued all resource quota for full calculation of usage")
-	arqs, err := ctrl.arqLister.List(labels.Everything())
-	if err != nil {
-		utilruntime.HandleError(fmt.Errorf("unable to enqueue all - error listing resource quotas: %v", err))
-		return
-	}
-	for i := range arqs {
-		key, err := controller.KeyFunc(arqs[i])
+func (ctrl *ArqController) enqueueAll() {
+	arqObjs := ctrl.arqInformer.GetIndexer().List()
+	for _, arqObj := range arqObjs {
+		arq := arqObj.(*v1alpha12.ApplicationsResourceQuota)
+		key, err := controller.KeyFunc(arqObj.(*v1alpha12.ApplicationsResourceQuota))
 		if err != nil {
-			utilruntime.HandleError(fmt.Errorf("couldn't get key for object %+v: %v", arqs[i], err))
+			utilruntime.HandleError(fmt.Errorf("couldn't get key for object %+v: %v", arq, err))
 			continue
 		}
 		ctrl.arqQueue.Add(key)
@@ -248,8 +229,8 @@ func (ctrl *ArqController) updatePod(old, curr interface{}) {
 	if !isTerminalState(currPod) && oldPod.Spec.SchedulingGates != nil &&
 		len(oldPod.Spec.SchedulingGates) == 1 &&
 		oldPod.Spec.SchedulingGates[0].Name == "ApplicationsAwareQuotaGate" &&
-		(currPod.Spec.SchedulingGates == nil || len(currPod.Spec.SchedulingGates) == 0) {
-		ctrl.addAllArqsInNamespace(currPod.Namespace, &ctrl.enqueueAllQueue)
+		len(currPod.Spec.SchedulingGates) == 0 {
+		ctrl.addAllArqsInNamespace(currPod.Namespace)
 	}
 }
 
@@ -257,17 +238,17 @@ func isTerminalState(pod *v1.Pod) bool {
 	return pod.Status.Phase == v1.PodSucceeded || pod.Status.Phase == v1.PodFailed
 }
 
-func (ctrl *ArqController) runWorker() {
+func (ctrl *ArqController) runGateWatcherWorker() {
 	for ctrl.Execute() {
 	}
 }
 
 func (ctrl *ArqController) Execute() bool {
-	key, quit := ctrl.arqQueue.Get()
+	key, quit := ctrl.enqueueAllQueue.Get()
 	if quit {
 		return false
 	}
-	defer ctrl.arqQueue.Done(key)
+	defer ctrl.enqueueAllQueue.Done(key)
 
 	err, enqueueState := ctrl.execute(key.(string))
 	if err != nil {
@@ -275,23 +256,54 @@ func (ctrl *ArqController) Execute() bool {
 	}
 	switch enqueueState {
 	case BackOff:
-		ctrl.arqQueue.AddRateLimited(key)
+		ctrl.enqueueAllQueue.AddRateLimited(key)
 	case Forget:
-		ctrl.arqQueue.Forget(key)
+		ctrl.enqueueAllQueue.Forget(key)
 	case Immediate:
-		ctrl.arqQueue.Add(key)
+		ctrl.enqueueAllQueue.Add(key)
 	}
 
 	return true
 }
 
 func (ctrl *ArqController) execute(key string) (error, enqueueState) {
-	_, _, err := ctrl.podInformer.GetStore().GetByKey(key)
+	ns, _, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err, BackOff
 	}
-	//todo: implement
-	_, _, _ = parseKey(key)
+	aaqjqc, err := ctrl.aaqCli.AAQJobQueueConfigs(ns).Get(context.Background(), arq_controller.AaqjqcName, metav1.GetOptions{})
+
+	arqObjs, err := ctrl.arqInformer.GetIndexer().ByIndex(cache.NamespaceIndex, ns)
+	if err != nil {
+		return err, Immediate
+	}
+
+	for _, arqObj := range arqObjs {
+		arq := arqObj.(*v1alpha12.ApplicationsResourceQuota)
+		err := ctrl.syncResourceQuota(arq)
+		if err != nil {
+			return err, Immediate
+		}
+	}
+
+	for _, podName := range aaqjqc.Status.PodsInJobQueue {
+		obj, exists, err := ctrl.podInformer.GetIndexer().GetByKey(ns + "/" + podName)
+		if err != nil {
+			return err, Immediate
+		}
+		if !exists {
+			continue
+		}
+		pod := obj.(*v1.Pod)
+		if len(pod.Spec.SchedulingGates) > 0 {
+			return nil, Immediate
+		}
+	}
+	aaqjqc.Status.PodsInJobQueue = []string{}
+	_, err = ctrl.aaqCli.AAQJobQueueConfigs(ns).Update(context.Background(), aaqjqc, metav1.UpdateOptions{})
+	if err != nil {
+		return err, Immediate
+	}
 	return nil, Forget
 }
 
@@ -310,17 +322,16 @@ func (ctrl *ArqController) Run(ctx context.Context, workers int, stop <-chan str
 		return
 	}
 
+	ctrl.quotaMonitor.StartMonitors(context.Background())
 	// the workers that chug through the quota calculation backlog
 	for i := 0; i < workers; i++ {
-		go wait.UntilWithContext(ctx, ctrl.worker(ctrl.arqQueue), time.Second)
-		go wait.UntilWithContext(ctx, ctrl.worker(ctrl.missingUsageQueue), time.Second)
-	}
-	for i := 0; i < workers; i++ {
-		go wait.Until(ctrl.runWorker, time.Second, stop)
+		go wait.Until(ctrl.worker(ctrl.arqQueue), time.Second, stop)
+		go wait.Until(ctrl.worker(ctrl.missingUsageQueue), time.Second, stop)
+		go wait.Until(ctrl.runGateWatcherWorker, time.Second, stop)
 	}
 	// the timer for how often we do a full recalculation across all quotas
 	if ctrl.resyncPeriod() > 0 {
-		go wait.UntilWithContext(ctx, ctrl.enqueueAll, ctrl.resyncPeriod())
+		go wait.Until(ctrl.enqueueAll, ctrl.resyncPeriod(), stop)
 	} else {
 		logger.Info("periodic quota controller resync disabled")
 	}
@@ -329,7 +340,7 @@ func (ctrl *ArqController) Run(ctx context.Context, workers int, stop <-chan str
 }
 
 // worker runs a worker thread that just dequeues items, processes them, and marks them done.
-func (ctrl *ArqController) worker(queue workqueue.RateLimitingInterface) func(context.Context) {
+func (ctrl *ArqController) worker(queue workqueue.RateLimitingInterface) func() {
 	workFunc := func(ctx context.Context) bool {
 		key, quit := queue.Get()
 		if quit {
@@ -344,7 +355,7 @@ func (ctrl *ArqController) worker(queue workqueue.RateLimitingInterface) func(co
 		logger = klog.LoggerWithValues(logger, "queueKey", key)
 		ctx = klog.NewContext(ctx, logger)
 
-		err := ctrl.syncHandler(ctx, key.(string))
+		err := ctrl.syncHandler(key.(string))
 		if err == nil {
 			queue.Forget(key)
 			return false
@@ -356,10 +367,10 @@ func (ctrl *ArqController) worker(queue workqueue.RateLimitingInterface) func(co
 		return false
 	}
 
-	return func(ctx context.Context) {
+	return func() {
 		for {
-			if quit := workFunc(ctx); quit {
-				klog.FromContext(ctx).Info("resource quota controller worker shutting down")
+			if quit := workFunc(context.Background()); quit {
+				klog.FromContext(context.Background()).Info("resource quota controller worker shutting down")
 				return
 			}
 		}
@@ -407,7 +418,7 @@ func (ctrl *ArqController) replenishQuota(ctx context.Context, groupResource sch
 	}
 
 	// check if this namespace even has a quota...
-	arqs, err := ctrl.arqLister.ApplicationsResourceQuotas(namespace).List(labels.Everything())
+	arqObjs, err := ctrl.arqInformer.GetIndexer().ByIndex(cache.NamespaceIndex, namespace)
 	if errors.IsNotFound(err) {
 		utilruntime.HandleError(fmt.Errorf("quota controller could not find ApplicationsResourceQuotas associated with namespace: %s, could take up to %v before a quota replenishes", namespace, ctrl.resyncPeriod()))
 		return
@@ -416,15 +427,15 @@ func (ctrl *ArqController) replenishQuota(ctx context.Context, groupResource sch
 		utilruntime.HandleError(fmt.Errorf("error checking to see if namespace %s has any ApplicationsResourceQuotas associated with it: %v", namespace, err))
 		return
 	}
-	if len(arqs) == 0 {
+	if len(arqObjs) == 0 {
 		return
 	}
 
 	logger := klog.FromContext(ctx)
 
 	// only queue those quotas that are tracking a resource associated with this kind.
-	for i := range arqs {
-		arq := arqs[i]
+	for _, arqObj := range arqObjs {
+		arq := arqObj.(*v1alpha12.ApplicationsResourceQuota)
 		resourceQuotaResources := quota.ResourceNames(arq.Status.Hard)
 		if intersection := evaluator.MatchingResources(resourceQuotaResources); len(intersection) > 0 {
 			ctrl.enqueueArq(logger, arq)
@@ -443,10 +454,10 @@ func (ctrl *ArqController) enqueueArq(logger klog.Logger, obj interface{}) {
 }
 
 // syncResourceQuotaFromKey syncs a quota key
-func (ctrl *ArqController) syncResourceQuotaFromKey(ctx context.Context, key string) (err error) {
+func (ctrl *ArqController) syncResourceQuotaFromKey(key string) (err error) {
 	startTime := time.Now()
 
-	logger := klog.FromContext(ctx)
+	logger := klog.FromContext(context.Background())
 	logger = klog.LoggerWithValues(logger, "key", key)
 
 	defer func() {
@@ -457,8 +468,8 @@ func (ctrl *ArqController) syncResourceQuotaFromKey(ctx context.Context, key str
 	if err != nil {
 		return err
 	}
-	resourceQuota, err := ctrl.arqLister.ApplicationsResourceQuotas(namespace).Get(name)
-	if errors.IsNotFound(err) {
+	arqObj, exist, err := ctrl.arqInformer.GetIndexer().GetByKey(namespace + "/" + name)
+	if !exist {
 		logger.Info("Resource quota has been deleted", "key", key)
 		return nil
 	}
@@ -466,11 +477,12 @@ func (ctrl *ArqController) syncResourceQuotaFromKey(ctx context.Context, key str
 		logger.Error(err, "Unable to retrieve resource quota from store", "key", key)
 		return err
 	}
-	return ctrl.syncResourceQuota(ctx, resourceQuota)
+	arq := arqObj.(*v1alpha12.ApplicationsResourceQuota)
+	return ctrl.syncResourceQuota(arq)
 }
 
 // syncResourceQuota runs a complete sync of resource quota status across all known kinds
-func (ctrl *ArqController) syncResourceQuota(ctx context.Context, appResourceQuota *v1alpha12.ApplicationsResourceQuota) (err error) {
+func (ctrl *ArqController) syncResourceQuota(appResourceQuota *v1alpha12.ApplicationsResourceQuota) (err error) {
 	// quota is dirty if any part of spec hard limits differs from the status hard limits
 	statusLimitsDirty := !apiequality.Semantic.DeepEqual(appResourceQuota.Spec.Hard, appResourceQuota.Status.Hard)
 
@@ -512,22 +524,12 @@ func (ctrl *ArqController) syncResourceQuota(ctx context.Context, appResourceQuo
 
 	// there was a change observed by this controller that requires we update quota
 	if dirty {
-		_, err = ctrl.aaqCli.ApplicationsResourceQuotas(usage.Namespace).UpdateStatus(ctx, usage, metav1.UpdateOptions{})
+		_, err = ctrl.aaqCli.ApplicationsResourceQuotas(usage.Namespace).UpdateStatus(context.Background(), usage, metav1.UpdateOptions{})
 		if err != nil {
 			errs = append(errs, err)
 		}
 	}
 	return utilerrors.NewAggregate(errs)
-}
-
-func parseKey(key string) (string, string, error) {
-	parts := strings.Split(key, "/")
-	if len(parts) != 2 {
-		return "", "", fmt.Errorf("error: input key: %v is not in the expected format", key)
-	}
-	migartionNS := parts[0]
-	migrationName := parts[1]
-	return migartionNS, migrationName, nil
 }
 
 // function from kubernetes

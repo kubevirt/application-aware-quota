@@ -32,6 +32,7 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
+	arq_controller2 "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-gate-controller"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-controller/arq-controller"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/namespaced"
 	"kubevirt.io/applications-aware-quota/pkg/generated/clientset/versioned/typed/core/v1alpha1"
@@ -39,31 +40,27 @@ import (
 	"kubevirt.io/client-go/kubecli"
 	"kubevirt.io/kubevirt/pkg/certificates/bootstrap"
 	"kubevirt.io/kubevirt/pkg/virt-controller/leaderelectionconfig"
-	"os"
-	"strconv"
-
 	golog "log"
 	"net/http"
+	"os"
+	"strconv"
 )
 
 type AaqControllerApp struct {
-	ctx                   context.Context
-	aaqNs                 string
-	host                  string
-	LeaderElection        leaderelectionconfig.Configuration
-	clientSet             kubecli.KubevirtClient
-	aaqCli                v1alpha1.AaqV1alpha1Client
-	arqController         *arq_controller.ArqController
-	podInformer           cache.SharedIndexInformer
-	migrationInformer     cache.SharedIndexInformer
-	resourceQuotaInformer cache.SharedIndexInformer
-	arqInformer           cache.SharedIndexInformer
-	vmiInformer           cache.SharedIndexInformer
-	kubeVirtInformer      cache.SharedIndexInformer
-	crdInformer           cache.SharedIndexInformer
-	pvcInformer           cache.SharedIndexInformer
-	readyChan             chan bool
-	leaderElector         *leaderelection.LeaderElector
+	ctx               context.Context
+	aaqNs             string
+	host              string
+	LeaderElection    leaderelectionconfig.Configuration
+	clientSet         kubecli.KubevirtClient
+	aaqCli            v1alpha1.AaqV1alpha1Client
+	arqController     *arq_controller.ArqController
+	aaqGateController *arq_controller2.AaqGateController
+	podInformer       cache.SharedIndexInformer
+	arqInformer       cache.SharedIndexInformer
+	aaqjqcInformer    cache.SharedIndexInformer
+	readyChan         chan bool
+	InformersStarted  chan struct{}
+	leaderElector     *leaderelection.LeaderElector
 }
 
 func Execute() {
@@ -72,6 +69,7 @@ func Execute() {
 
 	app.LeaderElection = leaderelectionconfig.DefaultLeaderElectionConfiguration()
 	app.readyChan = make(chan bool, 1)
+	app.InformersStarted = make(chan struct{})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -100,16 +98,13 @@ func Execute() {
 	app.host = host
 
 	app.aaqCli = util.GetAAQCli()
-	app.podInformer = util.GetLauncherPodInformer(virtCli)
 	app.arqInformer = util.GetApplicationsResourceQuotaInformer(app.aaqCli)
-	app.resourceQuotaInformer = util.GetResourceQuotaInformer(virtCli)
-	app.vmiInformer = util.GetVMIInformer(virtCli)
-	app.migrationInformer = util.GetMigrationInformer(virtCli)
-	app.kubeVirtInformer = util.KubeVirtInformer(virtCli)
-	app.crdInformer = util.CRDInformer(virtCli)
-	app.pvcInformer = util.PersistentVolumeClaim(virtCli)
-	app.initArqController()
-	app.Run()
+	app.podInformer = util.GetLauncherPodInformer(virtCli)
+
+	stop := ctx.Done()
+	app.initArqController(stop)
+	app.iniAaqGateController(stop)
+	app.Run(stop)
 
 	klog.V(2).Infoln("AAQ controller exited")
 
@@ -134,24 +129,28 @@ func (mca *AaqControllerApp) leaderProbe(_ *restful.Request, response *restful.R
 	}
 }
 
-func (mca *AaqControllerApp) initArqController() {
+func (mca *AaqControllerApp) initArqController(stop <-chan struct{}) {
 	mca.arqController = arq_controller.NewArqController(mca.clientSet,
-		mca.aaqNs, mca.aaqCli,
-		mca.vmiInformer,
-		mca.migrationInformer,
+		mca.aaqCli,
 		mca.podInformer,
-		mca.kubeVirtInformer,
-		mca.crdInformer,
-		mca.pvcInformer,
 		mca.arqInformer,
+		mca.aaqjqcInformer,
+		stop,
+		mca.InformersStarted,
 	)
 }
 
-func (mca *AaqControllerApp) Run() {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	stop := ctx.Done()
+func (mca *AaqControllerApp) iniAaqGateController(stop <-chan struct{}) {
+	mca.aaqGateController = arq_controller2.NewAaqGateController(mca.clientSet,
+		mca.aaqCli,
+		mca.podInformer,
+		mca.arqInformer,
+		mca.aaqjqcInformer,
+		stop,
+	)
+}
 
+func (mca *AaqControllerApp) Run(stop <-chan struct{}) {
 	secretInformer := util.GetSecretInformer(mca.clientSet, mca.aaqNs)
 	go secretInformer.Run(stop)
 	if !cache.WaitForCacheSync(stop, secretInformer.HasSynced) {
@@ -225,32 +224,25 @@ func (mca *AaqControllerApp) setupLeaderElector() (err error) {
 func (mca *AaqControllerApp) onStartedLeading() func(ctx context.Context) {
 	return func(ctx context.Context) {
 		stop := ctx.Done()
-		go mca.migrationInformer.Run(stop)
-		go mca.vmiInformer.Run(stop)
-		go mca.kubeVirtInformer.Run(stop)
-		go mca.crdInformer.Run(stop)
-		go mca.pvcInformer.Run(stop)
+
 		go mca.podInformer.Run(stop)
 		go mca.arqInformer.Run(stop)
-		go mca.resourceQuotaInformer.Run(stop)
+		go mca.aaqjqcInformer.Run(stop)
 
 		if !cache.WaitForCacheSync(stop,
-			mca.migrationInformer.HasSynced,
-			mca.vmiInformer.HasSynced,
-			mca.crdInformer.HasSynced,
-			mca.kubeVirtInformer.HasSynced,
 			mca.podInformer.HasSynced,
-			mca.resourceQuotaInformer.HasSynced,
 			mca.arqInformer.HasSynced,
+			mca.aaqjqcInformer.HasSynced,
 		) {
 			klog.Warningf("failed to wait for caches to sync")
 		}
 
 		go func() {
-			if err := mca.arqController.Run(3, stop); err != nil {
-				klog.Warningf("error running the clone controller: %v", err)
-			}
+			mca.arqController.Run(context.Background(), 3, stop)
+			mca.aaqGateController.Run(3, stop)
+
 		}()
+		close(mca.InformersStarted)
 		close(mca.readyChan)
 	}
 }

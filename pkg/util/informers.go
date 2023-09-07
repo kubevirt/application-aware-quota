@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-const launcherLabel = "virt-launcher"
+const LauncherLabel = "virt-launcher"
 
 func GetVirtCli() (kubecli.KubevirtClient, error) {
 	clientConfig, err := kubecli.GetKubevirtClientConfig()
@@ -57,7 +57,7 @@ func GetApplicationsResourceQuotaInformer(aaqCli v1alpha12.AaqV1alpha1Client) ca
 }
 
 func GetLauncherPodInformer(virtCli kubecli.KubevirtClient) cache.SharedIndexInformer {
-	labelSelector, err := labels.Parse(fmt.Sprintf(k6tv1.AppLabel+" in (%s)", launcherLabel))
+	labelSelector, err := labels.Parse(fmt.Sprintf(k6tv1.AppLabel+" in (%s)", LauncherLabel))
 	if err != nil {
 		panic(err)
 	}
