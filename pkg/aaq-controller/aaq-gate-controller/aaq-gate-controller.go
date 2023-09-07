@@ -138,7 +138,6 @@ func (ctrl *AaqGateController) deleteAaqjqc(obj interface{}) {
 
 func (ctrl *AaqGateController) addPod(obj interface{}) {
 	pod := obj.(*v1.Pod)
-	log.Log.Infof(fmt.Sprintf("Barak: here %v", pod))
 
 	if pod.Spec.SchedulingGates != nil &&
 		len(pod.Spec.SchedulingGates) == 1 &&
@@ -148,7 +147,6 @@ func (ctrl *AaqGateController) addPod(obj interface{}) {
 }
 func (ctrl *AaqGateController) updatePod(old, curr interface{}) {
 	pod := curr.(*v1.Pod)
-	log.Log.Infof(fmt.Sprintf("Barak: here %v", pod))
 
 	if pod.Spec.SchedulingGates != nil &&
 		len(pod.Spec.SchedulingGates) == 1 &&
@@ -163,8 +161,6 @@ func (ctrl *AaqGateController) runWorker() {
 }
 
 func (ctrl *AaqGateController) Execute() bool {
-	log.Log.Infof("Barak: here")
-
 	key, quit := ctrl.arqQueue.Get()
 	if quit {
 		return false
@@ -191,16 +187,14 @@ func (ctrl *AaqGateController) execute(key string) (error, enqueueState) {
 
 	arqNS, _, err := cache.SplitMetaNamespaceKey(key)
 	aaqjqc, err := ctrl.aaqCli.AAQJobQueueConfigs(arqNS).Get(context.Background(), AaqjqcName, metav1.GetOptions{})
-	if !errors.IsNotFound(err) {
+	if errors.IsNotFound(err) {
 		aaqjqc, err = ctrl.aaqCli.AAQJobQueueConfigs(arqNS).Create(context.Background(),
-			&v1alpha12.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: AaqjqcName}},
+			&v1alpha12.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: AaqjqcName}, Spec: v1alpha12.AAQJobQueueConfigSpec{}},
 			metav1.CreateOptions{})
 		if err != nil {
-			log.Log.Infof(fmt.Sprintf("Barak: here %v", err.Error()))
 			return err, Immediate
 		}
 	} else if err != nil {
-		log.Log.Infof(fmt.Sprintf("Barak: here %v", err.Error()))
 		return err, Immediate
 	}
 	if len(aaqjqc.Status.PodsInJobQueue) != 0 {
@@ -219,7 +213,6 @@ func (ctrl *AaqGateController) execute(key string) (error, enqueueState) {
 	}
 	podObjs, err := ctrl.podInformer.GetIndexer().ByIndex(cache.NamespaceIndex, arqNS)
 	if err != nil {
-		log.Log.Infof(fmt.Sprintf("Barak: here %v", err.Error()))
 		return err, Immediate
 	}
 	for _, podObj := range podObjs {
@@ -239,7 +232,6 @@ func (ctrl *AaqGateController) execute(key string) (error, enqueueState) {
 			currPodLimitedResource, err := getCurrLimitedResource(ctrl.aaqEvaluator, podCopy)
 
 			if err != nil {
-				log.Log.Infof(fmt.Sprintf("Barak: here %v", err.Error()))
 				return nil, Immediate
 			}
 
@@ -254,13 +246,11 @@ func (ctrl *AaqGateController) execute(key string) (error, enqueueState) {
 	if len(aaqjqc.Status.PodsInJobQueue) > 0 {
 		aaqjqc, err = ctrl.aaqCli.AAQJobQueueConfigs(arqNS).Update(context.Background(), aaqjqc, metav1.UpdateOptions{})
 		if err != nil {
-			log.Log.Infof(fmt.Sprintf("Barak: here %v", err.Error()))
 			return err, Immediate
 		}
 	}
 	err = ctrl.releasePods(aaqjqc.Status.PodsInJobQueue, arqNS)
 	if err != nil {
-		log.Log.Infof(fmt.Sprintf("Barak: here %v", err.Error()))
 		return err, Immediate
 	}
 	return nil, Forget

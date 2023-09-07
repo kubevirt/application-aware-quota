@@ -103,7 +103,7 @@ type AAQJobQueueConfig struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	// CA configuration
 	// CA certs are kept in the CA bundle as long as they are valid
-	Spec *AAQJobQueueConfigSpec `json:"spec"`
+	Spec AAQJobQueueConfigSpec `json:"spec"`
 	// +optional
 	Status AAQJobQueueConfigStatus `json:"status"`
 }
