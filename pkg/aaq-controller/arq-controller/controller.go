@@ -279,9 +279,9 @@ func (ctrl *ArqController) execute(key string) (error, enqueueState) {
 		return err, BackOff
 	}
 	aaqjqc, err := ctrl.aaqCli.AAQJobQueueConfigs(ns).Get(context.Background(), arq_controller.AaqjqcName, metav1.GetOptions{})
-	if errors.IsNotFound(err) {
+	if !errors.IsNotFound(err) {
 		aaqjqc, err = ctrl.aaqCli.AAQJobQueueConfigs(ns).Create(context.Background(),
-			&v1alpha12.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: arq_controller.AaqjqcName}, Spec: v1alpha12.AAQJobQueueConfigSpec{}},
+			&v1alpha12.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: arq_controller.AaqjqcName}},
 			metav1.CreateOptions{})
 		if err != nil {
 			return err, Immediate
