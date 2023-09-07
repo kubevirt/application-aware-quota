@@ -46,13 +46,13 @@ type AaqGateController struct {
 	arqInformer    cache.SharedIndexInformer
 	aaqjqcInformer cache.SharedIndexInformer
 	arqQueue       workqueue.RateLimitingInterface
-	virtCli        kubecli.KubevirtClient
+	clientSet      kubecli.KubevirtClient
 	aaqCli         v1alpha13.AaqV1alpha1Client
 	recorder       record.EventRecorder
 	aaqEvaluator   v12.Evaluator
 }
 
-func NewAaqGateController(virtCli kubecli.KubevirtClient,
+func NewAaqGateController(clientSet kubecli.KubevirtClient,
 	aaqCli v1alpha13.AaqV1alpha1Client,
 	podInformer cache.SharedIndexInformer,
 	arqInformer cache.SharedIndexInformer,
@@ -60,12 +60,13 @@ func NewAaqGateController(virtCli kubecli.KubevirtClient,
 	stop <-chan struct{},
 ) *AaqGateController {
 	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartRecordingToSink(&v14.EventSinkImpl{Interface: virtCli.CoreV1().Events(v1.NamespaceAll)})
+	eventBroadcaster.StartRecordingToSink(&v14.EventSinkImpl{Interface: clientSet.CoreV1().Events(v1.NamespaceAll)})
 
 	//todo: make this generic for now we will try only launcher calculator
 	calcRegistry := aaq_evaluator.NewAaqCalculatorsRegistry(10, clock.RealClock{}).AddCalculator(built_in_usage_calculators.NewVirtLauncherCalculator(stop))
 
 	ctrl := AaqGateController{
+		clientSet:      clientSet,
 		aaqCli:         aaqCli,
 		aaqjqcInformer: aaqjqcInformer,
 		podInformer:    podInformer,
@@ -236,6 +237,7 @@ func (ctrl *AaqGateController) execute(key string) (error, enqueueState) {
 			}
 
 			newRq, err := quotaplugin.CheckRequest(rqs, podToCreateAttr, ctrl.aaqEvaluator, []resourcequota.LimitedResource{currPodLimitedResource})
+			log.Log.Infof("barak here1")
 			if err == nil {
 				rqs = newRq
 				aaqjqc.Status.PodsInJobQueue = append(aaqjqc.Status.PodsInJobQueue, pod.Name)
@@ -244,7 +246,7 @@ func (ctrl *AaqGateController) execute(key string) (error, enqueueState) {
 	}
 
 	if len(aaqjqc.Status.PodsInJobQueue) > 0 {
-		aaqjqc, err = ctrl.aaqCli.AAQJobQueueConfigs(arqNS).Update(context.Background(), aaqjqc, metav1.UpdateOptions{})
+		aaqjqc, err = ctrl.aaqCli.AAQJobQueueConfigs(arqNS).UpdateStatus(context.Background(), aaqjqc, metav1.UpdateOptions{})
 		if err != nil {
 			return err, Immediate
 		}
@@ -268,12 +270,10 @@ func (ctrl *AaqGateController) releasePods(podsToRelease []string, ns string) er
 		pod := obj.(*v1.Pod)
 		if pod.Spec.SchedulingGates != nil && len(pod.Spec.SchedulingGates) == 1 && pod.Spec.SchedulingGates[0].Name == "ApplicationsAwareQuotaGate" {
 			pod.Spec.SchedulingGates = []v1.PodSchedulingGate{}
-		} else {
-			panic("releasePods: something is very wrong")
-		}
-		_, err = ctrl.virtCli.CoreV1().Pods(ns).Update(context.Background(), pod, metav1.UpdateOptions{})
-		if err != nil {
-			return err
+			_, err = ctrl.clientSet.CoreV1().Pods(ns).Update(context.Background(), pod, metav1.UpdateOptions{})
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil

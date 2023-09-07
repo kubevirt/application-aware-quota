@@ -115,7 +115,7 @@ func (aaqe *AaqEvaluator) Usage(item runtime.Object) (corev1.ResourceList, error
 	if err != nil {
 		return corev1.ResourceList{}, err
 	} else if pod.Spec.SchedulingGates != nil &&
-		len(pod.Spec.SchedulingGates) > 1 {
+		len(pod.Spec.SchedulingGates) > 0 {
 		return corev1.ResourceList{}, nil
 	}
 

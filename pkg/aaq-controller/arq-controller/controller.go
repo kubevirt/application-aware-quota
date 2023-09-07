@@ -317,7 +317,7 @@ func (ctrl *ArqController) execute(key string) (error, enqueueState) {
 		}
 	}
 	aaqjqc.Status.PodsInJobQueue = []string{}
-	_, err = ctrl.aaqCli.AAQJobQueueConfigs(ns).Update(context.Background(), aaqjqc, metav1.UpdateOptions{})
+	_, err = ctrl.aaqCli.AAQJobQueueConfigs(ns).UpdateStatus(context.Background(), aaqjqc, metav1.UpdateOptions{})
 	if err != nil {
 		return err, Immediate
 	}

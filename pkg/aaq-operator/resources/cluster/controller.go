@@ -44,6 +44,7 @@ func getControllerClusterPolicyRules() []rbacv1.PolicyRule {
 				"pods",
 			},
 			Verbs: []string{
+				"update",
 				"list",
 				"watch",
 			},
@@ -100,6 +101,17 @@ func getControllerClusterPolicyRules() []rbacv1.PolicyRule {
 				"watch",
 				"list",
 				"create",
+			},
+		},
+		{
+			APIGroups: []string{
+				"aaq.kubevirt.io",
+			},
+			Resources: []string{
+				"aaqjobqueueconfigs/status",
+			},
+			Verbs: []string{
+				"update",
 			},
 		},
 		{
