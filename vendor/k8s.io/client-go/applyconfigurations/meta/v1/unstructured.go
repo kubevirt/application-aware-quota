@@ -27,6 +27,7 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/kube-openapi/pkg/util/proto"
 	"sigs.k8s.io/structured-merge-diff/v4/typed"
+	openapi_v2 "github.com/google/gnostic-models/openapiv2"
 )
 
 // openAPISchemaTTL is how frequently we need to check
@@ -61,7 +62,7 @@ func regenerateGVKParser(dc discovery.DiscoveryInterface) (*managedfields.GvkPar
 		return nil, err
 	}
 
-	models, err := proto.NewOpenAPIData(doc)
+	models, err := proto.NewOpenAPIData(doc.(*openapi_v2.Document))
 	if err != nil {
 		return nil, err
 	}

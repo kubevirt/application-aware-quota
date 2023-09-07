@@ -85,7 +85,7 @@ require (
 	github.com/openshift/library-go v0.0.0-20230328115725-6ed98e0ed0b9
 	github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190725173916-b56e63a643cc
 	github.com/rs/cors v1.7.0
-	k8s.io/client-go v12.0.0+incompatible
+	k8s.io/client-go v0.28.1
 	k8s.io/controller-manager v0.28.1
 	kubevirt.io/client-go v1.0.0
 	kubevirt.io/containerized-data-importer v1.56.0
@@ -169,7 +169,7 @@ replace (
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20230324103026-3f1513df25e0
 	github.com/openshift/library-go => github.com/mhenriks/library-go v0.0.0-20230310153733-63d38b55bd5a
 	github.com/operator-framework/operator-lifecycle-manager => github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190128024246-5eb7ae5bdb7a
-	k8s.io/api => k8s.io/api v0.26.3
+	k8s.io/api => k8s.io/api v0.28.1
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.26.3
 	k8s.io/apiserver => k8s.io/apiserver v0.26.3
 	k8s.io/cli-runtime => k8s.io/cli-runtime v0.28.1
@@ -209,4 +209,4 @@ replace k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.28.1
 
 replace kubevirt.io/controller-lifecycle-operator-sdk/api => kubevirt.io/controller-lifecycle-operator-sdk/api v0.0.0-20220329064328-f3cc58c6ed90
 
-replace k8s.io/client-go => k8s.io/client-go v0.26.3
+replace k8s.io/client-go => k8s.io/client-go v0.28.1
