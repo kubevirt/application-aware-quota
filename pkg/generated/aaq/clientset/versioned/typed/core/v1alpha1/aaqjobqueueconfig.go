@@ -26,7 +26,7 @@ import (
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	rest "k8s.io/client-go/rest"
-	scheme "kubevirt.io/applications-aware-quota/pkg/generated/clientset/versioned/scheme"
+	scheme "kubevirt.io/applications-aware-quota/pkg/generated/aaq/clientset/versioned/scheme"
 	v1alpha1 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 )
 

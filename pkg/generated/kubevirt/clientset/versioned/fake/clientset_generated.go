@@ -24,9 +24,9 @@ import (
 	"k8s.io/client-go/discovery"
 	fakediscovery "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/testing"
-	clientset "kubevirt.io/applications-aware-quota/pkg/generated/clientset/versioned"
-	aaqv1alpha1 "kubevirt.io/applications-aware-quota/pkg/generated/clientset/versioned/typed/core/v1alpha1"
-	fakeaaqv1alpha1 "kubevirt.io/applications-aware-quota/pkg/generated/clientset/versioned/typed/core/v1alpha1/fake"
+	clientset "kubevirt.io/applications-aware-quota/pkg/generated/kubevirt/clientset/versioned"
+	kubevirtv1 "kubevirt.io/applications-aware-quota/pkg/generated/kubevirt/clientset/versioned/typed/core/v1"
+	fakekubevirtv1 "kubevirt.io/applications-aware-quota/pkg/generated/kubevirt/clientset/versioned/typed/core/v1/fake"
 )
 
 // NewSimpleClientset returns a clientset that will respond with the provided objects.
@@ -79,7 +79,7 @@ var (
 	_ testing.FakeClient  = &Clientset{}
 )
 
-// AaqV1alpha1 retrieves the AaqV1alpha1Client
-func (c *Clientset) AaqV1alpha1() aaqv1alpha1.AaqV1alpha1Interface {
-	return &fakeaaqv1alpha1.FakeAaqV1alpha1{Fake: &c.Fake}
+// KubevirtV1 retrieves the KubevirtV1Client
+func (c *Clientset) KubevirtV1() kubevirtv1.KubevirtV1Interface {
+	return &fakekubevirtv1.FakeKubevirtV1{Fake: &c.Fake}
 }

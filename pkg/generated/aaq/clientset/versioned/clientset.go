@@ -25,7 +25,7 @@ import (
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
-	aaqv1alpha1 "kubevirt.io/applications-aware-quota/pkg/generated/clientset/versioned/typed/core/v1alpha1"
+	aaqv1alpha1 "kubevirt.io/applications-aware-quota/pkg/generated/aaq/clientset/versioned/typed/core/v1alpha1"
 )
 
 type Interface interface {
