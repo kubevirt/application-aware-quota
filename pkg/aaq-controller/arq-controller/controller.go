@@ -103,7 +103,7 @@ func NewArqController(clientSet kubecli.KubevirtClient,
 		arqQueue:            workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq_primary"),
 		missingUsageQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq_priority"),
 		enqueueAllQueue:     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq_enqueue_all"),
-		resyncPeriod:        pkgcontroller.StaticResyncPeriodFunc(metav1.Duration{Duration: 1 * time.Second}.Duration),
+		resyncPeriod:        pkgcontroller.StaticResyncPeriodFunc(metav1.Duration{Duration: 5 * time.Minute}.Duration),
 		recorder:            eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: utils.ControllerPodName}),
 		eval:                aaq_evaluator.NewAaqEvaluator(listerFuncForResource, podInformer, calcRegistry, clock.RealClock{}),
 	}
@@ -144,6 +144,7 @@ func NewArqController(clientSet kubecli.KubevirtClient,
 	_, err := ctrl.podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: ctrl.updatePod,
 		AddFunc:    ctrl.AddPod,
+		DeleteFunc: ctrl.DeletePod,
 	})
 	if err != nil {
 		panic("something is wrong")
@@ -215,19 +216,21 @@ func (ctrl *ArqController) enqueueAll() {
 
 func (ctrl *ArqController) updatePod(old, curr interface{}) {
 	currPod := curr.(*v1.Pod)
-	if !isTerminalState(currPod) && len(currPod.Spec.SchedulingGates) == 0 {
+	if len(currPod.Spec.SchedulingGates) == 0 {
 		ctrl.addAllArqsInNamespace(currPod.Namespace)
 	}
 }
 func (ctrl *ArqController) AddPod(obj interface{}) {
 	pod := obj.(*v1.Pod)
-	if !isTerminalState(pod) && len(pod.Spec.SchedulingGates) == 0 {
+	if len(pod.Spec.SchedulingGates) == 0 {
 		ctrl.addAllArqsInNamespace(pod.Namespace)
 	}
 }
-
-func isTerminalState(pod *v1.Pod) bool {
-	return pod.Status.Phase == v1.PodSucceeded || pod.Status.Phase == v1.PodFailed
+func (ctrl *ArqController) DeletePod(obj interface{}) {
+	pod := obj.(*v1.Pod)
+	if len(pod.Spec.SchedulingGates) == 0 {
+		ctrl.addAllArqsInNamespace(pod.Namespace)
+	}
 }
 
 func (ctrl *ArqController) runGateWatcherWorker() {
