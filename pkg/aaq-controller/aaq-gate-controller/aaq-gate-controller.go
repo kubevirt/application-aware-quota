@@ -57,13 +57,12 @@ func NewAaqGateController(clientSet kubecli.KubevirtClient,
 	podInformer cache.SharedIndexInformer,
 	arqInformer cache.SharedIndexInformer,
 	aaqjqcInformer cache.SharedIndexInformer,
-	stop <-chan struct{},
 ) *AaqGateController {
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartRecordingToSink(&v14.EventSinkImpl{Interface: clientSet.CoreV1().Events(v1.NamespaceAll)})
 
 	//todo: make this generic for now we will try only launcher calculator
-	calcRegistry := aaq_evaluator.NewAaqCalculatorsRegistry(10, clock.RealClock{}).AddCalculator(built_in_usage_calculators.NewVirtLauncherCalculator(stop))
+	calcRegistry := aaq_evaluator.NewAaqCalculatorsRegistry(10, clock.RealClock{}).AddCalculator(built_in_usage_calculators.NewVirtLauncherCalculator())
 
 	ctrl := AaqGateController{
 		clientSet:      clientSet,
@@ -237,7 +236,6 @@ func (ctrl *AaqGateController) execute(key string) (error, enqueueState) {
 			}
 
 			newRq, err := quotaplugin.CheckRequest(rqs, podToCreateAttr, ctrl.aaqEvaluator, []resourcequota.LimitedResource{currPodLimitedResource})
-			log.Log.Infof("barak here1")
 			if err == nil {
 				rqs = newRq
 				aaqjqc.Status.PodsInJobQueue = append(aaqjqc.Status.PodsInJobQueue, pod.Name)

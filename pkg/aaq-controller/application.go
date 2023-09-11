@@ -103,8 +103,8 @@ func Execute() {
 	app.podInformer = util.GetLauncherPodInformer(virtCli)
 
 	stop := ctx.Done()
-	app.initArqController(stop)
-	app.iniAaqGateController(stop)
+	app.initArqController()
+	app.initAaqGateController()
 	app.Run(stop)
 
 	klog.V(2).Infoln("AAQ controller exited")
@@ -130,24 +130,22 @@ func (mca *AaqControllerApp) leaderProbe(_ *restful.Request, response *restful.R
 	}
 }
 
-func (mca *AaqControllerApp) initArqController(stop <-chan struct{}) {
+func (mca *AaqControllerApp) initArqController() {
 	mca.arqController = arq_controller.NewArqController(mca.clientSet,
 		mca.aaqCli,
 		mca.podInformer,
 		mca.arqInformer,
 		mca.aaqjqcInformer,
-		stop,
 		mca.InformersStarted,
 	)
 }
 
-func (mca *AaqControllerApp) iniAaqGateController(stop <-chan struct{}) {
+func (mca *AaqControllerApp) initAaqGateController() {
 	mca.aaqGateController = arq_controller2.NewAaqGateController(mca.clientSet,
 		mca.aaqCli,
 		mca.podInformer,
 		mca.arqInformer,
 		mca.aaqjqcInformer,
-		stop,
 	)
 }
 

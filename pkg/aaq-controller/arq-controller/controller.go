@@ -83,7 +83,6 @@ func NewArqController(clientSet kubecli.KubevirtClient,
 	podInformer cache.SharedIndexInformer,
 	arqInformer cache.SharedIndexInformer,
 	aaqjqcInformer cache.SharedIndexInformer,
-	stop <-chan struct{},
 	InformersStarted <-chan struct{},
 ) *ArqController {
 
@@ -91,7 +90,7 @@ func NewArqController(clientSet kubecli.KubevirtClient,
 	eventBroadcaster.StartRecordingToSink(&v14.EventSinkImpl{Interface: clientSet.CoreV1().Events(v1.NamespaceAll)})
 	//todo: make this generic for now we will try only launcher calculator
 	InformerFactory := informers.NewSharedInformerFactoryWithOptions(clientSet, 1*time.Hour)
-	calcRegistry := aaq_evaluator.NewAaqCalculatorsRegistry(10, clock.RealClock{}).AddCalculator(built_in_usage_calculators.NewVirtLauncherCalculator(stop))
+	calcRegistry := aaq_evaluator.NewAaqCalculatorsRegistry(10, clock.RealClock{}).AddCalculator(built_in_usage_calculators.NewVirtLauncherCalculator())
 	listerFuncForResource := generic.ListerFuncForResourceFunc(InformerFactory.ForResource)
 	discoveryFunction := discovery.NewDiscoveryClient(clientSet.RestClient()).ServerPreferredNamespacedResources
 
@@ -104,7 +103,7 @@ func NewArqController(clientSet kubecli.KubevirtClient,
 		arqQueue:            workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq_primary"),
 		missingUsageQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq_priority"),
 		enqueueAllQueue:     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq_enqueue_all"),
-		resyncPeriod:        pkgcontroller.StaticResyncPeriodFunc(metav1.Duration{Duration: 5 * time.Minute}.Duration),
+		resyncPeriod:        pkgcontroller.StaticResyncPeriodFunc(metav1.Duration{Duration: 1 * time.Second}.Duration),
 		recorder:            eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: utils.ControllerPodName}),
 		registry:            generic.NewRegistry([]v12.Evaluator{aaq_evaluator.NewAaqEvaluator(listerFuncForResource, calcRegistry, clock.RealClock{})}),
 	}
@@ -144,6 +143,7 @@ func NewArqController(clientSet kubecli.KubevirtClient,
 	)
 	_, err := ctrl.podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: ctrl.updatePod,
+		AddFunc:    ctrl.AddPod,
 	})
 	if err != nil {
 		panic("something is wrong")
@@ -203,11 +203,12 @@ func (ctrl *ArqController) updateAaqjqc(old, cur interface{}) {
 }
 
 func (ctrl *ArqController) addAllArqsInNamespace(ns string) {
-	arqs, err := ctrl.arqInformer.GetIndexer().ByIndex(cache.NamespaceIndex, ns)
+	arqObjs, err := ctrl.arqInformer.GetIndexer().ByIndex(cache.NamespaceIndex, ns)
 	if err != nil {
 		log.Log.Infof("AaqGateController: Error failed to list pod from podInformer")
 	}
-	for _, arq := range arqs {
+	for _, arqObj := range arqObjs {
+		arq := arqObj.(*v1alpha12.ApplicationsResourceQuota)
 		key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(arq)
 		if err != nil {
 			return
@@ -232,12 +233,14 @@ func (ctrl *ArqController) enqueueAll() {
 
 func (ctrl *ArqController) updatePod(old, curr interface{}) {
 	currPod := curr.(*v1.Pod)
-	oldPod := old.(*v1.Pod)
-	if !isTerminalState(currPod) && oldPod.Spec.SchedulingGates != nil &&
-		len(oldPod.Spec.SchedulingGates) == 1 &&
-		oldPod.Spec.SchedulingGates[0].Name == "ApplicationsAwareQuotaGate" &&
-		len(currPod.Spec.SchedulingGates) == 0 {
+	if !isTerminalState(currPod) && len(currPod.Spec.SchedulingGates) == 0 {
 		ctrl.addAllArqsInNamespace(currPod.Namespace)
+	}
+}
+func (ctrl *ArqController) AddPod(obj interface{}) {
+	pod := obj.(*v1.Pod)
+	if !isTerminalState(pod) && len(pod.Spec.SchedulingGates) == 0 {
+		ctrl.addAllArqsInNamespace(pod.Namespace)
 	}
 }
 

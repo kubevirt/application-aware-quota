@@ -47,6 +47,7 @@ func getControllerClusterPolicyRules() []rbacv1.PolicyRule {
 				"update",
 				"list",
 				"watch",
+				"get",
 			},
 		},
 		{
@@ -162,6 +163,7 @@ func getControllerClusterPolicyRules() []rbacv1.PolicyRule {
 			Verbs: []string{
 				"watch",
 				"list",
+				"get",
 			},
 		},
 		{
