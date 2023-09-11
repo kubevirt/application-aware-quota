@@ -13,6 +13,7 @@ import (
 	"k8s.io/utils/clock"
 	v15 "kubevirt.io/api/core/v1"
 	aaq_evaluator "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-evaluator"
+	"kubevirt.io/applications-aware-quota/pkg/client"
 	"kubevirt.io/applications-aware-quota/pkg/util"
 	"kubevirt.io/client-go/kubecli"
 	"kubevirt.io/client-go/log"
@@ -21,18 +22,18 @@ import (
 var podObjectCountName = generic.ObjectCountQuotaResourceNameFor(corev1.SchemeGroupVersion.WithResource("pods").GroupResource())
 
 func NewVirtLauncherCalculator() *VirtLauncherCalculator {
-	virtCli, err := util.GetVirtCli()
+	virtCli, err := client.GetAAQClient()
 	if err != nil {
-		panic("NewVirtLauncherCalculator: couldn't get virtCli")
+		panic("NewVirtLauncherCalculator: couldn't get aaqCli")
 	}
 
 	return &VirtLauncherCalculator{
-		virtCli: virtCli,
+		aaqCli: virtCli,
 	}
 }
 
 type VirtLauncherCalculator struct {
-	virtCli kubecli.KubevirtClient
+	aaqCli client.AAQClient
 }
 
 func (launchercalc *VirtLauncherCalculator) PodUsageFunc(obj runtime.Object, items []runtime.Object, clock clock.Clock) (corev1.ResourceList, error, bool) {
@@ -45,12 +46,12 @@ func (launchercalc *VirtLauncherCalculator) PodUsageFunc(obj runtime.Object, ite
 		return corev1.ResourceList{}, nil, false
 	}
 
-	vmi, err := launchercalc.virtCli.VirtualMachineInstance(pod.Namespace).Get(context.Background(), pod.OwnerReferences[0].Name, &metav1.GetOptions{})
+	vmi, err := launchercalc.aaqCli.KubevirtClient().KubevirtV1().VirtualMachineInstances(pod.Namespace).Get(context.Background(), pod.OwnerReferences[0].Name, metav1.GetOptions{})
 	if err != nil {
 		return corev1.ResourceList{}, err, false
 	}
 
-	launcherPods := UnfinishedVMIPods(launchercalc.virtCli, items, vmi)
+	launcherPods := UnfinishedVMIPods(launchercalc.aaqCli, items, vmi)
 
 	if !podExists(launcherPods, pod) {
 		return corev1.ResourceList{}, nil, true
@@ -58,7 +59,7 @@ func (launchercalc *VirtLauncherCalculator) PodUsageFunc(obj runtime.Object, ite
 		return corev1.ResourceList{}, fmt.Errorf("can't detect pod as launcher pod"), true
 	}
 
-	migration, err := getVmimIfExist(vmi, pod.Namespace, launchercalc.virtCli)
+	migration, err := getVmimIfExist(vmi, pod.Namespace, launchercalc.aaqCli)
 	if err != nil {
 		return corev1.ResourceList{}, err, true
 	}
@@ -178,7 +179,7 @@ func GetNumberOfVCPUs(cpuSpec *v15.CPUTopology) int64 {
 	return int64(vCPUs)
 }
 
-func UnfinishedVMIPods(virtCli kubecli.KubevirtClient, items []runtime.Object, vmi *v15.VirtualMachineInstance) (podsToReturn []*corev1.Pod) {
+func UnfinishedVMIPods(aaqCli client.AAQClient, items []runtime.Object, vmi *v15.VirtualMachineInstance) (podsToReturn []*corev1.Pod) {
 	pods := []corev1.Pod{}
 	if items != nil {
 		for _, item := range items {
@@ -189,7 +190,7 @@ func UnfinishedVMIPods(virtCli kubecli.KubevirtClient, items []runtime.Object, v
 			pods = append(pods, *pod)
 		}
 	} else {
-		podsList, err := virtCli.CoreV1().Pods(vmi.Namespace).List(context.Background(), metav1.ListOptions{})
+		podsList, err := aaqCli.CoreV1().Pods(vmi.Namespace).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			log.Log.Infof("AaqGateController: Error: %v", err)
 		}
@@ -250,8 +251,8 @@ var requestedResourcePrefixes = []string{
 	corev1.ResourceHugePagesPrefix,
 }
 
-func getVmimIfExist(vmi *v15.VirtualMachineInstance, ns string, virtCli kubecli.KubevirtClient) (*v15.VirtualMachineInstanceMigration, error) {
-	migrations, err := virtCli.VirtualMachineInstanceMigration(ns).List(&metav1.ListOptions{})
+func getVmimIfExist(vmi *v15.VirtualMachineInstance, ns string, aaqCli client.AAQClient) (*v15.VirtualMachineInstanceMigration, error) {
+	migrations, err := aaqCli.KubevirtClient().KubevirtV1().VirtualMachineInstanceMigrations(ns).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("can't fetch migrations")
 	}

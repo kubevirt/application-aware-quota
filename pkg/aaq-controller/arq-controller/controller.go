@@ -31,7 +31,7 @@ import (
 	built_in_usage_calculators "kubevirt.io/applications-aware-quota/pkg/aaq-controller/built-in-usage-calculators"
 	aaq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/quota-utils"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/utils"
-	v1alpha13 "kubevirt.io/applications-aware-quota/pkg/generated/clientset/versioned/typed/core/v1alpha1"
+	"kubevirt.io/applications-aware-quota/pkg/client"
 	v1alpha12 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	"kubevirt.io/client-go/kubecli"
 	"kubevirt.io/client-go/log"
@@ -54,7 +54,7 @@ type ArqController struct {
 	podInformer      cache.SharedIndexInformer
 	aaqjqcInformer   cache.SharedIndexInformer
 	virtCli          kubecli.KubevirtClient
-	aaqCli           v1alpha13.AaqV1alpha1Client
+	aaqCli           client.AAQClient
 	// A lister/getter of resource quota objects
 	arqInformer cache.SharedIndexInformer
 	// A list of functions that return true when their caches have synced
@@ -78,12 +78,10 @@ type ArqController struct {
 	syncHandler  func(key string) error
 }
 
-func NewArqController(clientSet kubecli.KubevirtClient,
-	aaqCli v1alpha13.AaqV1alpha1Client,
+func NewArqController(clientSet client.AAQClient,
 	podInformer cache.SharedIndexInformer,
 	arqInformer cache.SharedIndexInformer,
 	aaqjqcInformer cache.SharedIndexInformer,
-	InformersStarted <-chan struct{},
 ) *ArqController {
 
 	eventBroadcaster := record.NewBroadcaster()
@@ -95,7 +93,6 @@ func NewArqController(clientSet kubecli.KubevirtClient,
 	discoveryFunction := discovery.NewDiscoveryClient(clientSet.RestClient()).ServerPreferredNamespacedResources
 
 	ctrl := &ArqController{
-		aaqCli:              aaqCli,
 		arqInformer:         arqInformer,
 		informerSyncedFuncs: []cache.InformerSynced{arqInformer.HasSynced},
 		podInformer:         podInformer,

@@ -33,6 +33,7 @@ require (
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230525234030-28d5490b6b19 // indirect
 	google.golang.org/grpc v1.54.0 // indirect
+	k8s.io/controller-manager v0.26.3 // indirect
 	k8s.io/gengo v0.0.0-20220902162205-c0856e24416d // indirect
 	k8s.io/kube-aggregator v0.27.1 // indirect
 	sigs.k8s.io/kube-storage-version-migrator v0.0.4 // indirect
@@ -50,7 +51,6 @@ require (
 	github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190725173916-b56e63a643cc
 	github.com/rs/cors v1.7.0
 	k8s.io/client-go v12.0.0+incompatible
-	k8s.io/controller-manager v0.26.3
 	kubevirt.io/client-go v1.0.0
 	kubevirt.io/containerized-data-importer v1.56.0
 	kubevirt.io/qe-tools v0.1.8
@@ -116,7 +116,7 @@ require (
 	k8s.io/kube-openapi v0.0.0-20230501164219-8b0f38b5fd1f // indirect
 	k8s.io/kubernetes v1.26.3
 	k8s.io/utils v0.0.0-20230505201702-9f6742963106
-	kubevirt.io/api v1.0.0-rc.0
+	kubevirt.io/api v1.0.0
 	kubevirt.io/containerized-data-importer-api v1.57.0-alpha1
 	kubevirt.io/controller-lifecycle-operator-sdk v0.2.4
 	kubevirt.io/controller-lifecycle-operator-sdk/api v0.0.0-20220329064328-f3cc58c6ed90

@@ -35,9 +35,8 @@ import (
 	arq_controller2 "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-gate-controller"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-controller/arq-controller"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/namespaced"
-	"kubevirt.io/applications-aware-quota/pkg/generated/clientset/versioned/typed/core/v1alpha1"
+	"kubevirt.io/applications-aware-quota/pkg/client"
 	"kubevirt.io/applications-aware-quota/pkg/util"
-	"kubevirt.io/client-go/kubecli"
 	"kubevirt.io/kubevirt/pkg/certificates/bootstrap"
 	"kubevirt.io/kubevirt/pkg/virt-controller/leaderelectionconfig"
 	golog "log"
@@ -51,8 +50,7 @@ type AaqControllerApp struct {
 	aaqNs             string
 	host              string
 	LeaderElection    leaderelectionconfig.Configuration
-	clientSet         kubecli.KubevirtClient
-	aaqCli            v1alpha1.AaqV1alpha1Client
+	aaqCli            client.AAQClient
 	arqController     *arq_controller.ArqController
 	aaqGateController *arq_controller2.AaqGateController
 	podInformer       cache.SharedIndexInformer
@@ -80,11 +78,6 @@ func Execute() {
 	webService.Route(webService.GET("/leader").To(app.leaderProbe).Doc("Leader endpoint"))
 	restful.Add(webService)
 
-	virtCli, err := util.GetVirtCli()
-	if err != nil {
-		golog.Fatalf("unable to virtCli: %v", err)
-	}
-	app.clientSet = virtCli
 	nsBytes, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 	if err != nil {
 		panic(err)
@@ -97,10 +90,10 @@ func Execute() {
 	}
 	app.host = host
 
-	app.aaqCli = util.GetAAQCli()
+	app.aaqCli, err = client.GetAAQClient()
 	app.arqInformer = util.GetApplicationsResourceQuotaInformer(app.aaqCli)
 	app.aaqjqcInformer = util.GetAAQJobQueueConfig(app.aaqCli)
-	app.podInformer = util.GetLauncherPodInformer(virtCli)
+	app.podInformer = util.GetPodInformer(app.aaqCli)
 
 	stop := ctx.Done()
 	app.initArqController()
@@ -131,18 +124,15 @@ func (mca *AaqControllerApp) leaderProbe(_ *restful.Request, response *restful.R
 }
 
 func (mca *AaqControllerApp) initArqController() {
-	mca.arqController = arq_controller.NewArqController(mca.clientSet,
-		mca.aaqCli,
+	mca.arqController = arq_controller.NewArqController(mca.aaqCli,
 		mca.podInformer,
 		mca.arqInformer,
 		mca.aaqjqcInformer,
-		mca.InformersStarted,
 	)
 }
 
 func (mca *AaqControllerApp) initAaqGateController() {
-	mca.aaqGateController = arq_controller2.NewAaqGateController(mca.clientSet,
-		mca.aaqCli,
+	mca.aaqGateController = arq_controller2.NewAaqGateController(mca.aaqCli,
 		mca.podInformer,
 		mca.arqInformer,
 		mca.aaqjqcInformer,
@@ -150,7 +140,7 @@ func (mca *AaqControllerApp) initAaqGateController() {
 }
 
 func (mca *AaqControllerApp) Run(stop <-chan struct{}) {
-	secretInformer := util.GetSecretInformer(mca.clientSet, mca.aaqNs)
+	secretInformer := util.GetSecretInformer(mca.aaqCli, mca.aaqNs)
 	go secretInformer.Run(stop)
 	if !cache.WaitForCacheSync(stop, secretInformer.HasSynced) {
 		os.Exit(1)
@@ -188,12 +178,12 @@ func (mca *AaqControllerApp) Run(stop <-chan struct{}) {
 
 func (mca *AaqControllerApp) setupLeaderElector() (err error) {
 	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartRecordingToSink(&v14.EventSinkImpl{Interface: mca.clientSet.CoreV1().Events(v1.NamespaceAll)})
+	eventBroadcaster.StartRecordingToSink(&v14.EventSinkImpl{Interface: mca.aaqCli.CoreV1().Events(v1.NamespaceAll)})
 	rl, err := resourcelock.New(mca.LeaderElection.ResourceLock,
 		mca.aaqNs,
 		"aaq-controller",
-		mca.clientSet.CoreV1(),
-		mca.clientSet.CoordinationV1(),
+		mca.aaqCli.CoreV1(),
+		mca.aaqCli.CoordinationV1(),
 		resourcelock.ResourceLockConfig{
 			Identity:      mca.host,
 			EventRecorder: eventBroadcaster.NewRecorder(scheme.Scheme, k8sv1.EventSource{Component: "aaq-controller"}),

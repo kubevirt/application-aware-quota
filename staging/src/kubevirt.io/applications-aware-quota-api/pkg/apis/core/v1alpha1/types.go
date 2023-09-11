@@ -148,13 +148,13 @@ type AAQStatus struct {
 	sdkapi.Status `json:",inline"`
 }
 
-// AAQList provides the needed parameters to do request a list of AAQs from the system
+// AAQList provides the needed parameters to do request a list of AAQ from the system
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type AAQList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
 
-	// Items provides a list of AAQs
+	// Items provides a list of AAQ
 	Items []AAQ `json:"items"`
 }
 
@@ -164,6 +164,6 @@ type AAQJobQueueConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
 
-	// Items provides a list of AAQs
+	// Items provides a list of AAQ
 	Items []AAQJobQueueConfig `json:"items"`
 }

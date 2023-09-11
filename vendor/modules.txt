@@ -585,14 +585,7 @@ k8s.io/apimachinery/third_party/forked/golang/reflect
 # k8s.io/apiserver v0.27.1 => k8s.io/apiserver v0.26.3
 ## explicit; go 1.19
 k8s.io/apiserver/pkg/admission
-k8s.io/apiserver/pkg/admission/initializer
-k8s.io/apiserver/pkg/admission/plugin/resourcequota
 k8s.io/apiserver/pkg/admission/plugin/resourcequota/apis/resourcequota
-k8s.io/apiserver/pkg/admission/plugin/resourcequota/apis/resourcequota/install
-k8s.io/apiserver/pkg/admission/plugin/resourcequota/apis/resourcequota/v1
-k8s.io/apiserver/pkg/admission/plugin/resourcequota/apis/resourcequota/v1alpha1
-k8s.io/apiserver/pkg/admission/plugin/resourcequota/apis/resourcequota/v1beta1
-k8s.io/apiserver/pkg/admission/plugin/resourcequota/apis/resourcequota/validation
 k8s.io/apiserver/pkg/apis/apiserver
 k8s.io/apiserver/pkg/apis/apiserver/v1
 k8s.io/apiserver/pkg/apis/audit
@@ -604,7 +597,6 @@ k8s.io/apiserver/pkg/endpoints/request
 k8s.io/apiserver/pkg/features
 k8s.io/apiserver/pkg/quota/v1
 k8s.io/apiserver/pkg/quota/v1/generic
-k8s.io/apiserver/pkg/storage
 k8s.io/apiserver/pkg/util/feature
 # k8s.io/client-go v12.0.0+incompatible => k8s.io/client-go v0.26.3
 ## explicit; go 1.19
@@ -1043,14 +1035,12 @@ k8s.io/utils/buffer
 k8s.io/utils/clock
 k8s.io/utils/clock/testing
 k8s.io/utils/integer
-k8s.io/utils/internal/third_party/forked/golang/golang-lru
 k8s.io/utils/internal/third_party/forked/golang/net
-k8s.io/utils/lru
 k8s.io/utils/net
 k8s.io/utils/pointer
 k8s.io/utils/strings/slices
 k8s.io/utils/trace
-# kubevirt.io/api v1.0.0-rc.0
+# kubevirt.io/api v1.0.0
 ## explicit; go 1.17
 kubevirt.io/api/clone
 kubevirt.io/api/clone/v1alpha1

@@ -7,6 +7,7 @@ import (
 	"k8s.io/klog/v2"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/namespaced"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-server"
+	"kubevirt.io/applications-aware-quota/pkg/client"
 	"kubevirt.io/applications-aware-quota/pkg/util"
 	"kubevirt.io/kubevirt/pkg/certificates/bootstrap"
 	"os"
@@ -17,7 +18,7 @@ func main() {
 	defer klog.Flush()
 	aaqNS := util.GetNamespace()
 
-	virtCli, err := util.GetVirtCli()
+	aaqCli, err := client.GetAAQClient()
 	if err != nil {
 		klog.Error(err.Error())
 		os.Exit(1)
@@ -30,7 +31,7 @@ func main() {
 		klog.Fatalf("Error creating ready file: %+v", err)
 	}
 
-	secretInformer := util.GetSecretInformer(virtCli, aaqNS)
+	secretInformer := util.GetSecretInformer(aaqCli, aaqNS)
 	go secretInformer.Run(stop)
 	if !cache.WaitForCacheSync(stop, secretInformer.HasSynced) {
 		os.Exit(1)

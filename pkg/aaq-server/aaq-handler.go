@@ -7,17 +7,16 @@ import (
 	admissionv1 "k8s.io/api/admission/v1"
 	"k8s.io/klog/v2"
 	handlerv1 "kubevirt.io/applications-aware-quota/pkg/aaq-server/handler"
-	"kubevirt.io/applications-aware-quota/pkg/util"
-	"kubevirt.io/client-go/kubecli"
+	"kubevirt.io/applications-aware-quota/pkg/client"
 	"net/http"
 )
 
 type AaqServerHandler struct {
-	virtCli kubecli.KubevirtClient
+	aaqCli client.AAQClient
 }
 
 func NewAaqServerHandler() *AaqServerHandler {
-	virtCli, err := util.GetVirtCli()
+	virtCli, err := client.GetAAQClient()
 	if err != nil {
 		panic(err)
 	}
@@ -31,7 +30,7 @@ func (ash *AaqServerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	handler := handlerv1.NewHandler(in.Request, ash.virtCli)
+	handler := handlerv1.NewHandler(in.Request, ash.aaqCli)
 
 	out, err := handler.Handle()
 	if err != nil {

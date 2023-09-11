@@ -9,8 +9,8 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"kubevirt.io/applications-aware-quota/pkg/client"
 	"kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
-	"kubevirt.io/client-go/kubecli"
 	"net/http"
 	"strings"
 )
@@ -23,13 +23,13 @@ const (
 
 type Handler struct {
 	request *admissionv1.AdmissionRequest
-	virtCli kubecli.KubevirtClient
+	aaqCli  client.AAQClient
 }
 
-func NewHandler(Request *admissionv1.AdmissionRequest, VirtCli kubecli.KubevirtClient) *Handler {
+func NewHandler(Request *admissionv1.AdmissionRequest, aaqCli client.AAQClient) *Handler {
 	return &Handler{
 		request: Request,
-		virtCli: VirtCli,
+		aaqCli:  aaqCli,
 	}
 }
 
@@ -85,7 +85,7 @@ func (v Handler) validateApplicationsResourceQuota() (*admissionv1.AdmissionRevi
 	rq.Name = createRQName()
 	rq.Spec.Hard = arq.Spec.Hard
 	//todo: make sure we don't let users define services and pvcs in quota spec
-	_, err := v.virtCli.CoreV1().ResourceQuotas(arq.Namespace).Create(context.Background(), rq, metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}})
+	_, err := v.aaqCli.CoreV1().ResourceQuotas(arq.Namespace).Create(context.Background(), rq, metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}})
 	if err != nil {
 		return reviewResponse(v.request.UID, false, http.StatusForbidden, ignoreRqErr(err.Error())), nil
 	}

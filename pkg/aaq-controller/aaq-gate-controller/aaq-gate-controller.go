@@ -20,13 +20,12 @@ import (
 	"k8s.io/utils/clock"
 	_ "kubevirt.io/api/core/v1"
 	quota_utils "kubevirt.io/applications-aware-quota/pkg/aaq-controller/quota-utils"
+	"kubevirt.io/applications-aware-quota/pkg/client"
 
 	aaq_evaluator "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-evaluator"
 	built_in_usage_calculators "kubevirt.io/applications-aware-quota/pkg/aaq-controller/built-in-usage-calculators"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/utils"
-	v1alpha13 "kubevirt.io/applications-aware-quota/pkg/generated/clientset/versioned/typed/core/v1alpha1"
 	v1alpha12 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
-	"kubevirt.io/client-go/kubecli"
 	"kubevirt.io/client-go/log"
 	corev1beta1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 	"time"
@@ -46,26 +45,23 @@ type AaqGateController struct {
 	arqInformer    cache.SharedIndexInformer
 	aaqjqcInformer cache.SharedIndexInformer
 	arqQueue       workqueue.RateLimitingInterface
-	clientSet      kubecli.KubevirtClient
-	aaqCli         v1alpha13.AaqV1alpha1Client
+	aaqCli         client.AAQClient
 	recorder       record.EventRecorder
 	aaqEvaluator   *aaq_evaluator.AaqEvaluator
 }
 
-func NewAaqGateController(clientSet kubecli.KubevirtClient,
-	aaqCli v1alpha13.AaqV1alpha1Client,
+func NewAaqGateController(aaqCli client.AAQClient,
 	podInformer cache.SharedIndexInformer,
 	arqInformer cache.SharedIndexInformer,
 	aaqjqcInformer cache.SharedIndexInformer,
 ) *AaqGateController {
 	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartRecordingToSink(&v14.EventSinkImpl{Interface: clientSet.CoreV1().Events(v1.NamespaceAll)})
+	eventBroadcaster.StartRecordingToSink(&v14.EventSinkImpl{Interface: aaqCli.CoreV1().Events(v1.NamespaceAll)})
 
 	//todo: make this generic for now we will try only launcher calculator
 	calcRegistry := aaq_evaluator.NewAaqCalculatorsRegistry(10, clock.RealClock{}).AddCalculator(built_in_usage_calculators.NewVirtLauncherCalculator())
 
 	ctrl := AaqGateController{
-		clientSet:      clientSet,
 		aaqCli:         aaqCli,
 		aaqjqcInformer: aaqjqcInformer,
 		podInformer:    podInformer,
@@ -98,21 +94,21 @@ func (ctrl *AaqGateController) addAllArqsInNamespace(ns string) {
 	}
 }
 
-// When a ApplicationsResourceQuota is deleted, enqueue all gated pods for revaluation
+// When a ApplicationsResourceQuotas is deleted, enqueue all gated pods for revaluation
 func (ctrl *AaqGateController) deleteArq(obj interface{}) {
 	arq := obj.(*v1alpha12.ApplicationsResourceQuota)
 	ctrl.addAllArqsInNamespace(arq.Namespace)
 	return
 }
 
-// When a ApplicationsResourceQuota is updated, enqueue all gated pods for revaluation
+// When a ApplicationsResourceQuotas is updated, enqueue all gated pods for revaluation
 func (ctrl *AaqGateController) addArq(obj interface{}) {
 	arq := obj.(*v1alpha12.ApplicationsResourceQuota)
 	ctrl.addAllArqsInNamespace(arq.Namespace)
 	return
 }
 
-// When a ApplicationsResourceQuota is updated, enqueue all gated pods for revaluation
+// When a ApplicationsResourceQuotas is updated, enqueue all gated pods for revaluation
 func (ctrl *AaqGateController) updateArq(old, cur interface{}) {
 	arq := cur.(*v1alpha12.ApplicationsResourceQuota)
 	ctrl.addAllArqsInNamespace(arq.Namespace)
@@ -129,7 +125,7 @@ func (ctrl *AaqGateController) updateAaqjqc(old, cur interface{}) {
 	return
 }
 
-// When a ApplicationsResourceQuota is updated, enqueue all gated pods for revaluation
+// When a ApplicationsResourceQuotas is updated, enqueue all gated pods for revaluation
 func (ctrl *AaqGateController) deleteAaqjqc(obj interface{}) {
 	arq := obj.(*v1alpha12.AAQJobQueueConfig)
 	ctrl.addAllArqsInNamespace(arq.Namespace)
@@ -268,7 +264,7 @@ func (ctrl *AaqGateController) releasePods(podsToRelease []string, ns string) er
 		pod := obj.(*v1.Pod)
 		if pod.Spec.SchedulingGates != nil && len(pod.Spec.SchedulingGates) == 1 && pod.Spec.SchedulingGates[0].Name == "ApplicationsAwareQuotaGate" {
 			pod.Spec.SchedulingGates = []v1.PodSchedulingGate{}
-			_, err = ctrl.clientSet.CoreV1().Pods(ns).Update(context.Background(), pod, metav1.UpdateOptions{})
+			_, err = ctrl.aaqCli.CoreV1().Pods(ns).Update(context.Background(), pod, metav1.UpdateOptions{})
 			if err != nil {
 				return err
 			}
