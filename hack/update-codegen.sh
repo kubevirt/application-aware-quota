@@ -36,6 +36,7 @@ rm -rf "${SCRIPT_ROOT}/pkg/generated"
 /bin/bash ${CODEGEN_PKG}/generate-groups.sh  "deepcopy,client,informer,lister" \
   kubevirt.io/applications-aware-quota/pkg/generated \
   kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis  \
+
     "core:v1alpha1 " \
     --go-header-file ${SCRIPT_ROOT}/hack/custom-boilerplate.go.txt
 echo "************* running controller-gen to generate schema yaml ********************"

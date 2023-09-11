@@ -1,0 +1,28 @@
+---
+apiVersion: kubevirt.io/v1
+kind: VirtualMachineInstance
+metadata:
+  labels:
+    special: vmi-migratable
+  name: vmi-heavy
+spec:
+  domain:
+    devices:
+      disks:
+      - disk:
+          bus: virtio
+        name: containerdisk
+      interfaces:
+      - masquerade: {}
+        name: default
+    resources:
+      requests:
+        memory: 1Gi
+  networks:
+  - name: default
+    pod: {}
+  terminationGracePeriodSeconds: 0
+  volumes:
+  - containerDisk:
+      image: kubevirt/alpine-container-disk-demo:devel
+    name: containerdisk

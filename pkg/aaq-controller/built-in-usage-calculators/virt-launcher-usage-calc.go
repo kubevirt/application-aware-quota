@@ -35,7 +35,7 @@ type VirtLauncherCalculator struct {
 	virtCli kubecli.KubevirtClient
 }
 
-func (launchercalc *VirtLauncherCalculator) PodUsageFunc(obj runtime.Object, clock clock.Clock) (corev1.ResourceList, error, bool) {
+func (launchercalc *VirtLauncherCalculator) PodUsageFunc(obj runtime.Object, items []runtime.Object, clock clock.Clock) (corev1.ResourceList, error, bool) {
 	pod, err := aaq_evaluator.ToExternalPodOrError(obj)
 	if err != nil {
 		return corev1.ResourceList{}, err, false
@@ -50,9 +50,9 @@ func (launchercalc *VirtLauncherCalculator) PodUsageFunc(obj runtime.Object, clo
 		return corev1.ResourceList{}, err, false
 	}
 
-	launcherPods := UnfinishedVMIPods(launchercalc.virtCli, vmi, pod.Name)
+	launcherPods := UnfinishedVMIPods(launchercalc.virtCli, items, vmi)
 
-	if !podExists(launcherPods, pod) && finishedAlready(launchercalc.virtCli, pod) { //already failed or succeeded
+	if !podExists(launcherPods, pod) {
 		return corev1.ResourceList{}, nil, true
 	} else if !podExists(launcherPods, pod) { //sanity check
 		return corev1.ResourceList{}, fmt.Errorf("can't detect pod as launcher pod"), true
@@ -80,7 +80,9 @@ func (launchercalc *VirtLauncherCalculator) PodUsageFunc(obj runtime.Object, clo
 	if pod.Name == sourcePod.Name { // we are calculating source resources
 		return CalculateResourceListForLauncherPod(vmi, true), nil, true
 	}
-	return v12.SubtractWithNonNegativeResult(CalculateResourceListForLauncherPod(vmi, false), CalculateResourceListForLauncherPod(vmi, true)), nil, true
+	targetResources := CalculateResourceListForLauncherPod(vmi, false)
+	sourceResources := CalculateResourceListForLauncherPod(vmi, true)
+	return v12.SubtractWithNonNegativeResult(targetResources, sourceResources), nil, true
 }
 func CalculateResourceListForLauncherPod(vmi *v15.VirtualMachineInstance, isSourceOrSingleLauncher bool) corev1.ResourceList {
 	result := corev1.ResourceList{
@@ -176,12 +178,25 @@ func GetNumberOfVCPUs(cpuSpec *v15.CPUTopology) int64 {
 	return int64(vCPUs)
 }
 
-func UnfinishedVMIPods(virtCli kubecli.KubevirtClient, vmi *v15.VirtualMachineInstance, mypod string) (podsToReturn []*corev1.Pod) {
-	pods, err := virtCli.CoreV1().Pods(vmi.Namespace).List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		log.Log.Infof("AaqGateController: Error: %v", err)
+func UnfinishedVMIPods(virtCli kubecli.KubevirtClient, items []runtime.Object, vmi *v15.VirtualMachineInstance) (podsToReturn []*corev1.Pod) {
+	pods := []corev1.Pod{}
+	if items != nil {
+		for _, item := range items {
+			pod, err := aaq_evaluator.ToExternalPodOrError(item)
+			if err != nil {
+				continue
+			}
+			pods = append(pods, *pod)
+		}
+	} else {
+		podsList, err := virtCli.CoreV1().Pods(vmi.Namespace).List(context.Background(), metav1.ListOptions{})
+		if err != nil {
+			log.Log.Infof("AaqGateController: Error: %v", err)
+		}
+		pods = podsList.Items
 	}
-	for _, pod := range pods.Items {
+
+	for _, pod := range pods {
 		if pod.Status.Phase == corev1.PodFailed || pod.Status.Phase == corev1.PodSucceeded {
 			continue
 		}
@@ -204,14 +219,6 @@ func UnfinishedVMIPods(virtCli kubecli.KubevirtClient, vmi *v15.VirtualMachineIn
 			continue
 		}
 		podsToReturn = append(podsToReturn, pod.DeepCopy())
-	}
-	pl := []string{}
-	pl2 := []string{}
-	for _, p := range podsToReturn {
-		pl = append(pl, p.Name)
-	}
-	for _, p := range pods.Items {
-		pl2 = append(pl2, p.Name)
 	}
 	return podsToReturn
 }

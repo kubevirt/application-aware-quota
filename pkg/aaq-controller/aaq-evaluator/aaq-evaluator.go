@@ -3,13 +3,14 @@ package aaq_evaluator
 import (
 	"fmt"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apiserver/pkg/admission"
 	quota "k8s.io/apiserver/pkg/quota/v1"
 	v12 "k8s.io/apiserver/pkg/quota/v1"
-	"k8s.io/apiserver/pkg/quota/v1/generic"
+	"k8s.io/client-go/tools/cache"
 	api "k8s.io/kubernetes/pkg/apis/core"
 	k8s_api_v1 "k8s.io/kubernetes/pkg/apis/core/v1"
 	"k8s.io/kubernetes/pkg/apis/core/v1/helper"
@@ -21,7 +22,7 @@ import (
 // UsageCalculator knows how to evaluate quota usage for a particular app pods
 type UsageCalculator interface {
 	// Usage returns the resource usage for the specified object
-	PodUsageFunc(item runtime.Object, clock clock.Clock) (corev1.ResourceList, error, bool)
+	PodUsageFunc(item runtime.Object, items []runtime.Object, clock clock.Clock) (corev1.ResourceList, error, bool)
 }
 
 func NewAaqCalculatorsRegistry(retriesOnMatchFailure int, clock clock.Clock) *AaqCalculatorsRegistry {
@@ -39,16 +40,15 @@ type AaqCalculatorsRegistry struct {
 }
 
 func (aaqe *AaqCalculatorsRegistry) AddCalculator(usageCalculator UsageCalculator) *AaqCalculatorsRegistry {
-
 	aaqe.usageCalculators = append(aaqe.usageCalculators, usageCalculator)
 	return aaqe
 }
 
-func (aaqe *AaqCalculatorsRegistry) Usage(item runtime.Object) (rlToRet corev1.ResourceList, acceptedErr error) {
+func (aaqe *AaqCalculatorsRegistry) Usage(item runtime.Object, items []runtime.Object) (rlToRet corev1.ResourceList, acceptedErr error) {
 	accepted := false
 	for _, calculator := range aaqe.usageCalculators {
 		for retries := 0; retries < aaqe.retriesOnMatchFailure; retries++ {
-			rl, err, match := calculator.PodUsageFunc(item, aaqe.clock)
+			rl, err, match := calculator.PodUsageFunc(item, items, aaqe.clock)
 			if !match && err == nil {
 				break
 			} else if err == nil {
@@ -65,12 +65,11 @@ func (aaqe *AaqCalculatorsRegistry) Usage(item runtime.Object) (rlToRet corev1.R
 }
 
 // NewAaqEvaluator returns an evaluator that can evaluate pods with apps consideration
-func NewAaqEvaluator(f v12.ListerForResourceFunc, aaqAppUsageCalculator *AaqCalculatorsRegistry, clock clock.Clock) v12.Evaluator {
-	listFuncByNamespace := generic.ListResourceUsingListerFunc(f, corev1.SchemeGroupVersion.WithResource("pods"))
+func NewAaqEvaluator(f v12.ListerForResourceFunc, podInformer cache.SharedIndexInformer, aaqAppUsageCalculator *AaqCalculatorsRegistry, clock clock.Clock) *AaqEvaluator {
 	podEvaluator := core.NewPodEvaluator(f, clock)
 	return &AaqEvaluator{
 		podEvaluator:                  podEvaluator,
-		listFuncByNamespace:           listFuncByNamespace,
+		podInformer:                   podInformer,
 		aaqAppUsageCalculatorRegistry: aaqAppUsageCalculator,
 	}
 }
@@ -79,7 +78,7 @@ type AaqEvaluator struct {
 	podEvaluator                  v12.Evaluator
 	aaqAppUsageCalculatorRegistry *AaqCalculatorsRegistry
 	// knows how to list pods
-	listFuncByNamespace generic.ListFuncByNamespace
+	podInformer cache.SharedIndexInformer
 }
 
 func (aaqe *AaqEvaluator) Constraints(required []corev1.ResourceName, item runtime.Object) error {
@@ -110,7 +109,7 @@ func (aaqe *AaqEvaluator) MatchingResources(input []corev1.ResourceName) []corev
 	return aaqe.podEvaluator.MatchingResources(input)
 }
 
-func (aaqe *AaqEvaluator) Usage(item runtime.Object) (corev1.ResourceList, error) {
+func (aaqe *AaqEvaluator) Usage(item runtime.Object, items []runtime.Object) (corev1.ResourceList, error) {
 	pod, err := ToExternalPodOrError(item)
 	if err != nil {
 		return corev1.ResourceList{}, err
@@ -119,7 +118,7 @@ func (aaqe *AaqEvaluator) Usage(item runtime.Object) (corev1.ResourceList, error
 		return corev1.ResourceList{}, nil
 	}
 
-	rl, err := aaqe.aaqAppUsageCalculatorRegistry.Usage(item)
+	rl, err := aaqe.aaqAppUsageCalculatorRegistry.Usage(item, items)
 	if err != nil {
 		return aaqe.podEvaluator.Usage(item)
 	}
@@ -128,7 +127,55 @@ func (aaqe *AaqEvaluator) Usage(item runtime.Object) (corev1.ResourceList, error
 
 // UsageStats calculates aggregate usage for the object.
 func (aaqe *AaqEvaluator) UsageStats(options v12.UsageStatsOptions) (v12.UsageStats, error) {
-	return generic.CalculateUsageStats(options, aaqe.listFuncByNamespace, podMatchesScopeFunc, aaqe.Usage)
+	result := quota.UsageStats{Used: corev1.ResourceList{}}
+	for _, resourceName := range options.Resources {
+		result.Used[resourceName] = resource.Quantity{Format: resource.DecimalSI}
+	}
+	arqObjs, err := aaqe.podInformer.GetIndexer().ByIndex(cache.NamespaceIndex, options.Namespace)
+	if err != nil {
+		return result, fmt.Errorf("failed to list content: %v", err)
+	}
+	var runtimeObjects []runtime.Object
+	for _, obj := range arqObjs {
+		pod, ok := obj.(*corev1.Pod)
+		if !ok {
+			fmt.Printf("Failed to type assert to *v1.Pod\n")
+			continue
+		}
+		runtimeObjects = append(runtimeObjects, pod)
+	}
+
+	for _, item := range runtimeObjects {
+		// need to verify that the item matches the set of scopes
+		matchesScopes := true
+		for _, scope := range options.Scopes {
+			innerMatch, err := podMatchesScopeFunc(corev1.ScopedResourceSelectorRequirement{ScopeName: scope}, item)
+			if err != nil {
+				return result, nil
+			}
+			if !innerMatch {
+				matchesScopes = false
+			}
+		}
+		if options.ScopeSelector != nil {
+			for _, selector := range options.ScopeSelector.MatchExpressions {
+				innerMatch, err := podMatchesScopeFunc(selector, item)
+				if err != nil {
+					return result, nil
+				}
+				matchesScopes = matchesScopes && innerMatch
+			}
+		}
+		// only count usage if there was a match
+		if matchesScopes {
+			usage, err := aaqe.Usage(item, runtimeObjects)
+			if err != nil {
+				return result, err
+			}
+			result.Used = quota.Add(result.Used, usage)
+		}
+	}
+	return result, nil
 }
 
 // todo: ask kubernetes to make this funcs global and remove all this code

@@ -29,6 +29,7 @@ import (
 	aaq_evaluator "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-evaluator"
 	arq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-gate-controller"
 	built_in_usage_calculators "kubevirt.io/applications-aware-quota/pkg/aaq-controller/built-in-usage-calculators"
+	aaq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/quota-utils"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/utils"
 	v1alpha13 "kubevirt.io/applications-aware-quota/pkg/generated/clientset/versioned/typed/core/v1alpha1"
 	v1alpha12 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
@@ -65,9 +66,8 @@ type ArqController struct {
 	resyncPeriod pkgcontroller.ResyncPeriodFunc
 
 	// knows how to calculate usage
-	registry quota.Registry
-	// knows how to monitor all the resources tracked by quota and trigger replenishment
-	quotaMonitor *QuotaMonitor
+	eval *aaq_evaluator.AaqEvaluator
+
 	// controls the workers that process quotas
 	// this lock is acquired to control write access to the monitors and ensures that all
 	// monitors are synced before the controller can process quotas.
@@ -105,7 +105,7 @@ func NewArqController(clientSet kubecli.KubevirtClient,
 		enqueueAllQueue:     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq_enqueue_all"),
 		resyncPeriod:        pkgcontroller.StaticResyncPeriodFunc(metav1.Duration{Duration: 1 * time.Second}.Duration),
 		recorder:            eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: utils.ControllerPodName}),
-		registry:            generic.NewRegistry([]v12.Evaluator{aaq_evaluator.NewAaqEvaluator(listerFuncForResource, calcRegistry, clock.RealClock{})}),
+		eval:                aaq_evaluator.NewAaqEvaluator(listerFuncForResource, podInformer, calcRegistry, clock.RealClock{}),
 	}
 	ctrl.syncHandler = ctrl.syncResourceQuotaFromKey
 
@@ -154,17 +154,6 @@ func NewArqController(clientSet kubecli.KubevirtClient,
 	if err != nil {
 		panic("something is wrong")
 	}
-	qm := &QuotaMonitor{
-		informersStarted:  InformersStarted,
-		informerFactory:   InformerFactory,
-		ignoredResources:  make(map[schema.GroupResource]struct{}),
-		resourceChanges:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "resource_quota_controller_resource_changes"),
-		resyncPeriod:      func() time.Duration { return metav1.Duration{Duration: 5 * time.Minute}.Duration },
-		replenishmentFunc: ctrl.replenishQuota,
-		registry:          ctrl.registry,
-		updateFilter:      DefaultUpdateFilter(),
-	}
-	ctrl.quotaMonitor = qm
 
 	// do initial quota monitor setup.  If we have a discovery failure here, it's ok. We'll discover more resources when a later sync happens.
 	resources, err := quotacontroller.GetQuotableResources(discoveryFunction)
@@ -181,14 +170,7 @@ func NewArqController(clientSet kubecli.KubevirtClient,
 		panic("NewArqController: something is wrong")
 	}
 
-	if err = qm.SyncMonitors(context.Background(), podResourceMap); err != nil {
-		utilruntime.HandleError(fmt.Errorf("initial monitor sync has error: %v", err))
-	}
-
-	// only start quota once all informers synced
-	ctrl.informerSyncedFuncs = append(ctrl.informerSyncedFuncs, func() bool {
-		return qm.IsSynced(context.Background())
-	})
+	ctrl.informerSyncedFuncs = ctrl.informerSyncedFuncs
 
 	return ctrl
 }
@@ -333,16 +315,10 @@ func (ctrl *ArqController) Run(ctx context.Context, workers int, stop <-chan str
 	defer ctrl.missingUsageQueue.ShutDown()
 
 	logger := klog.FromContext(ctx)
-
-	if ctrl.quotaMonitor != nil {
-		go ctrl.quotaMonitor.Run(ctx)
-	}
-
 	if !cache.WaitForNamedCacheSync("resource quota", ctx.Done(), ctrl.informerSyncedFuncs...) {
 		return
 	}
 
-	ctrl.quotaMonitor.StartMonitors(context.Background())
 	// the workers that chug through the quota calculation backlog
 	for i := 0; i < workers; i++ {
 		go wait.Until(ctrl.worker(ctrl.arqQueue), time.Second, stop)
@@ -379,6 +355,8 @@ func (ctrl *ArqController) worker(queue workqueue.RateLimitingInterface) func() 
 		if err == nil {
 			queue.Forget(key)
 			return false
+		} else {
+			log.Log.Infof("ERROR: %v", err)
 		}
 
 		utilruntime.HandleError(err)
@@ -416,11 +394,9 @@ func (ctrl *ArqController) addQuota(logger klog.Logger, obj interface{}) {
 	for constraint := range arq.Status.Hard {
 		if _, usageFound := arq.Status.Used[constraint]; !usageFound {
 			matchedResources := []v1.ResourceName{constraint}
-			for _, evaluator := range ctrl.registry.List() {
-				if intersection := evaluator.MatchingResources(matchedResources); len(intersection) > 0 {
-					ctrl.missingUsageQueue.Add(key)
-					return
-				}
+			if intersection := ctrl.eval.MatchingResources(matchedResources); len(intersection) > 0 {
+				ctrl.missingUsageQueue.Add(key)
+				return
 			}
 		}
 	}
@@ -431,11 +407,6 @@ func (ctrl *ArqController) addQuota(logger klog.Logger, obj interface{}) {
 
 // replenishQuota is a replenishment function invoked by a controller to notify that a quota should be recalculated
 func (ctrl *ArqController) replenishQuota(ctx context.Context, groupResource schema.GroupResource, namespace string) {
-	// check if the quota controller can evaluate this groupResource, if not, ignore it altogether...
-	evaluator := ctrl.registry.Get(groupResource)
-	if evaluator == nil {
-		return
-	}
 
 	// check if this namespace even has a quota...
 	arqObjs, err := ctrl.arqInformer.GetIndexer().ByIndex(cache.NamespaceIndex, namespace)
@@ -457,7 +428,7 @@ func (ctrl *ArqController) replenishQuota(ctx context.Context, groupResource sch
 	for _, arqObj := range arqObjs {
 		arq := arqObj.(*v1alpha12.ApplicationsResourceQuota)
 		resourceQuotaResources := quota.ResourceNames(arq.Status.Hard)
-		if intersection := evaluator.MatchingResources(resourceQuotaResources); len(intersection) > 0 {
+		if intersection := ctrl.eval.MatchingResources(resourceQuotaResources); len(intersection) > 0 {
 			ctrl.enqueueArq(logger, arq)
 		}
 	}
@@ -518,8 +489,7 @@ func (ctrl *ArqController) syncResourceQuota(appResourceQuota *v1alpha12.Applica
 	hardLimits := quota.Add(v1.ResourceList{}, appResourceQuota.Spec.Hard)
 
 	var errs []error
-
-	newUsage, err := quota.CalculateUsage(appResourceQuota.Namespace, appResourceQuota.Spec.Scopes, hardLimits, ctrl.registry, appResourceQuota.Spec.ScopeSelector)
+	newUsage, err := aaq_controller.CalculateUsage(appResourceQuota.Namespace, appResourceQuota.Spec.Scopes, hardLimits, ctrl.eval, appResourceQuota.Spec.ScopeSelector)
 	if err != nil {
 		// if err is non-nil, remember it to return, but continue updating status with any resources in newUsage
 		errs = append(errs, err)

@@ -10,9 +10,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	k8sadmission "k8s.io/apiserver/pkg/admission"
-	quotaplugin "k8s.io/apiserver/pkg/admission/plugin/resourcequota"
 	"k8s.io/apiserver/pkg/admission/plugin/resourcequota/apis/resourcequota"
-	v12 "k8s.io/apiserver/pkg/quota/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	v14 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -21,6 +19,8 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
 	_ "kubevirt.io/api/core/v1"
+	quota_utils "kubevirt.io/applications-aware-quota/pkg/aaq-controller/quota-utils"
+
 	aaq_evaluator "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-evaluator"
 	built_in_usage_calculators "kubevirt.io/applications-aware-quota/pkg/aaq-controller/built-in-usage-calculators"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/utils"
@@ -49,7 +49,7 @@ type AaqGateController struct {
 	clientSet      kubecli.KubevirtClient
 	aaqCli         v1alpha13.AaqV1alpha1Client
 	recorder       record.EventRecorder
-	aaqEvaluator   v12.Evaluator
+	aaqEvaluator   *aaq_evaluator.AaqEvaluator
 }
 
 func NewAaqGateController(clientSet kubecli.KubevirtClient,
@@ -72,7 +72,7 @@ func NewAaqGateController(clientSet kubecli.KubevirtClient,
 		arqInformer:    arqInformer,
 		arqQueue:       workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq-queue"),
 		recorder:       eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: utils.ControllerPodName}),
-		aaqEvaluator:   aaq_evaluator.NewAaqEvaluator(nil, calcRegistry, clock.RealClock{}),
+		aaqEvaluator:   aaq_evaluator.NewAaqEvaluator(nil, podInformer, calcRegistry, clock.RealClock{}),
 	}
 
 	return &ctrl
@@ -235,7 +235,7 @@ func (ctrl *AaqGateController) execute(key string) (error, enqueueState) {
 				return nil, Immediate
 			}
 
-			newRq, err := quotaplugin.CheckRequest(rqs, podToCreateAttr, ctrl.aaqEvaluator, []resourcequota.LimitedResource{currPodLimitedResource})
+			newRq, err := quota_utils.CheckRequest(rqs, podToCreateAttr, ctrl.aaqEvaluator, []resourcequota.LimitedResource{currPodLimitedResource})
 			if err == nil {
 				rqs = newRq
 				aaqjqc.Status.PodsInJobQueue = append(aaqjqc.Status.PodsInJobQueue, pod.Name)
@@ -315,12 +315,12 @@ func (ctrl *AaqGateController) Run(threadiness int, stop <-chan struct{}) error 
 
 }
 
-func getCurrLimitedResource(podEvaluator v12.Evaluator, podToCreate *v1.Pod) (resourcequota.LimitedResource, error) {
+func getCurrLimitedResource(podEvaluator *aaq_evaluator.AaqEvaluator, podToCreate *v1.Pod) (resourcequota.LimitedResource, error) {
 	launcherLimitedResource := resourcequota.LimitedResource{
 		Resource:      "pods",
 		MatchContains: []string{},
 	}
-	usage, err := podEvaluator.Usage(podToCreate)
+	usage, err := podEvaluator.Usage(podToCreate, nil)
 	if err != nil {
 		return launcherLimitedResource, err
 	}
