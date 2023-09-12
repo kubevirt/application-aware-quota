@@ -5,7 +5,6 @@ import (
 	"fmt"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -54,12 +53,13 @@ func NewAaqGateController(aaqCli client.AAQClient,
 	podInformer cache.SharedIndexInformer,
 	arqInformer cache.SharedIndexInformer,
 	aaqjqcInformer cache.SharedIndexInformer,
+	stop <-chan struct{},
 ) *AaqGateController {
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartRecordingToSink(&v14.EventSinkImpl{Interface: aaqCli.CoreV1().Events(v1.NamespaceAll)})
 
 	//todo: make this generic for now we will try only launcher calculator
-	calcRegistry := aaq_evaluator.NewAaqCalculatorsRegistry(10, clock.RealClock{}).AddCalculator(built_in_usage_calculators.NewVirtLauncherCalculator())
+	calcRegistry := aaq_evaluator.NewAaqCalculatorsRegistry(10, clock.RealClock{}).AddCalculator(built_in_usage_calculators.NewVirtLauncherCalculator(stop))
 
 	ctrl := AaqGateController{
 		aaqCli:         aaqCli,
@@ -180,18 +180,20 @@ func (ctrl *AaqGateController) Execute() bool {
 }
 
 func (ctrl *AaqGateController) execute(key string) (error, enqueueState) {
-
+	var aaqjqc *v1alpha12.AAQJobQueueConfig
 	arqNS, _, err := cache.SplitMetaNamespaceKey(key)
-	aaqjqc, err := ctrl.aaqCli.AAQJobQueueConfigs(arqNS).Get(context.Background(), AaqjqcName, metav1.GetOptions{})
-	if errors.IsNotFound(err) {
+	aaqjqcObj, exists, err := ctrl.aaqjqcInformer.GetIndexer().GetByKey(arqNS + "/" + AaqjqcName)
+	if err != nil {
+		return err, Immediate
+	} else if !exists {
 		aaqjqc, err = ctrl.aaqCli.AAQJobQueueConfigs(arqNS).Create(context.Background(),
 			&v1alpha12.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: AaqjqcName}, Spec: v1alpha12.AAQJobQueueConfigSpec{}},
 			metav1.CreateOptions{})
 		if err != nil {
 			return err, Immediate
 		}
-	} else if err != nil {
-		return err, Immediate
+	} else {
+		aaqjqc = aaqjqcObj.(*v1alpha12.AAQJobQueueConfig)
 	}
 	if len(aaqjqc.Status.PodsInJobQueue) != 0 {
 		ctrl.releasePods(aaqjqc.Status.PodsInJobQueue, arqNS)
@@ -207,12 +209,12 @@ func (ctrl *AaqGateController) execute(key string) (error, enqueueState) {
 		arq := arqObj.(*v1alpha12.ApplicationsResourceQuota)
 		rqs = append(rqs, v1.ResourceQuota{ObjectMeta: metav1.ObjectMeta{Name: arq.Name, Namespace: arqNS}, Spec: arq.Spec, Status: arq.Status})
 	}
-	podObjs, err := ctrl.podInformer.GetIndexer().ByIndex(cache.NamespaceIndex, arqNS)
+
+	podsList, err := ctrl.aaqCli.CoreV1().Pods(arqNS).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		return err, Immediate
 	}
-	for _, podObj := range podObjs {
-		pod := podObj.(*v1.Pod)
+	for _, pod := range podsList.Items {
 		if pod.Spec.SchedulingGates != nil &&
 			len(pod.Spec.SchedulingGates) == 1 &&
 			pod.Spec.SchedulingGates[0].Name == "ApplicationsAwareQuotaGate" {

@@ -79,13 +79,14 @@ func NewArqController(clientSet client.AAQClient,
 	podInformer cache.SharedIndexInformer,
 	arqInformer cache.SharedIndexInformer,
 	aaqjqcInformer cache.SharedIndexInformer,
+	stop <-chan struct{},
 ) *ArqController {
 
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartRecordingToSink(&v14.EventSinkImpl{Interface: clientSet.CoreV1().Events(v1.NamespaceAll)})
 	//todo: make this generic for now we will try only launcher calculator
 	InformerFactory := informers.NewSharedInformerFactoryWithOptions(clientSet, 1*time.Hour)
-	calcRegistry := aaq_evaluator.NewAaqCalculatorsRegistry(10, clock.RealClock{}).AddCalculator(built_in_usage_calculators.NewVirtLauncherCalculator())
+	calcRegistry := aaq_evaluator.NewAaqCalculatorsRegistry(10, clock.RealClock{}).AddCalculator(built_in_usage_calculators.NewVirtLauncherCalculator(stop))
 	listerFuncForResource := generic.ListerFuncForResourceFunc(InformerFactory.ForResource)
 	discoveryFunction := discovery.NewDiscoveryClient(clientSet.RestClient()).ServerPreferredNamespacedResources
 
@@ -259,7 +260,7 @@ func (ctrl *ArqController) Execute() bool {
 func (ctrl *ArqController) execute(key string) (error, enqueueState) {
 	ns, _, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
-		return err, BackOff
+		return err, Forget
 	}
 	aaqjqc, err := ctrl.aaqCli.AAQJobQueueConfigs(ns).Get(context.Background(), arq_controller.AaqjqcName, metav1.GetOptions{})
 	if errors.IsNotFound(err) {

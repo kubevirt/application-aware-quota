@@ -2,6 +2,6 @@
 apiVersion: kubevirt.io/v1
 kind: VirtualMachineInstanceMigration
 metadata:
-  name: migration-job22
+  name: migration-job
 spec:
-  vmiName: vmi-migratable2
+  vmiName: vmi-migratable

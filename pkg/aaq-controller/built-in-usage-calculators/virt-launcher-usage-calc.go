@@ -9,31 +9,46 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	v12 "k8s.io/apiserver/pkg/quota/v1"
 	"k8s.io/apiserver/pkg/quota/v1/generic"
+	"k8s.io/client-go/tools/cache"
+	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/quota/v1/evaluator/core"
 	"k8s.io/utils/clock"
 	v15 "kubevirt.io/api/core/v1"
 	aaq_evaluator "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-evaluator"
 	"kubevirt.io/applications-aware-quota/pkg/client"
 	"kubevirt.io/applications-aware-quota/pkg/util"
-	"kubevirt.io/client-go/kubecli"
 	"kubevirt.io/client-go/log"
 )
 
 var podObjectCountName = generic.ObjectCountQuotaResourceNameFor(corev1.SchemeGroupVersion.WithResource("pods").GroupResource())
 
-func NewVirtLauncherCalculator() *VirtLauncherCalculator {
-	virtCli, err := client.GetAAQClient()
+func NewVirtLauncherCalculator(stop <-chan struct{}) *VirtLauncherCalculator {
+	aaqCli, err := client.GetAAQClient()
 	if err != nil {
 		panic("NewVirtLauncherCalculator: couldn't get aaqCli")
 	}
+	vmiInformer := util.GetVMIInformer(aaqCli)
+	migrationInformer := util.GetMigrationInformer(aaqCli)
+	go migrationInformer.Run(stop)
+	go vmiInformer.Run(stop)
 
+	if !cache.WaitForCacheSync(stop,
+		migrationInformer.HasSynced,
+		vmiInformer.HasSynced,
+	) {
+		klog.Warningf("failed to wait for caches to sync")
+	}
 	return &VirtLauncherCalculator{
-		aaqCli: virtCli,
+		vmiInformer:       vmiInformer,
+		migrationInformer: migrationInformer,
+		aaqCli:            aaqCli,
 	}
 }
 
 type VirtLauncherCalculator struct {
-	aaqCli client.AAQClient
+	vmiInformer       cache.SharedIndexInformer
+	migrationInformer cache.SharedIndexInformer
+	aaqCli            client.AAQClient
 }
 
 func (launchercalc *VirtLauncherCalculator) PodUsageFunc(obj runtime.Object, items []runtime.Object, clock clock.Clock) (corev1.ResourceList, error, bool) {
@@ -46,11 +61,11 @@ func (launchercalc *VirtLauncherCalculator) PodUsageFunc(obj runtime.Object, ite
 		return corev1.ResourceList{}, nil, false
 	}
 
-	vmi, err := launchercalc.aaqCli.KubevirtClient().KubevirtV1().VirtualMachineInstances(pod.Namespace).Get(context.Background(), pod.OwnerReferences[0].Name, metav1.GetOptions{})
-	if err != nil {
-		return corev1.ResourceList{}, err, false
+	vmiObj, vmiExists, err := launchercalc.vmiInformer.GetStore().GetByKey(fmt.Sprintf("%s/%s", pod.Namespace, pod.OwnerReferences[0].Name))
+	if err != nil || !vmiExists {
+		return corev1.ResourceList{}, nil, false
 	}
-
+	vmi := vmiObj.(*v15.VirtualMachineInstance)
 	launcherPods := UnfinishedVMIPods(launchercalc.aaqCli, items, vmi)
 
 	if !podExists(launcherPods, pod) {
@@ -59,7 +74,7 @@ func (launchercalc *VirtLauncherCalculator) PodUsageFunc(obj runtime.Object, ite
 		return corev1.ResourceList{}, fmt.Errorf("can't detect pod as launcher pod"), true
 	}
 
-	migration, err := getLatestVmimIfExist(vmi, pod.Namespace, launchercalc.aaqCli)
+	migration, err := getLatestVmimIfExist(vmi, pod.Namespace, launchercalc.migrationInformer)
 	if err != nil {
 		return corev1.ResourceList{}, err, true
 	}
@@ -228,19 +243,6 @@ func UnfinishedVMIPods(aaqCli client.AAQClient, items []runtime.Object, vmi *v15
 	return podsToReturn
 }
 
-func finishedAlready(virtCli kubecli.KubevirtClient, podToCheck *corev1.Pod) bool {
-	pod, err := virtCli.CoreV1().Pods(podToCheck.Namespace).Get(context.Background(), podToCheck.Name, metav1.GetOptions{})
-	if err != nil {
-		log.Log.Infof(fmt.Sprintf("AaqGateController: Error failed to list pod from podInformer Error: %v  podNmae: %v", err, podToCheck.Name))
-	}
-	log.Log.Infof(fmt.Sprintf("this is the pod phase: %v ", pod.Status.Phase))
-	if pod.Status.Phase == corev1.PodFailed || pod.Status.Phase == corev1.PodSucceeded {
-		return true
-	}
-
-	return false
-}
-
 func podExists(pods []*corev1.Pod, targetPod *corev1.Pod) bool {
 	for _, pod := range pods {
 		if pod.Namespace == targetPod.Namespace &&
@@ -255,8 +257,8 @@ var requestedResourcePrefixes = []string{
 	corev1.ResourceHugePagesPrefix,
 }
 
-func getLatestVmimIfExist(vmi *v15.VirtualMachineInstance, ns string, aaqCli client.AAQClient) (*v15.VirtualMachineInstanceMigration, error) {
-	migrations, err := aaqCli.KubevirtClient().KubevirtV1().VirtualMachineInstanceMigrations(ns).List(context.Background(), metav1.ListOptions{})
+func getLatestVmimIfExist(vmi *v15.VirtualMachineInstance, ns string, migrationInformer cache.SharedIndexInformer) (*v15.VirtualMachineInstanceMigration, error) {
+	migrationObjs, err := migrationInformer.GetIndexer().ByIndex(cache.NamespaceIndex, ns)
 	if err != nil {
 		return nil, fmt.Errorf("can't fetch migrations")
 	}
@@ -264,11 +266,12 @@ func getLatestVmimIfExist(vmi *v15.VirtualMachineInstance, ns string, aaqCli cli
 	var latestVmim *v15.VirtualMachineInstanceMigration
 	latestTimestamp := metav1.Time{}
 
-	for _, vmim := range migrations.Items {
+	for _, migrationObj := range migrationObjs {
+		vmim := migrationObj.(*v15.VirtualMachineInstanceMigration)
 		if vmim.Status.Phase != v15.MigrationFailed && vmim.Spec.VMIName == vmi.Name {
 			if vmim.CreationTimestamp.After(latestTimestamp.Time) {
 				latestTimestamp = vmim.CreationTimestamp
-				latestVmim = &vmim
+				latestVmim = vmim
 			}
 		}
 	}

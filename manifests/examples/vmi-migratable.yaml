@@ -4,7 +4,7 @@ kind: VirtualMachineInstance
 metadata:
   labels:
     special: vmi-migratable
-  name: vmi-migratable21
+  name: vmi-migratable
 spec:
   domain:
     devices:
