@@ -62,3 +62,22 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil
 }
+
+func AddKnownTypesGenerator(groupVersions []schema.GroupVersion) func(scheme *runtime.Scheme) error {
+	// Adds the list of known types to api.Scheme.
+	return func(scheme *runtime.Scheme) error {
+		for _, groupVersion := range groupVersions {
+			scheme.AddKnownTypes(groupVersion,
+				&ApplicationsResourceQuota{},
+				&ApplicationsResourceQuotaList{},
+				&AAQJobQueueConfig{},
+				&AAQJobQueueConfigList{},
+				&AAQ{},
+				&AAQList{},
+			)
+			metav1.AddToGroupVersion(scheme, groupVersion)
+		}
+
+		return nil
+	}
+}

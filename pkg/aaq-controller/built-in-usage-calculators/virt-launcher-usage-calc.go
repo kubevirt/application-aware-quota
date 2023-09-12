@@ -59,7 +59,7 @@ func (launchercalc *VirtLauncherCalculator) PodUsageFunc(obj runtime.Object, ite
 		return corev1.ResourceList{}, fmt.Errorf("can't detect pod as launcher pod"), true
 	}
 
-	migration, err := getVmimIfExist(vmi, pod.Namespace, launchercalc.aaqCli)
+	migration, err := getLatestVmimIfExist(vmi, pod.Namespace, launchercalc.aaqCli)
 	if err != nil {
 		return corev1.ResourceList{}, err, true
 	}
@@ -75,7 +75,11 @@ func (launchercalc *VirtLauncherCalculator) PodUsageFunc(obj runtime.Object, ite
 	sourcePod := getSourcePod(launcherPods, migration)
 	targetPod := getTargetPod(launcherPods, migration)
 	if sourcePod == nil || targetPod == nil {
-		return corev1.ResourceList{}, fmt.Errorf("something is wrong could not detect source or target pod"), true
+		var launcherPodsForErr []string
+		for _, pod := range launcherPods {
+			launcherPodsForErr = append(launcherPodsForErr, pod.Name)
+		}
+		return corev1.ResourceList{}, fmt.Errorf(fmt.Sprintf("something is wrong could not detect source or target pod launcherPods in ns: %v ", launcherPodsForErr)), true
 	}
 
 	if pod.Name == sourcePod.Name { // we are calculating source resources
@@ -251,25 +255,35 @@ var requestedResourcePrefixes = []string{
 	corev1.ResourceHugePagesPrefix,
 }
 
-func getVmimIfExist(vmi *v15.VirtualMachineInstance, ns string, aaqCli client.AAQClient) (*v15.VirtualMachineInstanceMigration, error) {
+func getLatestVmimIfExist(vmi *v15.VirtualMachineInstance, ns string, aaqCli client.AAQClient) (*v15.VirtualMachineInstanceMigration, error) {
 	migrations, err := aaqCli.KubevirtClient().KubevirtV1().VirtualMachineInstanceMigrations(ns).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("can't fetch migrations")
 	}
+
+	var latestVmim *v15.VirtualMachineInstanceMigration
+	latestTimestamp := metav1.Time{}
+
 	for _, vmim := range migrations.Items {
 		if vmim.Status.Phase != v15.MigrationFailed && vmim.Spec.VMIName == vmi.Name {
-			return &vmim, nil
+			if vmim.CreationTimestamp.After(latestTimestamp.Time) {
+				latestTimestamp = vmim.CreationTimestamp
+				latestVmim = &vmim
+			}
 		}
-		log.Log.Infof("wierd i'm here vmim.Spec.VMIName: %v  vmi.Name: %\n", vmim.Spec.VMIName, vmi.Name)
 	}
-	return nil, nil
+
+	return latestVmim, nil
 }
 
 func getTargetPod(allPods []*corev1.Pod, migration *v15.VirtualMachineInstanceMigration) *corev1.Pod {
 	for _, pod := range allPods {
 		migrationUID, migrationLabelExist := pod.Labels[v15.MigrationJobLabel]
 		migrationName, migrationAnnExist := pod.Annotations[v15.MigrationJobNameAnnotation]
+		log.Log.Infof(fmt.Sprintf("pod.name:%v AnnmigrationName:%v LabelmigrationUID:%v migration.UID:%v migration.name:%v", pod.Name, migrationName, migrationUID, string(migration.UID), migration.Name))
 		if migrationLabelExist && migrationAnnExist && migrationUID == string(migration.UID) && migrationName == migration.Name {
+			log.Log.Infof(fmt.Sprintf("Inside if:  pod.name:%v AnnmigrationName:%v LabelmigrationUID:%v migration.UID:%v migration.name: %v ", pod.Name, migrationName, migrationUID, string(migration.UID), migration.Name))
+
 			return pod
 		}
 	}

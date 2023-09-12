@@ -24,7 +24,6 @@ import (
 	"k8s.io/klog/v2"
 	pkgcontroller "k8s.io/kubernetes/pkg/controller"
 	quotacontroller "k8s.io/kubernetes/pkg/controller/resourcequota"
-	"k8s.io/kubernetes/pkg/quota/v1/evaluator/core"
 	"k8s.io/utils/clock"
 	aaq_evaluator "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-evaluator"
 	arq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-gate-controller"
@@ -33,7 +32,6 @@ import (
 	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/utils"
 	"kubevirt.io/applications-aware-quota/pkg/client"
 	v1alpha12 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
-	"kubevirt.io/client-go/kubecli"
 	"kubevirt.io/client-go/log"
 	"kubevirt.io/kubevirt/pkg/controller"
 	"sync"
@@ -53,7 +51,6 @@ type ArqController struct {
 	aaqNs            string
 	podInformer      cache.SharedIndexInformer
 	aaqjqcInformer   cache.SharedIndexInformer
-	virtCli          kubecli.KubevirtClient
 	aaqCli           client.AAQClient
 	// A lister/getter of resource quota objects
 	arqInformer cache.SharedIndexInformer
@@ -93,6 +90,7 @@ func NewArqController(clientSet client.AAQClient,
 	discoveryFunction := discovery.NewDiscoveryClient(clientSet.RestClient()).ServerPreferredNamespacedResources
 
 	ctrl := &ArqController{
+		aaqCli:              clientSet,
 		arqInformer:         arqInformer,
 		informerSyncedFuncs: []cache.InformerSynced{arqInformer.HasSynced},
 		podInformer:         podInformer,
@@ -520,27 +518,4 @@ func (ctrl *ArqController) syncResourceQuota(appResourceQuota *v1alpha12.Applica
 		}
 	}
 	return utilerrors.NewAggregate(errs)
-}
-
-// function from kubernetes
-// DefaultUpdateFilter returns the default update filter for resource update events for consideration for quota.
-func DefaultUpdateFilter() func(resource schema.GroupVersionResource, oldObj, newObj interface{}) bool {
-	return func(resource schema.GroupVersionResource, oldObj, newObj interface{}) bool {
-		switch resource.GroupResource() {
-		case schema.GroupResource{Resource: "pods"}:
-			oldPod := oldObj.(*v1.Pod)
-			newPod := newObj.(*v1.Pod)
-			return core.QuotaV1Pod(oldPod, clock.RealClock{}) && !core.QuotaV1Pod(newPod, clock.RealClock{})
-		case schema.GroupResource{Resource: "services"}:
-			oldService := oldObj.(*v1.Service)
-			newService := newObj.(*v1.Service)
-			return core.GetQuotaServiceType(oldService) != core.GetQuotaServiceType(newService)
-		case schema.GroupResource{Resource: "persistentvolumeclaims"}:
-			oldPVC := oldObj.(*v1.PersistentVolumeClaim)
-			newPVC := newObj.(*v1.PersistentVolumeClaim)
-			return core.RequiresQuotaReplenish(newPVC, oldPVC)
-		}
-
-		return false
-	}
 }

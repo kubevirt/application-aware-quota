@@ -17,6 +17,7 @@ import (
 	"k8s.io/kubernetes/pkg/apis/core/v1/helper/qos"
 	"k8s.io/kubernetes/pkg/quota/v1/evaluator/core"
 	"k8s.io/utils/clock"
+	"kubevirt.io/client-go/log"
 )
 
 // UsageCalculator knows how to evaluate quota usage for a particular app pods
@@ -55,6 +56,8 @@ func (aaqe *AaqCalculatorsRegistry) Usage(item runtime.Object, items []runtime.O
 				accepted = true
 				rlToRet = quota.Add(rlToRet, rl)
 				break
+			} else {
+				log.Log.Infof(fmt.Sprintf("Retries: %v Error: %v ", retries, err))
 			}
 		}
 	}
