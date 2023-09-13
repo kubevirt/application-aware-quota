@@ -73,6 +73,7 @@ type ArqController struct {
 	recorder     record.EventRecorder
 	aaqEvaluator v12.Evaluator
 	syncHandler  func(key string) error
+	stop         <-chan struct{}
 }
 
 func NewArqController(clientSet client.AAQClient,
@@ -102,6 +103,7 @@ func NewArqController(clientSet client.AAQClient,
 		resyncPeriod:        pkgcontroller.StaticResyncPeriodFunc(metav1.Duration{Duration: 5 * time.Minute}.Duration),
 		recorder:            eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: utils.ControllerPodName}),
 		eval:                aaq_evaluator.NewAaqEvaluator(listerFuncForResource, podInformer, calcRegistry, clock.RealClock{}),
+		stop:                stop,
 	}
 	ctrl.syncHandler = ctrl.syncResourceQuotaFromKey
 
@@ -258,12 +260,15 @@ func (ctrl *ArqController) Execute() bool {
 }
 
 func (ctrl *ArqController) execute(key string) (error, enqueueState) {
+	var aaqjqc *v1alpha12.AAQJobQueueConfig
 	ns, _, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err, Forget
 	}
-	aaqjqc, err := ctrl.aaqCli.AAQJobQueueConfigs(ns).Get(context.Background(), arq_controller.AaqjqcName, metav1.GetOptions{})
-	if errors.IsNotFound(err) {
+	aaqjqcObj, exists, err := ctrl.aaqjqcInformer.GetIndexer().GetByKey(ns + "/" + arq_controller.AaqjqcName)
+	if err != nil {
+		return err, Immediate
+	} else if !exists {
 		aaqjqc, err = ctrl.aaqCli.AAQJobQueueConfigs(ns).Create(context.Background(),
 			&v1alpha12.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: arq_controller.AaqjqcName}, Spec: v1alpha12.AAQJobQueueConfigSpec{}},
 			metav1.CreateOptions{})
@@ -272,6 +277,8 @@ func (ctrl *ArqController) execute(key string) (error, enqueueState) {
 		}
 	} else if err != nil {
 		return err, Immediate
+	} else {
+		aaqjqc = aaqjqcObj.(*v1alpha12.AAQJobQueueConfig)
 	}
 
 	arqObjs, err := ctrl.arqInformer.GetIndexer().ByIndex(cache.NamespaceIndex, ns)
@@ -300,6 +307,10 @@ func (ctrl *ArqController) execute(key string) (error, enqueueState) {
 			return nil, Immediate
 		}
 	}
+	if res, err := ctrl.checkPodsForSchedulingGates(ns, aaqjqc.Status.PodsInJobQueue); err != nil || !res {
+		return nil, Immediate
+	}
+
 	aaqjqc.Status.PodsInJobQueue = []string{}
 	_, err = ctrl.aaqCli.AAQJobQueueConfigs(ns).UpdateStatus(context.Background(), aaqjqc, metav1.UpdateOptions{})
 	if err != nil {
@@ -308,7 +319,40 @@ func (ctrl *ArqController) execute(key string) (error, enqueueState) {
 	return nil, Forget
 }
 
-func (ctrl *ArqController) Run(ctx context.Context, workers int, stop <-chan struct{}) {
+// CheckPodsForSchedulingGates checks that all pods in the specified namespace
+// do not have scheduling gates.
+func (ctrl *ArqController) checkPodsForSchedulingGates(namespace string, podNames []string) (bool, error) {
+	listOptions := metav1.ListOptions{
+		FieldSelector: fmt.Sprintf("metadata.name in (%s)", listToString(podNames)),
+	}
+
+	podList, err := ctrl.aaqCli.CoreV1().Pods(namespace).List(context.TODO(), listOptions)
+	if err != nil {
+		return false, err
+	}
+
+	for _, pod := range podList.Items {
+		if len(pod.Spec.SchedulingGates) > 0 {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+func listToString(list []string) string {
+	// Convert a list of strings to a comma-separated string
+	var result string
+	for i, item := range list {
+		if i > 0 {
+			result += ","
+		}
+		result += item
+	}
+	return result
+}
+
+func (ctrl *ArqController) Run(ctx context.Context, workers int) {
 	defer utilruntime.HandleCrash()
 	defer ctrl.arqQueue.ShutDown()
 	defer ctrl.missingUsageQueue.ShutDown()
@@ -320,13 +364,13 @@ func (ctrl *ArqController) Run(ctx context.Context, workers int, stop <-chan str
 
 	// the workers that chug through the quota calculation backlog
 	for i := 0; i < workers; i++ {
-		go wait.Until(ctrl.worker(ctrl.arqQueue), time.Second, stop)
-		go wait.Until(ctrl.worker(ctrl.missingUsageQueue), time.Second, stop)
-		go wait.Until(ctrl.runGateWatcherWorker, time.Second, stop)
+		go wait.Until(ctrl.worker(ctrl.arqQueue), time.Second, ctrl.stop)
+		go wait.Until(ctrl.worker(ctrl.missingUsageQueue), time.Second, ctrl.stop)
+		go wait.Until(ctrl.runGateWatcherWorker, time.Second, ctrl.stop)
 	}
 	// the timer for how often we do a full recalculation across all quotas
 	if ctrl.resyncPeriod() > 0 {
-		go wait.Until(ctrl.enqueueAll, ctrl.resyncPeriod(), stop)
+		go wait.Until(ctrl.enqueueAll, ctrl.resyncPeriod(), ctrl.stop)
 	} else {
 		logger.Info("periodic quota controller resync disabled")
 	}

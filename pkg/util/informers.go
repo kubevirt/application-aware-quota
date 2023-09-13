@@ -3,8 +3,6 @@ package util
 import (
 	"context"
 	v1 "k8s.io/api/core/v1"
-	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	extclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	k8sv1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
@@ -49,23 +47,9 @@ func GetVMIInformer(aaqCli client.AAQClient) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(listWatcher, &k6tv1.VirtualMachineInstance{}, 1*time.Hour, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 }
 
-func KubeVirtInformer(aaqCli client.AAQClient) cache.SharedIndexInformer {
-	listWatcher := NewListWatchFromClient(aaqCli.KubevirtClient().KubevirtV1().RESTClient(), "kubevirts", k8sv1.NamespaceAll, fields.Everything(), labels.Everything())
-	return cache.NewSharedIndexInformer(listWatcher, &k6tv1.KubeVirt{}, 1*time.Hour, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
-}
-
-func CRDInformer(aaqCli client.AAQClient) cache.SharedIndexInformer {
-	ext, err := extclient.NewForConfig(aaqCli.Config())
-	if err != nil {
-		panic(err)
-	}
-	restClient := ext.ApiextensionsV1().RESTClient()
-	lw := cache.NewListWatchFromClient(restClient, "customresourcedefinitions", k8sv1.NamespaceAll, fields.Everything())
-	return cache.NewSharedIndexInformer(lw, &extv1.CustomResourceDefinition{}, 1*time.Hour, cache.Indexers{})
-}
-
 func GetResourceQuotaInformer(aaqCli client.AAQClient) cache.SharedIndexInformer {
-	listWatcher := NewListWatchFromClient(aaqCli.CoreV1().RESTClient(), "resourcequotas", k8sv1.NamespaceAll, fields.Everything(), labels.Everything())
+	labelSelector := labels.Set{"aaq.managed.rq": "true"}.AsSelector()
+	listWatcher := NewListWatchFromClient(aaqCli.CoreV1().RESTClient(), "resourcequotas", k8sv1.NamespaceAll, fields.Everything(), labelSelector)
 	return cache.NewSharedIndexInformer(listWatcher, &v1.ResourceQuota{}, 1*time.Hour, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 }
 

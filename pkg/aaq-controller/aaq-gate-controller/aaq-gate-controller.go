@@ -47,6 +47,7 @@ type AaqGateController struct {
 	aaqCli         client.AAQClient
 	recorder       record.EventRecorder
 	aaqEvaluator   *aaq_evaluator.AaqEvaluator
+	stop           <-chan struct{}
 }
 
 func NewAaqGateController(aaqCli client.AAQClient,
@@ -69,6 +70,7 @@ func NewAaqGateController(aaqCli client.AAQClient,
 		arqQueue:       workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq-queue"),
 		recorder:       eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: utils.ControllerPodName}),
 		aaqEvaluator:   aaq_evaluator.NewAaqEvaluator(nil, podInformer, calcRegistry, clock.RealClock{}),
+		stop:           stop,
 	}
 
 	return &ctrl
@@ -276,7 +278,7 @@ func (ctrl *AaqGateController) releasePods(podsToRelease []string, ns string) er
 
 }
 
-func (ctrl *AaqGateController) Run(threadiness int, stop <-chan struct{}) error {
+func (ctrl *AaqGateController) Run(threadiness int) error {
 	defer utilruntime.HandleCrash()
 
 	_, err := ctrl.podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -305,10 +307,10 @@ func (ctrl *AaqGateController) Run(threadiness int, stop <-chan struct{}) error 
 	defer klog.Info("Shutting down Arq controller")
 
 	for i := 0; i < threadiness; i++ {
-		go wait.Until(ctrl.runWorker, time.Second, stop)
+		go wait.Until(ctrl.runWorker, time.Second, ctrl.stop)
 	}
 
-	<-stop
+	<-ctrl.stop
 	return nil
 
 }

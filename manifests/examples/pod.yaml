@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod-with-resources
+spec:
+  containers:
+  - name: my-container
+    image: busybox
+    command: ["sleep", "3600"]
+    resources:
+      requests:
+        memory: "256Mi"  # Request 256 megabytes of memory
+        cpu: "200m"      # Request 200 milliCPU (0.2 CPU cores)

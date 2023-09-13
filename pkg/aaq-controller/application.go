@@ -34,6 +34,7 @@ import (
 	"k8s.io/klog/v2"
 	arq_controller2 "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-gate-controller"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-controller/arq-controller"
+	rq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/rq-controller"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/namespaced"
 	"kubevirt.io/applications-aware-quota/pkg/client"
 	"kubevirt.io/applications-aware-quota/pkg/util"
@@ -53,8 +54,10 @@ type AaqControllerApp struct {
 	aaqCli            client.AAQClient
 	arqController     *arq_controller.ArqController
 	aaqGateController *arq_controller2.AaqGateController
+	rqController      *rq_controller.RQController
 	podInformer       cache.SharedIndexInformer
 	arqInformer       cache.SharedIndexInformer
+	rqInformer        cache.SharedIndexInformer
 	aaqjqcInformer    cache.SharedIndexInformer
 	readyChan         chan bool
 	InformersStarted  chan struct{}
@@ -92,12 +95,14 @@ func Execute() {
 
 	app.aaqCli, err = client.GetAAQClient()
 	app.arqInformer = util.GetApplicationsResourceQuotaInformer(app.aaqCli)
+	app.rqInformer = util.GetResourceQuotaInformer(app.aaqCli)
 	app.aaqjqcInformer = util.GetAAQJobQueueConfig(app.aaqCli)
 	app.podInformer = util.GetPodInformer(app.aaqCli)
 
 	stop := ctx.Done()
 	app.initArqController(stop)
 	app.initAaqGateController(stop)
+	app.initRQController(stop)
 	app.Run(stop)
 
 	klog.V(2).Infoln("AAQ controller exited")
@@ -137,6 +142,14 @@ func (mca *AaqControllerApp) initAaqGateController(stop <-chan struct{}) {
 		mca.podInformer,
 		mca.arqInformer,
 		mca.aaqjqcInformer,
+		stop,
+	)
+}
+
+func (mca *AaqControllerApp) initRQController(stop <-chan struct{}) {
+	mca.rqController = rq_controller.NewRQController(mca.aaqCli,
+		mca.rqInformer,
+		mca.arqInformer,
 		stop,
 	)
 }
@@ -218,21 +231,32 @@ func (mca *AaqControllerApp) onStartedLeading() func(ctx context.Context) {
 
 		go mca.podInformer.Run(stop)
 		go mca.arqInformer.Run(stop)
+		go mca.rqInformer.Run(stop)
 		go mca.aaqjqcInformer.Run(stop)
 
 		if !cache.WaitForCacheSync(stop,
 			mca.podInformer.HasSynced,
 			mca.arqInformer.HasSynced,
 			mca.aaqjqcInformer.HasSynced,
+			mca.rqInformer.HasSynced,
 		) {
 			klog.Warningf("failed to wait for caches to sync")
 		}
 
 		go func() {
-			mca.arqController.Run(context.Background(), 3, stop)
+			mca.arqController.Run(context.Background(), 3)
 		}()
 		go func() {
-			mca.aaqGateController.Run(3, stop)
+			err := mca.aaqGateController.Run(3)
+			if err != nil {
+				panic(err)
+			}
+		}()
+		go func() {
+			err := mca.rqController.Run(3)
+			if err != nil {
+				panic(err)
+			}
 		}()
 		close(mca.InformersStarted)
 		close(mca.readyChan)

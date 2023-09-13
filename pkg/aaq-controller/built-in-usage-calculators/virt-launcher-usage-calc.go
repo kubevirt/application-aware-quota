@@ -175,7 +175,6 @@ func CalculateResourceListForLauncherPod(vmi *v15.VirtualMachineInstance, isSour
 
 	result = v12.Add(result, requests)
 	result = v12.Add(result, limits)
-
 	return result
 }
 
@@ -283,10 +282,7 @@ func getTargetPod(allPods []*corev1.Pod, migration *v15.VirtualMachineInstanceMi
 	for _, pod := range allPods {
 		migrationUID, migrationLabelExist := pod.Labels[v15.MigrationJobLabel]
 		migrationName, migrationAnnExist := pod.Annotations[v15.MigrationJobNameAnnotation]
-		log.Log.Infof(fmt.Sprintf("pod.name:%v AnnmigrationName:%v LabelmigrationUID:%v migration.UID:%v migration.name:%v", pod.Name, migrationName, migrationUID, string(migration.UID), migration.Name))
 		if migrationLabelExist && migrationAnnExist && migrationUID == string(migration.UID) && migrationName == migration.Name {
-			log.Log.Infof(fmt.Sprintf("Inside if:  pod.name:%v AnnmigrationName:%v LabelmigrationUID:%v migration.UID:%v migration.name: %v ", pod.Name, migrationName, migrationUID, string(migration.UID), migration.Name))
-
 			return pod
 		}
 	}

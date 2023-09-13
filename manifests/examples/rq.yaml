@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: example-big-resource-quota
+spec:
+  hard:
+    pods: "10"                     # Maximum number of pods allowed in the namespace
+    requests.cpu: "20"              # Total CPU request allowed for all pods
+    requests.memory: 50Gi           # Total memory request allowed for all pods      
