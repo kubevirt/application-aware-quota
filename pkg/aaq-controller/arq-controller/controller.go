@@ -255,6 +255,9 @@ func (ctrl *ArqController) Execute() bool {
 	}
 	defer ctrl.enqueueAllQueue.Done(key)
 
+	ctrl.workerLock.RLock()
+	defer ctrl.workerLock.RUnlock()
+
 	err, enqueueState := ctrl.execute(key.(string))
 
 	if err != nil {
@@ -312,7 +315,7 @@ func (ctrl *ArqController) execute(key string) (error, enqueueState) {
 			}
 			pod := obj.(*v1.Pod)
 			if len(pod.Spec.SchedulingGates) > 0 {
-				log.Log.Infof(fmt.Sprintf("ArqController: Error with key: %v", key))
+				log.Log.Infof(fmt.Sprintf("ArqController: gate has not been removed yet from pod: %v", pod.Name))
 
 				return nil, Immediate
 			}
