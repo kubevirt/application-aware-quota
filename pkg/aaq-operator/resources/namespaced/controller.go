@@ -3,6 +3,7 @@ package namespaced
 import (
 	"fmt"
 	rbacv1 "k8s.io/api/rbac/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	utils2 "kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/utils"
 
@@ -100,9 +101,16 @@ func createAAQControllerServiceAccount() *corev1.ServiceAccount {
 
 func createAAQControllerDeployment(image, verbosity, pullPolicy string, imagePullSecrets []corev1.LocalObjectReference, priorityClassName string, infraNodePlacement *sdkapi.NodePlacement) *appsv1.Deployment {
 	defaultMode := corev1.ConfigMapVolumeSourceDefaultMode
-	deployment := utils2.CreateDeployment(controllerResourceName, utils2.AAQLabel, controllerResourceName, controllerResourceName, imagePullSecrets, 1, infraNodePlacement)
+	deployment := utils2.CreateDeployment(controllerResourceName, utils2.AAQLabel, controllerResourceName, controllerResourceName, imagePullSecrets, 2, infraNodePlacement)
 	if priorityClassName != "" {
 		deployment.Spec.Template.Spec.PriorityClassName = priorityClassName
+	}
+	desiredMaxUnavailable := intstr.FromInt(1)
+	deployment.Spec.Strategy = appsv1.DeploymentStrategy{
+		Type: appsv1.RollingUpdateDeploymentStrategyType,
+		RollingUpdate: &appsv1.RollingUpdateDeployment{
+			MaxUnavailable: &desiredMaxUnavailable,
+		},
 	}
 	container := utils2.CreateContainer(controllerResourceName, image, verbosity, pullPolicy)
 	container.Ports = createAAQControllerPorts()
@@ -164,6 +172,18 @@ func createAAQControllerDeployment(image, verbosity, pullPolicy string, imagePul
 						},
 					},
 					DefaultMode: &defaultMode,
+				},
+			},
+		},
+	}
+	deployment.Spec.Template.Spec.Affinity = &corev1.Affinity{
+		PodAntiAffinity: &corev1.PodAntiAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+				{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{utils2.AAQLabel: controllerResourceName},
+					},
+					TopologyKey: "kubernetes.io/hostname",
 				},
 			},
 		},

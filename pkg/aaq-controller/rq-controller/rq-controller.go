@@ -6,6 +6,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	quota "k8s.io/apiserver/pkg/quota/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
@@ -92,7 +93,7 @@ func (ctrl *RQController) updateArq(old, cur interface{}) {
 	curArq := cur.(*v1alpha12.ApplicationsResourceQuota)
 	oldArq := old.(*v1alpha12.ApplicationsResourceQuota)
 
-	if !ResourceListEqual(curArq.Spec.Hard, oldArq.Spec.Hard) {
+	if !quota.Equals(curArq.Spec.Hard, oldArq.Spec.Hard) {
 		key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(curArq)
 		if err != nil {
 			return
@@ -118,7 +119,7 @@ func (ctrl *RQController) deleteRQ(obj interface{}) {
 func (ctrl *RQController) updateRQ(old, curr interface{}) {
 	curRq := curr.(*v1.ResourceQuota)
 	oldRq := old.(*v1.ResourceQuota)
-	if !ResourceListEqual(curRq.Spec.Hard, oldRq.Spec.Hard) {
+	if !quota.Equals(curRq.Spec.Hard, oldRq.Spec.Hard) {
 		arq := v1alpha12.ApplicationsResourceQuota{
 			ObjectMeta: metav1.ObjectMeta{Name: strings.TrimSuffix(curRq.Name, RQSuffix)},
 		}
@@ -208,7 +209,7 @@ func (ctrl *RQController) execute(key string) (error, enqueueState) {
 		}
 	}
 	rq := rqObj.(*v1.ResourceQuota)
-	if ResourceListEqual(rq.Spec.Hard, nonSchedulableResourcesLimitations) {
+	if quota.Equals(rq.Spec.Hard, nonSchedulableResourcesLimitations) {
 		return nil, Forget
 	}
 	rq.Spec.Hard = nonSchedulableResourcesLimitations
@@ -226,30 +227,6 @@ func filterNonScheduableResources(resourceList v1.ResourceList) v1.ResourceList 
 		delete(resourceList, resourceName)
 	}
 	return resourceList
-}
-
-// ResourceListEqual checks if two ResourceList maps are equal.
-func ResourceListEqual(list1, list2 v1.ResourceList) bool {
-	// Check if the lengths of the two maps are different
-	if len(list1) != len(list2) {
-		return false
-	}
-
-	// Iterate over the keys and values in the first map
-	for key, value1 := range list1 {
-		// Check if the key exists in the second map
-		value2, exists := list2[key]
-		if !exists {
-			return false
-		}
-
-		// Check if the values are equal
-		if !value1.Equal(value2) {
-			return false
-		}
-	}
-
-	return true
 }
 
 // getSchedulableResources returns a list of resource names that are not counted in the resource quota.
@@ -296,7 +273,7 @@ func (ctrl *RQController) Run(threadiness int) error {
 		}
 
 		<-ctrl.stop
-	
+
 	*/
 	return nil
 

@@ -221,9 +221,8 @@ func (ctrl *AaqGateController) execute(key string) (error, enqueueState) {
 			len(pod.Spec.SchedulingGates) == 1 &&
 			pod.Spec.SchedulingGates[0].Name == "ApplicationsAwareQuotaGate" {
 			podCopy := pod.DeepCopy()
-			if podCopy.Spec.SchedulingGates != nil && len(podCopy.Spec.SchedulingGates) == 1 && podCopy.Spec.SchedulingGates[0].Name == "ApplicationsAwareQuotaGate" {
-				podCopy.Spec.SchedulingGates = []v1.PodSchedulingGate{}
-			}
+			podCopy.Spec.SchedulingGates = []v1.PodSchedulingGate{}
+
 			podToCreateAttr := k8sadmission.NewAttributesRecord(podCopy, nil,
 				apiextensions.Kind("Pod").WithVersion("version"), podCopy.Namespace, podCopy.Name,
 				corev1beta1.Resource("pods").WithVersion("version"), "", k8sadmission.Create,

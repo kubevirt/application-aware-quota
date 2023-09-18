@@ -149,6 +149,7 @@ func NewArqController(clientSet client.AAQClient,
 	}
 	_, err = ctrl.aaqjqcInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: ctrl.updateAaqjqc,
+		AddFunc:    ctrl.addAaqjqc,
 	})
 	if err != nil {
 		panic("something is wrong")
@@ -183,18 +184,32 @@ func (ctrl *ArqController) updateAaqjqc(old, cur interface{}) {
 	return
 }
 
+// When a ApplicationsResourceQuotaaqjqc.Status.PodsInJobQueuea is updated, enqueue all gated pods for revaluation
+func (ctrl *ArqController) addAaqjqc(obj interface{}) {
+	aaqjqc := obj.(*v1alpha12.AAQJobQueueConfig)
+	if aaqjqc.Status.PodsInJobQueue != nil && len(aaqjqc.Status.PodsInJobQueue) > 0 {
+		ctrl.addAllArqsInNamespace(aaqjqc.Namespace)
+	}
+	return
+}
+
 func (ctrl *ArqController) addAllArqsInNamespace(ns string) {
 	arqObjs, err := ctrl.arqInformer.GetIndexer().ByIndex(cache.NamespaceIndex, ns)
 	if err != nil {
 		log.Log.Infof("AaqGateController: Error failed to list pod from podInformer")
 	}
+	found := false
 	for _, arqObj := range arqObjs {
 		arq := arqObj.(*v1alpha12.ApplicationsResourceQuota)
 		key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(arq)
 		if err != nil {
 			return
 		}
+		found = true
 		ctrl.enqueueAllQueue.Add(key)
+	}
+	if !found {
+		ctrl.enqueueAllQueue.Add(ns + "/fake")
 	}
 }
 
@@ -214,21 +229,18 @@ func (ctrl *ArqController) enqueueAll() {
 
 func (ctrl *ArqController) updatePod(old, curr interface{}) {
 	currPod := curr.(*v1.Pod)
-	if len(currPod.Spec.SchedulingGates) == 0 {
+	oldPod := old.(*v1.Pod)
+	if len(oldPod.Spec.SchedulingGates) == 0 && len(currPod.Spec.SchedulingGates) == 0 {
 		ctrl.addAllArqsInNamespace(currPod.Namespace)
 	}
 }
 func (ctrl *ArqController) AddPod(obj interface{}) {
 	pod := obj.(*v1.Pod)
-	if len(pod.Spec.SchedulingGates) == 0 {
-		ctrl.addAllArqsInNamespace(pod.Namespace)
-	}
+	ctrl.addAllArqsInNamespace(pod.Namespace)
 }
 func (ctrl *ArqController) DeletePod(obj interface{}) {
 	pod := obj.(*v1.Pod)
-	if len(pod.Spec.SchedulingGates) == 0 {
-		ctrl.addAllArqsInNamespace(pod.Namespace)
-	}
+	ctrl.addAllArqsInNamespace(pod.Namespace)
 }
 
 func (ctrl *ArqController) runGateWatcherWorker() {
@@ -244,8 +256,9 @@ func (ctrl *ArqController) Execute() bool {
 	defer ctrl.enqueueAllQueue.Done(key)
 
 	err, enqueueState := ctrl.execute(key.(string))
+
 	if err != nil {
-		klog.Errorf(fmt.Sprintf("ArqController: Error with key: %v", key))
+		log.Log.Infof(fmt.Sprintf("ArqController: Error with key: %v", key))
 	}
 	switch enqueueState {
 	case BackOff:
@@ -260,6 +273,7 @@ func (ctrl *ArqController) Execute() bool {
 }
 
 func (ctrl *ArqController) execute(key string) (error, enqueueState) {
+
 	var aaqjqc *v1alpha12.AAQJobQueueConfig
 	ns, _, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
@@ -268,16 +282,7 @@ func (ctrl *ArqController) execute(key string) (error, enqueueState) {
 	aaqjqcObj, exists, err := ctrl.aaqjqcInformer.GetIndexer().GetByKey(ns + "/" + arq_controller.AaqjqcName)
 	if err != nil {
 		return err, Immediate
-	} else if !exists {
-		aaqjqc, err = ctrl.aaqCli.AAQJobQueueConfigs(ns).Create(context.Background(),
-			&v1alpha12.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: arq_controller.AaqjqcName}, Spec: v1alpha12.AAQJobQueueConfigSpec{}},
-			metav1.CreateOptions{})
-		if err != nil {
-			return err, Immediate
-		}
-	} else if err != nil {
-		return err, Immediate
-	} else {
+	} else if exists {
 		aaqjqc = aaqjqcObj.(*v1alpha12.AAQJobQueueConfig)
 	}
 
@@ -294,46 +299,54 @@ func (ctrl *ArqController) execute(key string) (error, enqueueState) {
 		}
 	}
 
-	for _, podName := range aaqjqc.Status.PodsInJobQueue {
-		obj, exists, err := ctrl.podInformer.GetIndexer().GetByKey(ns + "/" + podName)
-		if err != nil {
-			return err, Immediate
+	if aaqjqc != nil {
+		for _, podName := range aaqjqc.Status.PodsInJobQueue {
+			obj, exists, err := ctrl.podInformer.GetIndexer().GetByKey(ns + "/" + podName)
+			if err != nil {
+				log.Log.Infof(fmt.Sprintf("ArqController: Error with key: %v", key))
+
+				return err, Immediate
+			}
+			if !exists {
+				continue
+			}
+			pod := obj.(*v1.Pod)
+			if len(pod.Spec.SchedulingGates) > 0 {
+				log.Log.Infof(fmt.Sprintf("ArqController: Error with key: %v", key))
+
+				return nil, Immediate
+			}
 		}
-		if !exists {
-			continue
-		}
-		pod := obj.(*v1.Pod)
-		if len(pod.Spec.SchedulingGates) > 0 {
+
+		if res, err := ctrl.verifyPodsWithOutSchedulingGates(ns, aaqjqc.Status.PodsInJobQueue); err != nil || !res {
+			log.Log.Infof(fmt.Sprintf("ArqController: Error with key: %v err: %v", key, err))
 			return nil, Immediate
 		}
-	}
-	if res, err := ctrl.checkPodsForSchedulingGates(ns, aaqjqc.Status.PodsInJobQueue); err != nil || !res {
-		return nil, Immediate
-	}
-
-	aaqjqc.Status.PodsInJobQueue = []string{}
-	_, err = ctrl.aaqCli.AAQJobQueueConfigs(ns).UpdateStatus(context.Background(), aaqjqc, metav1.UpdateOptions{})
-	if err != nil {
-		return err, Immediate
+		if len(aaqjqc.Status.PodsInJobQueue) > 0 {
+			aaqjqc.Status.PodsInJobQueue = []string{}
+			_, err = ctrl.aaqCli.AAQJobQueueConfigs(ns).UpdateStatus(context.Background(), aaqjqc, metav1.UpdateOptions{})
+			if err != nil {
+				return err, Immediate
+			}
+		}
 	}
 	return nil, Forget
 }
 
 // CheckPodsForSchedulingGates checks that all pods in the specified namespace
-// do not have scheduling gates.
-func (ctrl *ArqController) checkPodsForSchedulingGates(namespace string, podNames []string) (bool, error) {
-	listOptions := metav1.ListOptions{
-		FieldSelector: fmt.Sprintf("metadata.name in (%s)", listToString(podNames)),
-	}
-
-	podList, err := ctrl.aaqCli.CoreV1().Pods(namespace).List(context.TODO(), listOptions)
+// with the specified names do not have scheduling gates.
+func (ctrl *ArqController) verifyPodsWithOutSchedulingGates(namespace string, podNames []string) (bool, error) {
+	podList, err := ctrl.aaqCli.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return false, err
 	}
 
+	// Iterate through all pods and check for scheduling gates.
 	for _, pod := range podList.Items {
-		if len(pod.Spec.SchedulingGates) > 0 {
-			return false, nil
+		for _, name := range podNames {
+			if pod.Name == name && len(pod.Spec.SchedulingGates) > 0 {
+				return false, nil
+			}
 		}
 	}
 
@@ -533,6 +546,7 @@ func (ctrl *ArqController) syncResourceQuota(appResourceQuota *v1alpha12.Applica
 
 	var errs []error
 	newUsage, err := aaq_controller.CalculateUsage(appResourceQuota.Namespace, appResourceQuota.Spec.Scopes, hardLimits, ctrl.eval, appResourceQuota.Spec.ScopeSelector)
+
 	if err != nil {
 		// if err is non-nil, remember it to return, but continue updating status with any resources in newUsage
 		errs = append(errs, err)
