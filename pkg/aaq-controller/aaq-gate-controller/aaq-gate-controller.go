@@ -195,7 +195,7 @@ func (ctrl *AaqGateController) execute(key string) (error, enqueueState) {
 			return err, Immediate
 		}
 	} else {
-		aaqjqc = aaqjqcObj.(*v1alpha12.AAQJobQueueConfig)
+		aaqjqc = aaqjqcObj.(*v1alpha12.AAQJobQueueConfig).DeepCopy()
 	}
 	if len(aaqjqc.Status.PodsInJobQueue) != 0 {
 		ctrl.releasePods(aaqjqc.Status.PodsInJobQueue, arqNS)
@@ -264,7 +264,7 @@ func (ctrl *AaqGateController) releasePods(podsToRelease []string, ns string) er
 		if !exists {
 			continue
 		}
-		pod := obj.(*v1.Pod)
+		pod := obj.(*v1.Pod).DeepCopy()
 		if pod.Spec.SchedulingGates != nil && len(pod.Spec.SchedulingGates) == 1 && pod.Spec.SchedulingGates[0].Name == "ApplicationsAwareQuotaGate" {
 			pod.Spec.SchedulingGates = []v1.PodSchedulingGate{}
 			_, err = ctrl.aaqCli.CoreV1().Pods(ns).Update(context.Background(), pod, metav1.UpdateOptions{})

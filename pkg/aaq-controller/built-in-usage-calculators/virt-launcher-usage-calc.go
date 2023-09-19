@@ -94,7 +94,7 @@ func (launchercalc *VirtLauncherCalculator) PodUsageFunc(obj runtime.Object, ite
 		for _, pod := range launcherPods {
 			launcherPodsForErr = append(launcherPodsForErr, pod.Name)
 		}
-		return corev1.ResourceList{}, fmt.Errorf(fmt.Sprintf("something is wrong could not detect source or target pod launcherPods in ns: %v ", launcherPodsForErr)), true
+		return corev1.ResourceList{}, fmt.Errorf(fmt.Sprintf("something is wrong could not detect source or target pod launcherPods in ns: %v  source == nil: %v target == nil: %v ", launcherPodsForErr, sourcePod == nil, targetPod == nil)), true
 	}
 
 	if pod.Name == sourcePod.Name { // we are calculating source resources

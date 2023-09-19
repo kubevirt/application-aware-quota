@@ -14,6 +14,7 @@ import (
 	v1 "k8s.io/apiserver/pkg/quota/v1"
 	"k8s.io/klog/v2"
 	aaq_evaluator "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-evaluator"
+	"kubevirt.io/client-go/log"
 	"sort"
 	"strings"
 )
@@ -39,6 +40,7 @@ func CalculateUsage(namespaceName string, scopes []corev1.ResourceQuotaScope, ha
 	if len(intersection) != 0 {
 		usageStatsOptions := v1.UsageStatsOptions{Namespace: namespaceName, Scopes: scopes, Resources: intersection, ScopeSelector: scopeSelector}
 		stats, err := evaluator.UsageStats(usageStatsOptions)
+		log.Log.Infof(fmt.Sprintf("Barak stats: %v", stats.Used))
 		if err != nil {
 			// remember the error
 			errors = append(errors, err)

@@ -34,7 +34,6 @@ import (
 	v1alpha12 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	"kubevirt.io/client-go/log"
 	"kubevirt.io/kubevirt/pkg/controller"
-	"sync"
 	"time"
 )
 
@@ -64,11 +63,6 @@ type ArqController struct {
 
 	// knows how to calculate usage
 	eval *aaq_evaluator.AaqEvaluator
-
-	// controls the workers that process quotas
-	// this lock is acquired to control write access to the monitors and ensures that all
-	// monitors are synced before the controller can process quotas.
-	workerLock sync.RWMutex
 
 	recorder     record.EventRecorder
 	aaqEvaluator v12.Evaluator
@@ -254,14 +248,11 @@ func (ctrl *ArqController) Execute() bool {
 		return false
 	}
 	defer ctrl.enqueueAllQueue.Done(key)
-
-	ctrl.workerLock.RLock()
-	defer ctrl.workerLock.RUnlock()
-
+	log.Log.Infof(fmt.Sprintf("Barak: my worker"))
 	err, enqueueState := ctrl.execute(key.(string))
 
 	if err != nil {
-		log.Log.Infof(fmt.Sprintf("ArqController: Error with key: %v", key))
+		log.Log.Infof(fmt.Sprintf("ArqController: Error with key: %v err: %v", key, err))
 	}
 	switch enqueueState {
 	case BackOff:
@@ -286,7 +277,7 @@ func (ctrl *ArqController) execute(key string) (error, enqueueState) {
 	if err != nil {
 		return err, Immediate
 	} else if exists {
-		aaqjqc = aaqjqcObj.(*v1alpha12.AAQJobQueueConfig)
+		aaqjqc = aaqjqcObj.(*v1alpha12.AAQJobQueueConfig).DeepCopy()
 	}
 
 	arqObjs, err := ctrl.arqInformer.GetIndexer().ByIndex(cache.NamespaceIndex, ns)
@@ -295,7 +286,7 @@ func (ctrl *ArqController) execute(key string) (error, enqueueState) {
 	}
 
 	for _, arqObj := range arqObjs {
-		arq := arqObj.(*v1alpha12.ApplicationsResourceQuota)
+		arq := arqObj.(*v1alpha12.ApplicationsResourceQuota).DeepCopy()
 		err := ctrl.syncResourceQuota(arq)
 		if err != nil {
 			return err, Immediate
@@ -303,27 +294,8 @@ func (ctrl *ArqController) execute(key string) (error, enqueueState) {
 	}
 
 	if aaqjqc != nil {
-		for _, podName := range aaqjqc.Status.PodsInJobQueue {
-			obj, exists, err := ctrl.podInformer.GetIndexer().GetByKey(ns + "/" + podName)
-			if err != nil {
-				log.Log.Infof(fmt.Sprintf("ArqController: Error with key: %v", key))
-
-				return err, Immediate
-			}
-			if !exists {
-				continue
-			}
-			pod := obj.(*v1.Pod)
-			if len(pod.Spec.SchedulingGates) > 0 {
-				log.Log.Infof(fmt.Sprintf("ArqController: gate has not been removed yet from pod: %v", pod.Name))
-
-				return nil, Immediate
-			}
-		}
-
 		if res, err := ctrl.verifyPodsWithOutSchedulingGates(ns, aaqjqc.Status.PodsInJobQueue); err != nil || !res {
-			log.Log.Infof(fmt.Sprintf("ArqController: Error with key: %v err: %v", key, err))
-			return nil, Immediate
+			return err, Immediate
 		}
 		if len(aaqjqc.Status.PodsInJobQueue) > 0 {
 			aaqjqc.Status.PodsInJobQueue = []string{}
@@ -354,18 +326,6 @@ func (ctrl *ArqController) verifyPodsWithOutSchedulingGates(namespace string, po
 	}
 
 	return true, nil
-}
-
-func listToString(list []string) string {
-	// Convert a list of strings to a comma-separated string
-	var result string
-	for i, item := range list {
-		if i > 0 {
-			result += ","
-		}
-		result += item
-	}
-	return result
 }
 
 func (ctrl *ArqController) Run(ctx context.Context, workers int) {
@@ -403,13 +363,10 @@ func (ctrl *ArqController) worker(queue workqueue.RateLimitingInterface) func() 
 		}
 		defer queue.Done(key)
 
-		ctrl.workerLock.RLock()
-		defer ctrl.workerLock.RUnlock()
-
 		logger := klog.FromContext(ctx)
 		logger = klog.LoggerWithValues(logger, "queueKey", key)
 		ctx = klog.NewContext(ctx, logger)
-
+		log.Log.Infof(fmt.Sprintf("Barak: built in worker"))
 		err := ctrl.syncHandler(key.(string))
 		if err == nil {
 			queue.Forget(key)
@@ -527,7 +484,7 @@ func (ctrl *ArqController) syncResourceQuotaFromKey(key string) (err error) {
 		logger.Error(err, "Unable to retrieve resource quota from store", "key", key)
 		return err
 	}
-	arq := arqObj.(*v1alpha12.ApplicationsResourceQuota)
+	arq := arqObj.(*v1alpha12.ApplicationsResourceQuota).DeepCopy()
 	return ctrl.syncResourceQuota(arq)
 }
 

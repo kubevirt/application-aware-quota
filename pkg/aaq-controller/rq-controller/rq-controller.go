@@ -12,10 +12,9 @@ import (
 	"k8s.io/klog/v2"
 	_ "kubevirt.io/api/core/v1"
 	"kubevirt.io/applications-aware-quota/pkg/client"
-	"strings"
-
 	v1alpha12 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	"kubevirt.io/client-go/log"
+	"strings"
 )
 
 type enqueueState string
@@ -44,7 +43,7 @@ func NewRQController(aaqCli client.AAQClient,
 		rqInformer:  rqInformer,
 		aaqCli:      aaqCli,
 		arqInformer: arqInformer,
-		arqQueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq-queue"),
+		arqQueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq-queue-for-rq-contorller"),
 		stop:        stop,
 	}
 
@@ -146,7 +145,7 @@ func (ctrl *RQController) Execute() bool {
 
 	err, enqueueState := ctrl.execute(key.(string))
 	if err != nil {
-		klog.Errorf(fmt.Sprintf("AaqGateController: Error with key: %v err: %v", key, err))
+		klog.Errorf(fmt.Sprintf("RQController: Error with key: %v err: %v", key, err))
 	}
 	switch enqueueState {
 	case BackOff:
@@ -161,6 +160,7 @@ func (ctrl *RQController) Execute() bool {
 }
 
 func (ctrl *RQController) execute(key string) (error, enqueueState) {
+
 	arqNS, arqName, err := cache.SplitMetaNamespaceKey(key)
 	arqObj, exists, err := ctrl.arqInformer.GetIndexer().GetByKey(arqNS + "/" + arqName)
 	if err != nil {
@@ -173,7 +173,9 @@ func (ctrl *RQController) execute(key string) (error, enqueueState) {
 			return nil, Forget
 		}
 	}
-
+	if true {
+		return nil, Forget
+	}
 	arq := arqObj.(*v1alpha12.ApplicationsResourceQuota)
 	nonSchedulableResourcesLimitations := filterNonScheduableResources(arq.Spec.Hard)
 	if len(nonSchedulableResourcesLimitations) == 0 {
@@ -213,6 +215,8 @@ func (ctrl *RQController) execute(key string) (error, enqueueState) {
 		return nil, Forget
 	}
 	rq.Spec.Hard = nonSchedulableResourcesLimitations
+	// still bug
+
 	_, err = ctrl.aaqCli.CoreV1().ResourceQuotas(arqNS).Update(context.Background(), rq, metav1.UpdateOptions{})
 	if err != nil {
 		return err, Immediate
@@ -248,25 +252,24 @@ func getSchedulableResources() []v1.ResourceName {
 
 func (ctrl *RQController) Run(threadiness int) error {
 	/*
-		defer utilruntime.HandleCrash()
-
-		_, err := ctrl.rqInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-			UpdateFunc: ctrl.updateRQ,
-			DeleteFunc: ctrl.deleteRQ,
-		})
-		if err != nil {
-			return err
-		}
-		_, err = ctrl.arqInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-			DeleteFunc: ctrl.deleteArq,
-			UpdateFunc: ctrl.updateArq,
-			AddFunc:    ctrl.addArq,
-		})
-		if err != nil {
-			return err
-		}
-		klog.Info("Starting Arq controller")
-		defer klog.Info("Shutting down Arq controller")
+			defer utilruntime.HandleCrash()
+			_, err := ctrl.rqInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+				UpdateFunc: ctrl.updateRQ,
+				DeleteFunc: ctrl.deleteRQ,
+			})
+			if err != nil {
+				return err
+			}
+			_, err = ctrl.arqInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+				DeleteFunc: ctrl.deleteArq,
+				UpdateFunc: ctrl.updateArq,
+				AddFunc:    ctrl.addArq,
+			})
+			if err != nil {
+				return err
+			}
+			klog.Info("Starting Arq controller")
+			defer klog.Info("Shutting down Arq controller")
 
 		for i := 0; i < threadiness; i++ {
 			go wait.Until(ctrl.runWorker, time.Second, ctrl.stop)

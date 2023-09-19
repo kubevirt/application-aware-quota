@@ -145,7 +145,7 @@ func (aaqe *AaqEvaluator) UsageStats(options v12.UsageStatsOptions) (v12.UsageSt
 			fmt.Printf("Failed to type assert to *v1.Pod\n")
 			continue
 		}
-		runtimeObjects = append(runtimeObjects, pod)
+		runtimeObjects = append(runtimeObjects, pod.DeepCopy())
 	}
 
 	for _, item := range runtimeObjects {
