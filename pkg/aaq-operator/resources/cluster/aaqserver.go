@@ -7,6 +7,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/namespaced"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/utils"
 	aaq_server2 "kubevirt.io/applications-aware-quota/pkg/aaq-server"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -74,7 +75,15 @@ func createAPIServerClusterRole() *rbacv1.ClusterRole {
 }
 func createGatingMutatingWebhook(namespace string, c client.Client, l logr.Logger) *admissionregistrationv1.MutatingWebhookConfiguration {
 	cr, _ := utils.GetActiveAAQ(c)
-	if cr == nil || cr.Spec.GatedNamespaces == nil || len(cr.Spec.GatedNamespaces) == 0 {
+	if cr == nil {
+		return nil
+	}
+	serverDeployment, err := utils.GetDeployment(c, aaqServerResourceName, namespace)
+	if err != nil || serverDeployment == nil || serverDeployment.Status.ReadyReplicas < 1 {
+		return nil
+	}
+	controllerDeployment, err := utils.GetDeployment(c, namespaced.ControllerResourceName, namespace)
+	if err != nil || controllerDeployment == nil || controllerDeployment.Status.ReadyReplicas < 1 {
 		return nil
 	}
 
@@ -102,11 +111,7 @@ func createGatingMutatingWebhook(namespace string, c client.Client, l logr.Logge
 				FailurePolicy:           &failurePolicy,
 				SideEffects:             &sideEffect,
 				MatchPolicy:             &exactPolicy,
-				NamespaceSelector: &metav1.LabelSelector{
-					MatchExpressions: []metav1.LabelSelectorRequirement{
-						{Key: corev1.LabelMetadataName, Operator: metav1.LabelSelectorOpIn, Values: cr.Spec.GatedNamespaces},
-					},
-				},
+				NamespaceSelector:       cr.Spec.NamespaceSelector,
 				Rules: []admissionregistrationv1.RuleWithOperations{{
 					Operations: []admissionregistrationv1.OperationType{
 						admissionregistrationv1.Create,

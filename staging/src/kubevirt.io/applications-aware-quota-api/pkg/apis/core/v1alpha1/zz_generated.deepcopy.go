@@ -231,10 +231,10 @@ func (in *AAQSpec) DeepCopyInto(out *AAQSpec) {
 		*out = new(AAQPriorityClass)
 		**out = **in
 	}
-	if in.GatedNamespaces != nil {
-		in, out := &in.GatedNamespaces, &out.GatedNamespaces
-		*out = make([]string, len(*in))
-		copy(*out, *in)
+	if in.NamespaceSelector != nil {
+		in, out := &in.NamespaceSelector, &out.NamespaceSelector
+		*out = new(v1.LabelSelector)
+		(*in).DeepCopyInto(*out)
 	}
 	return
 }

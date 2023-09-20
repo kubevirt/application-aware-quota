@@ -5,6 +5,7 @@ import (
 	"fmt"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 	aaqv1alpha1 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
@@ -47,7 +48,8 @@ const (
 	// TlsLabel provides a constant to capture our env variable "TLS"
 	TlsLabel = "TLS"
 	// ConfigMapName is the name of the aaq configmap that own aaq resources
-	ConfigMapName = "aaq-config"
+	ConfigMapName              = "aaq-config"
+	OperatorServiceAccountName = "aaq-operator"
 )
 
 var commonLabels = map[string]string{
@@ -150,6 +152,20 @@ func GetActiveAAQ(c client.Client) (*aaqv1alpha1.AAQ, error) {
 	}
 
 	return &activeResources[0], nil
+}
+
+func GetDeployment(c client.Client, deploymentName string, deploymentNS string) (*appsv1.Deployment, error) {
+	d := &appsv1.Deployment{}
+	key := client.ObjectKey{Name: deploymentName, Namespace: deploymentNS}
+
+	if err := c.Get(context.TODO(), key, d); err != nil {
+		if errors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return d, nil
 }
 
 // GetRecommendedInstallerLabelsFromCr returns the recommended labels to set on AAQ resources

@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	aaqServerResourceName = "aaq-server"
+	AaqServerResourceName = "aaq-server"
 )
 
 func createAAQServerResources(args *FactoryArgs) []client.Object {
@@ -30,11 +30,11 @@ func createAAQServerResources(args *FactoryArgs) []client.Object {
 }
 
 func createAAQServerServiceAccount() *corev1.ServiceAccount {
-	return utils2.ResourceBuilder.CreateServiceAccount(aaqServerResourceName)
+	return utils2.ResourceBuilder.CreateServiceAccount(AaqServerResourceName)
 }
 
 func createAAQServerService() *corev1.Service {
-	service := utils2.ResourceBuilder.CreateService("aaq-server", utils2.AAQLabel, aaqServerResourceName, nil)
+	service := utils2.ResourceBuilder.CreateService("aaq-server", utils2.AAQLabel, AaqServerResourceName, nil)
 	service.Spec.Type = corev1.ServiceTypeNodePort
 	service.Spec.Ports = []corev1.ServicePort{
 		{
@@ -51,7 +51,7 @@ func createAAQServerService() *corev1.Service {
 
 func createAAQServerDeployment(image, pullPolicy string, imagePullSecrets []corev1.LocalObjectReference, priorityClassName string, verbosity string, infraNodePlacement *sdkapi.NodePlacement) *appsv1.Deployment {
 	defaultMode := corev1.ConfigMapVolumeSourceDefaultMode
-	deployment := utils2.CreateDeployment(aaqServerResourceName, utils2.AAQLabel, aaqServerResourceName, aaqServerResourceName, imagePullSecrets, 2, infraNodePlacement)
+	deployment := utils2.CreateDeployment(AaqServerResourceName, utils2.AAQLabel, AaqServerResourceName, AaqServerResourceName, imagePullSecrets, 2, infraNodePlacement)
 	if priorityClassName != "" {
 		deployment.Spec.Template.Spec.PriorityClassName = priorityClassName
 	}
@@ -62,7 +62,7 @@ func createAAQServerDeployment(image, pullPolicy string, imagePullSecrets []core
 			MaxUnavailable: &desiredMaxUnavailable,
 		},
 	}
-	container := utils2.CreateContainer(aaqServerResourceName, image, verbosity, pullPolicy)
+	container := utils2.CreateContainer(AaqServerResourceName, image, verbosity, pullPolicy)
 	container.Ports = createAAQServerPorts()
 
 	container.Env = []corev1.EnvVar{
@@ -137,7 +137,7 @@ func createAAQServerDeployment(image, pullPolicy string, imagePullSecrets []core
 			RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
 				{
 					LabelSelector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{utils2.AAQLabel: aaqServerResourceName},
+						MatchLabels: map[string]string{utils2.AAQLabel: AaqServerResourceName},
 					},
 					TopologyKey: "kubernetes.io/hostname",
 				},
@@ -157,7 +157,7 @@ func createAAQServerPorts() []corev1.ContainerPort {
 }
 
 func createAAQServerRoleBinding() *rbacv1.RoleBinding {
-	return utils2.ResourceBuilder.CreateRoleBinding(aaqServerResourceName, aaqServerResourceName, aaqServerResourceName, "")
+	return utils2.ResourceBuilder.CreateRoleBinding(AaqServerResourceName, AaqServerResourceName, AaqServerResourceName, "")
 }
 func createAAQServerRole() *rbacv1.Role {
 	rules := []rbacv1.PolicyRule{
@@ -175,5 +175,5 @@ func createAAQServerRole() *rbacv1.Role {
 			},
 		},
 	}
-	return utils2.ResourceBuilder.CreateRole(aaqServerResourceName, rules)
+	return utils2.ResourceBuilder.CreateRole(AaqServerResourceName, rules)
 }

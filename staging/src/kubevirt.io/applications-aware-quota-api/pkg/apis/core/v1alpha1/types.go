@@ -134,7 +134,8 @@ type AAQSpec struct {
 	// PriorityClass of the AAQ control plane
 	PriorityClass *AAQPriorityClass `json:"priorityClass,omitempty"`
 	// namespaces where pods should be gated before scheduling
-	GatedNamespaces []string `json:"gatedNamespaces,omitempty"`
+	// Default to the empty LabelSelector, which matches everything except operator namespace.
+	NamespaceSelector *metav1.LabelSelector `json:"namespaceSelector,omitempty"`
 }
 
 // AAQPriorityClass defines the priority class of the AAQ control plane.

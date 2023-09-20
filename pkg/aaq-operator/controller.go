@@ -153,7 +153,18 @@ func (r *ReconcileAAQ) Reconcile(_ context.Context, request reconcile.Request) (
 		reqLogger.Error(err, "Failed to get AAQ object")
 		return reconcile.Result{}, err
 	}
-	if cr == nil || cr.Spec.GatedNamespaces == nil || len(cr.Spec.GatedNamespaces) == 0 {
+
+	deleteMutatingWebhook := false
+	serverDeployment, err := utils.GetDeployment(r.client, aaqnamespaced.AaqServerResourceName, r.namespacedArgs.Namespace)
+	if err != nil || serverDeployment == nil || serverDeployment.Status.ReadyReplicas < 1 {
+		deleteMutatingWebhook = true
+	}
+	controllerDeployment, err := utils.GetDeployment(r.client, aaqnamespaced.ControllerResourceName, r.namespacedArgs.Namespace)
+	if err != nil || controllerDeployment == nil || controllerDeployment.Status.ReadyReplicas < 1 {
+		deleteMutatingWebhook = true
+	}
+
+	if deleteMutatingWebhook {
 		mhc := &admissionregistrationv1.MutatingWebhookConfiguration{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "admissionregistration.k8s.io/v1",

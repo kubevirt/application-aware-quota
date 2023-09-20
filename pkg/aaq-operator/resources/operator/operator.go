@@ -21,9 +21,8 @@ import (
 )
 
 const (
-	serviceAccountName = "aaq-operator"
-	roleName           = "aaq-operator"
-	clusterRoleName    = roleName + "-cluster"
+	roleName        = "aaq-operator"
+	clusterRoleName = roleName + "-cluster"
 )
 
 func getClusterPolicyRules() []rbacv1.PolicyRule {
@@ -130,7 +129,7 @@ func createClusterRole() *rbacv1.ClusterRole {
 }
 
 func createClusterRoleBinding(namespace string) *rbacv1.ClusterRoleBinding {
-	return utils2.ResourceBuilder.CreateOperatorClusterRoleBinding(serviceAccountName, clusterRoleName, serviceAccountName, namespace)
+	return utils2.ResourceBuilder.CreateOperatorClusterRoleBinding(utils2.OperatorServiceAccountName, clusterRoleName, utils2.OperatorServiceAccountName, namespace)
 }
 
 func createClusterRBAC(args *FactoryArgs) []client.Object {
@@ -203,7 +202,7 @@ func getNamespacedPolicyRules() []rbacv1.PolicyRule {
 }
 
 func createServiceAccount(namespace string) *corev1.ServiceAccount {
-	return utils2.ResourceBuilder.CreateOperatorServiceAccount(serviceAccountName, namespace)
+	return utils2.ResourceBuilder.CreateOperatorServiceAccount(utils2.OperatorServiceAccountName, namespace)
 }
 
 func createNamespacedRole(namespace string) *rbacv1.Role {
@@ -213,7 +212,7 @@ func createNamespacedRole(namespace string) *rbacv1.Role {
 }
 
 func createNamespacedRoleBinding(namespace string) *rbacv1.RoleBinding {
-	roleBinding := utils2.ResourceBuilder.CreateRoleBinding(serviceAccountName, roleName, serviceAccountName, namespace)
+	roleBinding := utils2.ResourceBuilder.CreateRoleBinding(utils2.OperatorServiceAccountName, roleName, utils2.OperatorServiceAccountName, namespace)
 	roleBinding.Namespace = namespace
 	return roleBinding
 }
@@ -285,7 +284,7 @@ func createOperatorEnvVar(operatorVersion, deployClusterResources, controllerIma
 }
 
 func createOperatorDeployment(operatorVersion, namespace, deployClusterResources, operatorImage, controllerImage, webhookServerImage, verbosity, pullPolicy string, imagePullSecrets []corev1.LocalObjectReference) *appsv1.Deployment {
-	deployment := utils2.CreateOperatorDeployment("aaq-operator", namespace, "name", "aaq-operator", serviceAccountName, imagePullSecrets, int32(1))
+	deployment := utils2.CreateOperatorDeployment("aaq-operator", namespace, "name", "aaq-operator", utils2.OperatorServiceAccountName, imagePullSecrets, int32(1))
 	container := utils2.CreateContainer("aaq-operator", operatorImage, verbosity, pullPolicy)
 	container.Ports = createPrometheusPorts()
 	container.SecurityContext.Capabilities = &corev1.Capabilities{
@@ -353,13 +352,13 @@ _The AAQ Operator does not support updates yet._
 	strategySpec := csvStrategySpec{
 		Permissions: []csvPermissions{
 			{
-				ServiceAccountName: serviceAccountName,
+				ServiceAccountName: utils2.OperatorServiceAccountName,
 				Rules:              getNamespacedPolicyRules(),
 			},
 		},
 		ClusterPermissions: []csvPermissions{
 			{
-				ServiceAccountName: serviceAccountName,
+				ServiceAccountName: utils2.OperatorServiceAccountName,
 				Rules:              getClusterPolicyRules(),
 			},
 		},

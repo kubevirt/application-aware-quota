@@ -564,8 +564,6 @@ func (ctrl *ArqController) syncResourceQuota(arq *v1alpha12.ApplicationsResource
 		return err
 	} else if exists {
 		rq = rqObj.(*v1.ResourceQuota).DeepCopy()
-	} else {
-		log.Log.Infof("Barak: doesnt exist")
 	}
 
 	if exists && rq.Status.Hard != nil && arq.Status.Hard != nil {
