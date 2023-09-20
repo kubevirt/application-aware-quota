@@ -81,7 +81,6 @@ func NewArqController(clientSet client.AAQClient,
 	aaqjqcInformer cache.SharedIndexInformer,
 	stop <-chan struct{},
 ) *ArqController {
-
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartRecordingToSink(&v14.EventSinkImpl{Interface: clientSet.CoreV1().Events(v1.NamespaceAll)})
 	//todo: make this generic for now we will try only launcher calculator
@@ -606,32 +605,10 @@ func (ctrl *ArqController) syncResourceQuota(arq *v1alpha12.ApplicationsResource
 
 func updateUsageFromResourceQuota(arq *v1alpha12.ApplicationsResourceQuota, rq *v1.ResourceQuota, newUsage map[v1.ResourceName]resource.Quantity) {
 	nonSchedulableResourcesHard := rq_controller.FilterNonScheduableResources(arq.Status.Hard)
-	if Equalsss(rq.Spec.Hard, nonSchedulableResourcesHard) && rq.Status.Used != nil {
+	if quota.Equals(rq.Spec.Hard, nonSchedulableResourcesHard) && rq.Status.Used != nil {
 		nonSchedulableResourcesUsage := rq_controller.FilterNonScheduableResources(rq.Status.Used)
 		for key, value := range nonSchedulableResourcesUsage {
 			newUsage[key] = value
 		}
 	}
-}
-
-// Equals returns true if the two lists are equivalent
-func Equalsss(a v1.ResourceList, b v1.ResourceList) bool {
-	if len(a) != len(b) {
-		log.Log.Infof("hereeeee a:%v, b:%v", a, b)
-		return false
-	}
-
-	for key, value1 := range a {
-		value2, found := b[key]
-		if !found {
-			log.Log.Infof("hereeeee key: %v value1: %v", key, value1)
-			return false
-		}
-		if value1.Cmp(value2) != 0 {
-			log.Log.Infof("hereeeee key: %v value1: %v value2: %v", key, value1, value2)
-			return false
-		}
-	}
-
-	return true
 }
