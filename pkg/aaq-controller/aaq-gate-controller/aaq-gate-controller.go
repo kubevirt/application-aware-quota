@@ -73,6 +73,30 @@ func NewAaqGateController(aaqCli client.AAQClient,
 		stop:           stop,
 	}
 
+	_, err := ctrl.podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    ctrl.addPod,
+		UpdateFunc: ctrl.updatePod,
+	})
+	if err != nil {
+		panic("something is wrong")
+
+	}
+	_, err = ctrl.arqInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: ctrl.deleteArq,
+		UpdateFunc: ctrl.updateArq,
+		AddFunc:    ctrl.addArq,
+	})
+	if err != nil {
+		panic("something is wrong")
+	}
+	_, err = ctrl.aaqjqcInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: ctrl.deleteAaqjqc,
+		UpdateFunc: ctrl.updateAaqjqc,
+	})
+	if err != nil {
+		panic("something is wrong")
+	}
+
 	return &ctrl
 }
 
@@ -277,40 +301,17 @@ func (ctrl *AaqGateController) releasePods(podsToRelease []string, ns string) er
 
 }
 
-func (ctrl *AaqGateController) Run(threadiness int) error {
+func (ctrl *AaqGateController) Run(threadiness int) {
 	defer utilruntime.HandleCrash()
-
-	_, err := ctrl.podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    ctrl.addPod,
-		UpdateFunc: ctrl.updatePod,
-	})
-	if err != nil {
-		return err
-	}
-	_, err = ctrl.arqInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: ctrl.deleteArq,
-		UpdateFunc: ctrl.updateArq,
-		AddFunc:    ctrl.addArq,
-	})
-	if err != nil {
-		return err
-	}
-	_, err = ctrl.aaqjqcInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: ctrl.deleteAaqjqc,
-		UpdateFunc: ctrl.updateAaqjqc,
-	})
-	if err != nil {
-		return err
-	}
 	klog.Info("Starting Arq controller")
 	defer klog.Info("Shutting down Arq controller")
+	defer ctrl.arqQueue.ShutDown()
 
 	for i := 0; i < threadiness; i++ {
 		go wait.Until(ctrl.runWorker, time.Second, ctrl.stop)
 	}
 
 	<-ctrl.stop
-	return nil
 
 }
 

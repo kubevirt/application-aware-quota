@@ -6,6 +6,8 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
 	quota "k8s.io/apiserver/pkg/quota/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
@@ -15,6 +17,7 @@ import (
 	v1alpha12 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	"kubevirt.io/client-go/log"
 	"strings"
+	"time"
 )
 
 type enqueueState string
@@ -24,6 +27,7 @@ const (
 	Forget    enqueueState = "Forget"
 	BackOff   enqueueState = "BackOff"
 	RQSuffix  string       = "-non-schedulable-resources-managed-rq-x"
+	RQLabel   string       = "aaq.managed.rq"
 )
 
 type RQController struct {
@@ -47,22 +51,22 @@ func NewRQController(aaqCli client.AAQClient,
 		stop:        stop,
 	}
 
-	return &ctrl
-}
-
-func (ctrl *RQController) addAllArqsInNamespace(ns string) {
-	objs, err := ctrl.arqInformer.GetIndexer().ByIndex(cache.NamespaceIndex, ns)
+	_, err := ctrl.rqInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: ctrl.updateRQ,
+		DeleteFunc: ctrl.deleteRQ,
+	})
 	if err != nil {
-		log.Log.Infof("AaqGateController: Error failed to list pod from podInformer")
+		panic("something is wrong")
 	}
-	for _, obj := range objs {
-		arq := obj.(*v1alpha12.ApplicationsResourceQuota)
-		key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(arq)
-		if err != nil {
-			return
-		}
-		ctrl.arqQueue.Add(key)
+	_, err = ctrl.arqInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: ctrl.deleteArq,
+		UpdateFunc: ctrl.updateArq,
+		AddFunc:    ctrl.addArq,
+	})
+	if err != nil {
 	}
+
+	return &ctrl
 }
 
 // When a ApplicationsResourceQuotas is deleted, enqueue all gated pods for revaluation
@@ -105,13 +109,14 @@ func (ctrl *RQController) updateArq(old, cur interface{}) {
 
 func (ctrl *RQController) deleteRQ(obj interface{}) {
 	rq := obj.(*v1.ResourceQuota)
-	arq := v1alpha12.ApplicationsResourceQuota{
-		ObjectMeta: metav1.ObjectMeta{Name: strings.TrimSuffix(rq.Name, RQSuffix)},
+	arq := &v1alpha12.ApplicationsResourceQuota{
+		ObjectMeta: metav1.ObjectMeta{Name: strings.TrimSuffix(rq.Name, RQSuffix), Namespace: rq.Namespace},
 	}
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(arq)
 	if err != nil {
 		return
 	}
+
 	ctrl.arqQueue.Add(key)
 	return
 }
@@ -119,8 +124,8 @@ func (ctrl *RQController) updateRQ(old, curr interface{}) {
 	curRq := curr.(*v1.ResourceQuota)
 	oldRq := old.(*v1.ResourceQuota)
 	if !quota.Equals(curRq.Spec.Hard, oldRq.Spec.Hard) {
-		arq := v1alpha12.ApplicationsResourceQuota{
-			ObjectMeta: metav1.ObjectMeta{Name: strings.TrimSuffix(curRq.Name, RQSuffix)},
+		arq := &v1alpha12.ApplicationsResourceQuota{
+			ObjectMeta: metav1.ObjectMeta{Name: strings.TrimSuffix(curRq.Name, RQSuffix), Namespace: curRq.Namespace},
 		}
 		key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(arq)
 		if err != nil {
@@ -145,7 +150,7 @@ func (ctrl *RQController) Execute() bool {
 
 	err, enqueueState := ctrl.execute(key.(string))
 	if err != nil {
-		klog.Errorf(fmt.Sprintf("RQController: Error with key: %v err: %v", key, err))
+		log.Log.Infof(fmt.Sprintf("RQController: Error with key: %v err: %v", key, err))
 	}
 	switch enqueueState {
 	case BackOff:
@@ -160,7 +165,6 @@ func (ctrl *RQController) Execute() bool {
 }
 
 func (ctrl *RQController) execute(key string) (error, enqueueState) {
-
 	arqNS, arqName, err := cache.SplitMetaNamespaceKey(key)
 	arqObj, exists, err := ctrl.arqInformer.GetIndexer().GetByKey(arqNS + "/" + arqName)
 	if err != nil {
@@ -173,15 +177,12 @@ func (ctrl *RQController) execute(key string) (error, enqueueState) {
 			return nil, Forget
 		}
 	}
-	if true {
-		return nil, Forget
-	}
-	arq := arqObj.(*v1alpha12.ApplicationsResourceQuota)
-	nonSchedulableResourcesLimitations := filterNonScheduableResources(arq.Spec.Hard)
+
+	arq := arqObj.(*v1alpha12.ApplicationsResourceQuota).DeepCopy()
+	nonSchedulableResourcesLimitations := FilterNonScheduableResources(arq.Spec.Hard)
 	if len(nonSchedulableResourcesLimitations) == 0 {
 		err = ctrl.aaqCli.CoreV1().ResourceQuotas(arqNS).Delete(context.Background(), arqName+RQSuffix, metav1.DeleteOptions{})
 		if err != nil && !errors.IsNotFound(err) {
-			log.Log.Infof("wallak herer")
 			return err, Immediate
 		} else {
 			return nil, Forget
@@ -196,7 +197,7 @@ func (ctrl *RQController) execute(key string) (error, enqueueState) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: arq.Name + RQSuffix,
 				Labels: map[string]string{
-					"aaq.managed.rq": "true",
+					RQLabel: "true",
 				},
 			},
 			Spec: v1.ResourceQuotaSpec{
@@ -210,12 +211,11 @@ func (ctrl *RQController) execute(key string) (error, enqueueState) {
 			return err, Forget
 		}
 	}
-	rq := rqObj.(*v1.ResourceQuota)
+	rq := rqObj.(*v1.ResourceQuota).DeepCopy()
 	if quota.Equals(rq.Spec.Hard, nonSchedulableResourcesLimitations) {
 		return nil, Forget
 	}
 	rq.Spec.Hard = nonSchedulableResourcesLimitations
-	// still bug
 
 	_, err = ctrl.aaqCli.CoreV1().ResourceQuotas(arqNS).Update(context.Background(), rq, metav1.UpdateOptions{})
 	if err != nil {
@@ -225,12 +225,13 @@ func (ctrl *RQController) execute(key string) (error, enqueueState) {
 	return nil, Forget
 }
 
-func filterNonScheduableResources(resourceList v1.ResourceList) v1.ResourceList {
+func FilterNonScheduableResources(resourceList v1.ResourceList) v1.ResourceList {
+	rlCopy := resourceList.DeepCopy()
 	scheduableResources := getSchedulableResources()
 	for _, resourceName := range scheduableResources {
-		delete(resourceList, resourceName)
+		delete(rlCopy, resourceName)
 	}
-	return resourceList
+	return rlCopy
 }
 
 // getSchedulableResources returns a list of resource names that are not counted in the resource quota.
@@ -250,34 +251,15 @@ func getSchedulableResources() []v1.ResourceName {
 	}
 }
 
-func (ctrl *RQController) Run(threadiness int) error {
-	/*
-			defer utilruntime.HandleCrash()
-			_, err := ctrl.rqInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-				UpdateFunc: ctrl.updateRQ,
-				DeleteFunc: ctrl.deleteRQ,
-			})
-			if err != nil {
-				return err
-			}
-			_, err = ctrl.arqInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-				DeleteFunc: ctrl.deleteArq,
-				UpdateFunc: ctrl.updateArq,
-				AddFunc:    ctrl.addArq,
-			})
-			if err != nil {
-				return err
-			}
-			klog.Info("Starting Arq controller")
-			defer klog.Info("Shutting down Arq controller")
+func (ctrl *RQController) Run(threadiness int) {
+	defer utilruntime.HandleCrash()
+	klog.Info("Starting Arq controller")
+	defer klog.Info("Shutting down Arq controller")
+	defer ctrl.arqQueue.ShutDown()
 
-		for i := 0; i < threadiness; i++ {
-			go wait.Until(ctrl.runWorker, time.Second, ctrl.stop)
-		}
+	for i := 0; i < threadiness; i++ {
+		go wait.Until(ctrl.runWorker, time.Second, ctrl.stop)
+	}
 
-		<-ctrl.stop
-
-	*/
-	return nil
-
+	<-ctrl.stop
 }

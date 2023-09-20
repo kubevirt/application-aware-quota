@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
 	k6tv1 "kubevirt.io/api/core/v1"
+	rq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/rq-controller"
 	"kubevirt.io/applications-aware-quota/pkg/client"
 	v1alpha13 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	"time"
@@ -48,7 +49,10 @@ func GetVMIInformer(aaqCli client.AAQClient) cache.SharedIndexInformer {
 }
 
 func GetResourceQuotaInformer(aaqCli client.AAQClient) cache.SharedIndexInformer {
-	labelSelector := labels.Set{"aaq.managed.rq": "true"}.AsSelector()
+	labelSelector, err := labels.Parse(rq_controller.RQLabel)
+	if err != nil {
+		panic(err)
+	}
 	listWatcher := NewListWatchFromClient(aaqCli.CoreV1().RESTClient(), "resourcequotas", k8sv1.NamespaceAll, fields.Everything(), labelSelector)
 	return cache.NewSharedIndexInformer(listWatcher, &v1.ResourceQuota{}, 1*time.Hour, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 }

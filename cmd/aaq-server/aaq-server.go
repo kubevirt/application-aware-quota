@@ -27,9 +27,6 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	stop := ctx.Done()
-	if err := util.CreateReadyFile(); err != nil {
-		klog.Fatalf("Error creating ready file: %+v", err)
-	}
 
 	secretInformer := util.GetSecretInformer(aaqCli, aaqNS)
 	go secretInformer.Run(stop)

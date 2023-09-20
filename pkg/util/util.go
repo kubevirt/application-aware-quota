@@ -3,7 +3,6 @@ package util
 import (
 	"crypto/tls"
 	"fmt"
-	v12 "k8s.io/api/core/v1"
 	"k8s.io/client-go/util/certificate"
 	"k8s.io/klog/v2"
 	v1 "kubevirt.io/api/core/v1"
@@ -13,14 +12,12 @@ import (
 )
 
 const (
-	readyFile        = "/tmp/ready"
 	noSrvCertMessage = "No server certificate, server is not yet ready to receive traffic"
 	// Default port that api listens on.
 	DefaultPort = 8443
 	// Default address api listens on.
-	DefaultHost       = "0.0.0.0"
-	DefaultAaqNs      = "aaq"
-	DefaultKubevirtNs = "kubevirt"
+	DefaultHost  = "0.0.0.0"
+	DefaultAaqNs = "aaq"
 )
 
 var (
@@ -44,19 +41,6 @@ func getNamespace(path string) string {
 // GetNamespace returns the namespace the pod is executing in
 func GetNamespace() string {
 	return getNamespace("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
-}
-
-func CreateReadyFile() error {
-	f, err := os.Create(readyFile)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	return nil
-}
-
-func DeleteReadyFile() {
-	os.Remove(readyFile)
 }
 
 // TLSVersion converts from human-readable TLS version (for example "1.1")
@@ -132,8 +116,4 @@ func SetupTLS(certManager certificate.Manager) *tls.Config {
 	}
 	tlsConfig.BuildNameToCertificate()
 	return tlsConfig
-}
-
-func IsTerminalState(pod *v12.Pod) bool {
-	return pod.Status.Phase == v12.PodSucceeded || pod.Status.Phase == v12.PodFailed
 }

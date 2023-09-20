@@ -93,7 +93,7 @@ func BuildTestSuite() {
 		}
 		framework.ClientsInstance.K8sClient = kcs
 
-		cs, err := framework.ClientsInstance.GetAaqClient()
+		cs, err := client.GetAAQClient()
 		if err != nil {
 			ginkgo.Fail(fmt.Sprintf("ERROR, unable to create AaqClient: %v", err))
 		}

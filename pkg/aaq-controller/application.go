@@ -60,7 +60,6 @@ type AaqControllerApp struct {
 	rqInformer        cache.SharedIndexInformer
 	aaqjqcInformer    cache.SharedIndexInformer
 	readyChan         chan bool
-	InformersStarted  chan struct{}
 	leaderElector     *leaderelection.LeaderElector
 }
 
@@ -70,7 +69,6 @@ func Execute() {
 
 	app.LeaderElection = leaderelectionconfig.DefaultLeaderElectionConfiguration()
 	app.readyChan = make(chan bool, 1)
-	app.InformersStarted = make(chan struct{})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -132,6 +130,7 @@ func (mca *AaqControllerApp) initArqController(stop <-chan struct{}) {
 	mca.arqController = arq_controller.NewArqController(mca.aaqCli,
 		mca.podInformer,
 		mca.arqInformer,
+		mca.rqInformer,
 		mca.aaqjqcInformer,
 		stop,
 	)
@@ -247,18 +246,11 @@ func (mca *AaqControllerApp) onStartedLeading() func(ctx context.Context) {
 			mca.arqController.Run(context.Background(), 3)
 		}()
 		go func() {
-			err := mca.aaqGateController.Run(3)
-			if err != nil {
-				panic(err)
-			}
+			mca.aaqGateController.Run(3)
 		}()
 		go func() {
-			err := mca.rqController.Run(3)
-			if err != nil {
-				panic(err)
-			}
+			mca.rqController.Run(3)
 		}()
-		close(mca.InformersStarted)
 		close(mca.readyChan)
 	}
 }

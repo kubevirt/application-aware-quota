@@ -6,6 +6,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
@@ -29,11 +30,13 @@ import (
 	arq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-gate-controller"
 	built_in_usage_calculators "kubevirt.io/applications-aware-quota/pkg/aaq-controller/built-in-usage-calculators"
 	aaq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/quota-utils"
+	rq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/rq-controller"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/utils"
 	"kubevirt.io/applications-aware-quota/pkg/client"
 	v1alpha12 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	"kubevirt.io/client-go/log"
 	"kubevirt.io/kubevirt/pkg/controller"
+	"strings"
 	"time"
 )
 
@@ -53,6 +56,7 @@ type ArqController struct {
 	aaqCli           client.AAQClient
 	// A lister/getter of resource quota objects
 	arqInformer cache.SharedIndexInformer
+	rqInformer  cache.SharedIndexInformer
 	// A list of functions that return true when their caches have synced
 	informerSyncedFuncs []cache.InformerSynced
 	arqQueue            workqueue.RateLimitingInterface
@@ -73,6 +77,7 @@ type ArqController struct {
 func NewArqController(clientSet client.AAQClient,
 	podInformer cache.SharedIndexInformer,
 	arqInformer cache.SharedIndexInformer,
+	rqInformer cache.SharedIndexInformer,
 	aaqjqcInformer cache.SharedIndexInformer,
 	stop <-chan struct{},
 ) *ArqController {
@@ -86,18 +91,18 @@ func NewArqController(clientSet client.AAQClient,
 	discoveryFunction := discovery.NewDiscoveryClient(clientSet.RestClient()).ServerPreferredNamespacedResources
 
 	ctrl := &ArqController{
-		aaqCli:              clientSet,
-		arqInformer:         arqInformer,
-		informerSyncedFuncs: []cache.InformerSynced{arqInformer.HasSynced},
-		podInformer:         podInformer,
-		aaqjqcInformer:      aaqjqcInformer,
-		arqQueue:            workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq_primary"),
-		missingUsageQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq_priority"),
-		enqueueAllQueue:     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq_enqueue_all"),
-		resyncPeriod:        pkgcontroller.StaticResyncPeriodFunc(metav1.Duration{Duration: 5 * time.Minute}.Duration),
-		recorder:            eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: utils.ControllerPodName}),
-		eval:                aaq_evaluator.NewAaqEvaluator(listerFuncForResource, podInformer, calcRegistry, clock.RealClock{}),
-		stop:                stop,
+		aaqCli:            clientSet,
+		arqInformer:       arqInformer,
+		rqInformer:        rqInformer,
+		podInformer:       podInformer,
+		aaqjqcInformer:    aaqjqcInformer,
+		arqQueue:          workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq_primary"),
+		missingUsageQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq_priority"),
+		enqueueAllQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq_enqueue_all"),
+		resyncPeriod:      pkgcontroller.StaticResyncPeriodFunc(metav1.Duration{Duration: 5 * time.Minute}.Duration),
+		recorder:          eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: utils.ControllerPodName}),
+		eval:              aaq_evaluator.NewAaqEvaluator(listerFuncForResource, podInformer, calcRegistry, clock.RealClock{}),
+		stop:              stop,
 	}
 	ctrl.syncHandler = ctrl.syncResourceQuotaFromKey
 
@@ -148,6 +153,14 @@ func NewArqController(clientSet client.AAQClient,
 	if err != nil {
 		panic("something is wrong")
 	}
+	_, err = ctrl.rqInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: ctrl.updateRQ,
+		AddFunc:    ctrl.addRQ,
+		DeleteFunc: ctrl.deleteRQ,
+	})
+	if err != nil {
+		panic("something is wrong")
+	}
 
 	// do initial quota monitor setup.  If we have a discovery failure here, it's ok. We'll discover more resources when a later sync happens.
 	resources, err := quotacontroller.GetQuotableResources(discoveryFunction)
@@ -167,6 +180,47 @@ func NewArqController(clientSet client.AAQClient,
 	ctrl.informerSyncedFuncs = ctrl.informerSyncedFuncs
 
 	return ctrl
+}
+func (ctrl *ArqController) updateRQ(old, curr interface{}) {
+	curRq := curr.(*v1.ResourceQuota)
+	oldRq := old.(*v1.ResourceQuota)
+	if !quota.Equals(curRq.Status.Hard, oldRq.Status.Hard) || !quota.Equals(curRq.Status.Used, oldRq.Status.Used) {
+		arq := &v1alpha12.ApplicationsResourceQuota{
+			ObjectMeta: metav1.ObjectMeta{Name: strings.TrimSuffix(curRq.Name, rq_controller.RQSuffix), Namespace: curRq.Namespace},
+		}
+		key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(arq)
+		if err != nil {
+			return
+		}
+
+		ctrl.arqQueue.Add(key)
+	}
+	return
+}
+func (ctrl *ArqController) deleteRQ(obj interface{}) {
+	rq := obj.(*v1.ResourceQuota)
+	arq := &v1alpha12.ApplicationsResourceQuota{
+		ObjectMeta: metav1.ObjectMeta{Name: strings.TrimSuffix(rq.Name, rq_controller.RQSuffix), Namespace: rq.Namespace},
+	}
+	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(arq)
+	if err != nil {
+		return
+	}
+	ctrl.arqQueue.Add(key)
+	return
+}
+
+func (ctrl *ArqController) addRQ(obj interface{}) {
+	rq := obj.(*v1.ResourceQuota)
+	arq := &v1alpha12.ApplicationsResourceQuota{
+		ObjectMeta: metav1.ObjectMeta{Name: strings.TrimSuffix(rq.Name, rq_controller.RQSuffix), Namespace: rq.Namespace},
+	}
+	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(arq)
+	if err != nil {
+		return
+	}
+	ctrl.arqQueue.Add(key)
+	return
 }
 
 // When a ApplicationsResourceQuotaaqjqc.Status.PodsInJobQueuea is updated, enqueue all gated pods for revaluation
@@ -248,7 +302,6 @@ func (ctrl *ArqController) Execute() bool {
 		return false
 	}
 	defer ctrl.enqueueAllQueue.Done(key)
-	log.Log.Infof(fmt.Sprintf("Barak: my worker"))
 	err, enqueueState := ctrl.execute(key.(string))
 
 	if err != nil {
@@ -366,7 +419,6 @@ func (ctrl *ArqController) worker(queue workqueue.RateLimitingInterface) func() 
 		logger := klog.FromContext(ctx)
 		logger = klog.LoggerWithValues(logger, "queueKey", key)
 		ctx = klog.NewContext(ctx, logger)
-		log.Log.Infof(fmt.Sprintf("Barak: built in worker"))
 		err := ctrl.syncHandler(key.(string))
 		if err == nil {
 			queue.Forget(key)
@@ -489,23 +541,39 @@ func (ctrl *ArqController) syncResourceQuotaFromKey(key string) (err error) {
 }
 
 // syncResourceQuota runs a complete sync of resource quota status across all known kinds
-func (ctrl *ArqController) syncResourceQuota(appResourceQuota *v1alpha12.ApplicationsResourceQuota) (err error) {
+func (ctrl *ArqController) syncResourceQuota(arq *v1alpha12.ApplicationsResourceQuota) (err error) {
 	// quota is dirty if any part of spec hard limits differs from the status hard limits
-	statusLimitsDirty := !apiequality.Semantic.DeepEqual(appResourceQuota.Spec.Hard, appResourceQuota.Status.Hard)
+	statusLimitsDirty := !apiequality.Semantic.DeepEqual(arq.Spec.Hard, arq.Status.Hard)
 
 	// dirty tracks if the usage status differs from the previous sync,
 	// if so, we send a new usage with latest status
 	// if this is our first sync, it will be dirty by default, since we need track usage
-	dirty := statusLimitsDirty || appResourceQuota.Status.Hard == nil || appResourceQuota.Status.Used == nil
+	dirty := statusLimitsDirty || arq.Status.Hard == nil || arq.Status.Used == nil
 
 	used := v1.ResourceList{}
-	if appResourceQuota.Status.Used != nil {
-		used = quota.Add(v1.ResourceList{}, appResourceQuota.Status.Used)
+	if arq.Status.Used != nil {
+		used = quota.Add(v1.ResourceList{}, arq.Status.Used)
 	}
-	hardLimits := quota.Add(v1.ResourceList{}, appResourceQuota.Spec.Hard)
+	hardLimits := quota.Add(v1.ResourceList{}, arq.Spec.Hard)
 
 	var errs []error
-	newUsage, err := aaq_controller.CalculateUsage(appResourceQuota.Namespace, appResourceQuota.Spec.Scopes, hardLimits, ctrl.eval, appResourceQuota.Spec.ScopeSelector)
+	newUsage, err := aaq_controller.CalculateUsage(arq.Namespace, arq.Spec.Scopes, hardLimits, ctrl.eval, arq.Spec.ScopeSelector)
+
+	var rq *v1.ResourceQuota
+	rqObj, exists, err := ctrl.rqInformer.GetIndexer().GetByKey(arq.Namespace + "/" + arq.Name + rq_controller.RQSuffix)
+	if err != nil {
+		return err
+	} else if exists {
+		rq = rqObj.(*v1.ResourceQuota).DeepCopy()
+	} else {
+		log.Log.Infof("Barak: doesnt exist")
+	}
+	if exists {
+		log.Log.Infof("here 1 exists:%v rq.Status.Hard != nil: %v  arq.Status.Hard == nil: %v", exists, rq.Status.Hard != nil, arq.Status.Hard == nil)
+	}
+	if exists && rq.Status.Hard != nil && arq.Status.Hard != nil {
+		updateUsageFromResourceQuota(arq, rq, newUsage)
+	}
 
 	if err != nil {
 		// if err is non-nil, remember it to return, but continue updating status with any resources in newUsage
@@ -521,13 +589,12 @@ func (ctrl *ArqController) syncResourceQuota(appResourceQuota *v1alpha12.Applica
 
 	// Create a usage object that is based on the quota resource version that will handle updates
 	// by default, we preserve the past usage observation, and set hard to the current spec
-	usage := appResourceQuota.DeepCopy()
+	usage := arq.DeepCopy()
 	usage.Status = v1.ResourceQuotaStatus{
 		Hard: hardLimits,
 		Used: used,
 	}
-
-	dirty = dirty || !quota.Equals(usage.Status.Used, appResourceQuota.Status.Used)
+	dirty = dirty || !quota.Equals(usage.Status.Used, arq.Status.Used)
 
 	// there was a change observed by this controller that requires we update quota
 	if dirty {
@@ -537,4 +604,37 @@ func (ctrl *ArqController) syncResourceQuota(appResourceQuota *v1alpha12.Applica
 		}
 	}
 	return utilerrors.NewAggregate(errs)
+}
+
+func updateUsageFromResourceQuota(arq *v1alpha12.ApplicationsResourceQuota, rq *v1.ResourceQuota, newUsage map[v1.ResourceName]resource.Quantity) {
+	nonSchedulableResourcesHard := rq_controller.FilterNonScheduableResources(arq.Status.Hard)
+	log.Log.Infof("here 1 quota.Equals(rq.Spec.Hard, nonSchedulableResourcesHard):%v rq.Status.Hard != nil: %v ", quota.Equals(rq.Spec.Hard, nonSchedulableResourcesHard), rq.Status.Hard != nil)
+	if Equalsss(rq.Spec.Hard, nonSchedulableResourcesHard) && rq.Status.Used != nil {
+		nonSchedulableResourcesUsage := rq_controller.FilterNonScheduableResources(rq.Status.Used)
+		for key, value := range nonSchedulableResourcesUsage {
+			newUsage[key] = value
+		}
+	}
+}
+
+// Equals returns true if the two lists are equivalent
+func Equalsss(a v1.ResourceList, b v1.ResourceList) bool {
+	if len(a) != len(b) {
+		log.Log.Infof("hereeeee a:%v, b:%v", a, b)
+		return false
+	}
+
+	for key, value1 := range a {
+		value2, found := b[key]
+		if !found {
+			log.Log.Infof("hereeeee key: %v value1: %v", key, value1)
+			return false
+		}
+		if value1.Cmp(value2) != 0 {
+			log.Log.Infof("hereeeee key: %v value1: %v value2: %v", key, value1, value2)
+			return false
+		}
+	}
+
+	return true
 }

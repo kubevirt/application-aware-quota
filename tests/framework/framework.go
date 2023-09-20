@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
+	"kubevirt.io/applications-aware-quota/pkg/client"
 	"kubevirt.io/client-go/kubecli"
 	"net/http"
 
@@ -34,7 +35,6 @@ import (
 	"k8s.io/klog/v2"
 	crclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	aaqClientset "kubevirt.io/applications-aware-quota/pkg/generated/clientset/versioned"
 	aaqv1 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 )
 
@@ -82,9 +82,7 @@ type Clients struct {
 	//  k8sClient provides our k8s client pointer
 	K8sClient *kubernetes.Clientset
 	// AaqClient provides our AAQ client pointer
-	AaqClient *aaqClientset.Clientset
-	// VirtClient  provides our virt client pointer
-	VirtClient kubecli.KubevirtClient
+	AaqClient *client.AAQClient
 	// ExtClient provides our CSI client pointer
 	ExtClient *extclientset.Clientset
 	// CrClient is a controller runtime client
@@ -249,19 +247,6 @@ func (c *Clients) GetVirtClient() (kubecli.KubevirtClient, error) {
 	return vc, nil
 }
 
-// GetAaqClient gets an instance of a kubernetes client that includes all the AAQ extensions.
-func (c *Clients) GetAaqClient() (*aaqClientset.Clientset, error) {
-	cfg, err := clientcmd.BuildConfigFromFlags(c.KubeURL, c.KubeConfig)
-	if err != nil {
-		return nil, err
-	}
-	aaqClient, err := aaqClientset.NewForConfig(cfg)
-	if err != nil {
-		return nil, err
-	}
-	return aaqClient, nil
-}
-
 // GetExtClient gets an instance of a kubernetes client that includes all the api extensions.
 func (c *Clients) GetExtClient() (*extclientset.Clientset, error) {
 	cfg, err := clientcmd.BuildConfigFromFlags(c.KubeURL, c.KubeConfig)
@@ -327,21 +312,6 @@ func (f *Framework) GetToken(namespace, name string) (string, error) {
 	fmt.Fprintf(ginkgo.GinkgoWriter, "INFO: Token created for SA: %+v\n", token.Status)
 
 	return token.Status.Token, nil
-}
-
-// GetAAQClient returns a aaq client
-func (f *Framework) GetAAQClient(namespace, name string) (*aaqClientset.Clientset, error) {
-	cfg, err := f.GetRESTConfig(namespace, name)
-	if err != nil {
-		return nil, err
-	}
-
-	aaqClient, err := aaqClientset.NewForConfig(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	return aaqClient, nil
 }
 
 // GetKubeClient returns a Kubernetes rest client
