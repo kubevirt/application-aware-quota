@@ -6,6 +6,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	quota "k8s.io/apiserver/pkg/quota/v1"
@@ -123,7 +124,7 @@ func (ctrl *RQController) deleteRQ(obj interface{}) {
 func (ctrl *RQController) updateRQ(old, curr interface{}) {
 	curRq := curr.(*v1.ResourceQuota)
 	oldRq := old.(*v1.ResourceQuota)
-	if !quota.Equals(curRq.Spec.Hard, oldRq.Spec.Hard) {
+	if !quota.Equals(curRq.Spec.Hard, oldRq.Spec.Hard) || !labels.Equals(curRq.Labels, oldRq.Labels) {
 		arq := &v1alpha12.ApplicationsResourceQuota{
 			ObjectMeta: metav1.ObjectMeta{Name: strings.TrimSuffix(curRq.Name, RQSuffix), Namespace: curRq.Namespace},
 		}
@@ -212,11 +213,27 @@ func (ctrl *RQController) execute(key string) (error, enqueueState) {
 		}
 	}
 	rq := rqObj.(*v1.ResourceQuota).DeepCopy()
-	if quota.Equals(rq.Spec.Hard, nonSchedulableResourcesLimitations) {
+
+	dirty := !quota.Equals(rq.Spec.Hard, nonSchedulableResourcesLimitations)
+
+	if rq.Labels == nil {
+		rq.Labels = map[string]string{
+			RQLabel: "true",
+		}
+		dirty = true
+	}
+
+	_, ok := rq.Labels[RQLabel]
+	if !ok {
+		rq.Labels[RQLabel] = "true"
+		dirty = true
+	}
+
+	if !dirty {
 		return nil, Forget
 	}
-	rq.Spec.Hard = nonSchedulableResourcesLimitations
 
+	rq.Spec.Hard = nonSchedulableResourcesLimitations
 	_, err = ctrl.aaqCli.CoreV1().ResourceQuotas(arqNS).Update(context.Background(), rq, metav1.UpdateOptions{})
 	if err != nil {
 		return err, Immediate

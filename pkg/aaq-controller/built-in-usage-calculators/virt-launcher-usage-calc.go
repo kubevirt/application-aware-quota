@@ -143,11 +143,10 @@ func CalculateResourceListForLauncherPod(vmi *v15.VirtualMachineInstance, isSour
 	}
 
 	tmpMemReq := v12.Max(memoryGuest, domainResourcesReq)
-	tmpMemLim1 := v12.Max(memoryGuest, domainResourcesLim)
-	tmpMemLim2 := v12.Max(tmpMemLim1, domainResourcesReq)
+	tmpMemLim := v12.Max(memoryGuest, domainResourcesLim)
 
 	finalMemReq := v12.Max(tmpMemReq, memoryGuestHugePages)
-	finalMemLim := v12.Max(tmpMemLim2, memoryGuestHugePages)
+	finalMemLim := v12.Max(tmpMemLim, corev1.ResourceList{corev1.ResourceLimitsMemory: finalMemReq[corev1.ResourceRequestsMemory]})
 	requests := corev1.ResourceList{
 		corev1.ResourceRequestsMemory: finalMemReq[corev1.ResourceRequestsMemory],
 	}

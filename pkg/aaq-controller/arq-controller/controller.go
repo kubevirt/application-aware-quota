@@ -568,9 +568,7 @@ func (ctrl *ArqController) syncResourceQuota(arq *v1alpha12.ApplicationsResource
 	} else {
 		log.Log.Infof("Barak: doesnt exist")
 	}
-	if exists {
-		log.Log.Infof("here 1 exists:%v rq.Status.Hard != nil: %v  arq.Status.Hard == nil: %v", exists, rq.Status.Hard != nil, arq.Status.Hard == nil)
-	}
+
 	if exists && rq.Status.Hard != nil && arq.Status.Hard != nil {
 		updateUsageFromResourceQuota(arq, rq, newUsage)
 	}
@@ -608,7 +606,6 @@ func (ctrl *ArqController) syncResourceQuota(arq *v1alpha12.ApplicationsResource
 
 func updateUsageFromResourceQuota(arq *v1alpha12.ApplicationsResourceQuota, rq *v1.ResourceQuota, newUsage map[v1.ResourceName]resource.Quantity) {
 	nonSchedulableResourcesHard := rq_controller.FilterNonScheduableResources(arq.Status.Hard)
-	log.Log.Infof("here 1 quota.Equals(rq.Spec.Hard, nonSchedulableResourcesHard):%v rq.Status.Hard != nil: %v ", quota.Equals(rq.Spec.Hard, nonSchedulableResourcesHard), rq.Status.Hard != nil)
 	if Equalsss(rq.Spec.Hard, nonSchedulableResourcesHard) && rq.Status.Used != nil {
 		nonSchedulableResourcesUsage := rq_controller.FilterNonScheduableResources(rq.Status.Used)
 		for key, value := range nonSchedulableResourcesUsage {

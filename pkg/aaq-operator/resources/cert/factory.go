@@ -3,9 +3,9 @@ package cert
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/cluster"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/namespaced"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/utils"
-	aaq_server "kubevirt.io/applications-aware-quota/pkg/validating-webhook-lock"
 	"time"
 )
 
@@ -114,7 +114,7 @@ func createCertificateDefinitions() []CertificateDefinition {
 				Lifetime: 24 * time.Hour,
 				Refresh:  12 * time.Hour,
 			},
-			TargetService: &[]string{aaq_server.AaqServerServiceName}[0],
+			TargetService: &[]string{cluster.AaqServerServiceName}[0],
 		},
 	}
 }

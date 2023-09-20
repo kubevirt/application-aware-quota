@@ -4,6 +4,7 @@ metadata:
   name: example-resource-quota
 spec:
   hard:
-    pods: "10"                     # Maximum number of pods allowed in the namespace
-    requests.cpu: "1"              # Total CPU request allowed for all pods
-    requests.memory: 1Gi           # Total memory request allowed for all pods
+    services: "5"
+    pods: "10"
+    requests.cpu: "1"
+    requests.memory: 1Gi

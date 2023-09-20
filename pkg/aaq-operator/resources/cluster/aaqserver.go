@@ -9,7 +9,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/utils"
 	aaq_server2 "kubevirt.io/applications-aware-quota/pkg/aaq-server"
-	aaq_server "kubevirt.io/applications-aware-quota/pkg/validating-webhook-lock"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -17,6 +16,7 @@ const (
 	aaqServerResourceName              = "aaq-server"
 	MutatingWebhookConfigurationName   = "gating-mutator"
 	validatingWebhookConfigurationName = "arq-validator"
+	AaqServerServiceName               = "aaq-server"
 )
 
 func createStaticAAQLockResources(args *FactoryArgs) []client.Object {
@@ -92,7 +92,7 @@ func createGatingMutatingWebhook(namespace string, c client.Client, l logr.Logge
 		ObjectMeta: metav1.ObjectMeta{
 			Name: MutatingWebhookConfigurationName,
 			Labels: map[string]string{
-				utils.AAQLabel: aaq_server.AaqServerServiceName,
+				utils.AAQLabel: AaqServerServiceName,
 			},
 		},
 		Webhooks: []admissionregistrationv1.MutatingWebhook{
@@ -121,7 +121,7 @@ func createGatingMutatingWebhook(namespace string, c client.Client, l logr.Logge
 				ClientConfig: admissionregistrationv1.WebhookClientConfig{
 					Service: &admissionregistrationv1.ServiceReference{
 						Namespace: namespace,
-						Name:      aaq_server.AaqServerServiceName,
+						Name:      AaqServerServiceName,
 						Path:      &path,
 						Port:      &defaultServicePort,
 					},
@@ -156,7 +156,7 @@ func createGatingValidatingWebhook(namespace string, c client.Client, l logr.Log
 		ObjectMeta: metav1.ObjectMeta{
 			Name: validatingWebhookConfigurationName,
 			Labels: map[string]string{
-				utils.AAQLabel: aaq_server.AaqServerServiceName,
+				utils.AAQLabel: AaqServerServiceName,
 			},
 		},
 		Webhooks: []admissionregistrationv1.ValidatingWebhook{
@@ -184,7 +184,7 @@ func createGatingValidatingWebhook(namespace string, c client.Client, l logr.Log
 				ClientConfig: admissionregistrationv1.WebhookClientConfig{
 					Service: &admissionregistrationv1.ServiceReference{
 						Namespace: namespace,
-						Name:      aaq_server.AaqServerServiceName,
+						Name:      AaqServerServiceName,
 						Path:      &path,
 						Port:      &defaultServicePort,
 					},
