@@ -4,7 +4,7 @@ import (
 	"fmt"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	utils2 "kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/utils"
+	utils2 "kubevirt.io/applications-aware-quota/pkg/util"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -13,10 +13,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	sdkapi "kubevirt.io/controller-lifecycle-operator-sdk/api"
-)
-
-const (
-	AaqServerResourceName = "aaq-server"
 )
 
 func createAAQServerResources(args *FactoryArgs) []client.Object {
@@ -30,11 +26,11 @@ func createAAQServerResources(args *FactoryArgs) []client.Object {
 }
 
 func createAAQServerServiceAccount() *corev1.ServiceAccount {
-	return utils2.ResourceBuilder.CreateServiceAccount(AaqServerResourceName)
+	return utils2.ResourceBuilder.CreateServiceAccount(utils2.AaqServerResourceName)
 }
 
 func createAAQServerService() *corev1.Service {
-	service := utils2.ResourceBuilder.CreateService("aaq-server", utils2.AAQLabel, AaqServerResourceName, nil)
+	service := utils2.ResourceBuilder.CreateService("aaq-server", utils2.AAQLabel, utils2.AaqServerResourceName, nil)
 	service.Spec.Type = corev1.ServiceTypeNodePort
 	service.Spec.Ports = []corev1.ServicePort{
 		{
@@ -51,7 +47,7 @@ func createAAQServerService() *corev1.Service {
 
 func createAAQServerDeployment(image, pullPolicy string, imagePullSecrets []corev1.LocalObjectReference, priorityClassName string, verbosity string, infraNodePlacement *sdkapi.NodePlacement) *appsv1.Deployment {
 	defaultMode := corev1.ConfigMapVolumeSourceDefaultMode
-	deployment := utils2.CreateDeployment(AaqServerResourceName, utils2.AAQLabel, AaqServerResourceName, AaqServerResourceName, imagePullSecrets, 2, infraNodePlacement)
+	deployment := utils2.CreateDeployment(utils2.AaqServerResourceName, utils2.AAQLabel, utils2.AaqServerResourceName, utils2.AaqServerResourceName, imagePullSecrets, 2, infraNodePlacement)
 	if priorityClassName != "" {
 		deployment.Spec.Template.Spec.PriorityClassName = priorityClassName
 	}
@@ -62,7 +58,7 @@ func createAAQServerDeployment(image, pullPolicy string, imagePullSecrets []core
 			MaxUnavailable: &desiredMaxUnavailable,
 		},
 	}
-	container := utils2.CreateContainer(AaqServerResourceName, image, verbosity, pullPolicy)
+	container := utils2.CreateContainer(utils2.AaqServerResourceName, image, verbosity, pullPolicy)
 	container.Ports = createAAQServerPorts()
 
 	container.Env = []corev1.EnvVar{
@@ -126,7 +122,7 @@ func createAAQServerDeployment(image, pullPolicy string, imagePullSecrets []core
 			Name: "tls",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
-					SecretName:  SecretResourceName,
+					SecretName:  utils2.SecretResourceName,
 					DefaultMode: &defaultMode,
 				},
 			},
@@ -134,12 +130,15 @@ func createAAQServerDeployment(image, pullPolicy string, imagePullSecrets []core
 	}
 	deployment.Spec.Template.Spec.Affinity = &corev1.Affinity{
 		PodAntiAffinity: &corev1.PodAntiAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+			PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
 				{
-					LabelSelector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{utils2.AAQLabel: AaqServerResourceName},
+					PodAffinityTerm: corev1.PodAffinityTerm{
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{utils2.AAQLabel: utils2.AaqServerResourceName},
+						},
+						TopologyKey: "kubernetes.io/hostname",
 					},
-					TopologyKey: "kubernetes.io/hostname",
+					Weight: 100,
 				},
 			},
 		},
@@ -157,7 +156,7 @@ func createAAQServerPorts() []corev1.ContainerPort {
 }
 
 func createAAQServerRoleBinding() *rbacv1.RoleBinding {
-	return utils2.ResourceBuilder.CreateRoleBinding(AaqServerResourceName, AaqServerResourceName, AaqServerResourceName, "")
+	return utils2.ResourceBuilder.CreateRoleBinding(utils2.AaqServerResourceName, utils2.AaqServerResourceName, utils2.AaqServerResourceName, "")
 }
 func createAAQServerRole() *rbacv1.Role {
 	rules := []rbacv1.PolicyRule{
@@ -175,5 +174,5 @@ func createAAQServerRole() *rbacv1.Role {
 			},
 		},
 	}
-	return utils2.ResourceBuilder.CreateRole(AaqServerResourceName, rules)
+	return utils2.ResourceBuilder.CreateRole(utils2.AaqServerResourceName, rules)
 }

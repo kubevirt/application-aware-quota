@@ -2,13 +2,8 @@ package cluster
 
 import (
 	rbacv1 "k8s.io/api/rbac/v1"
-	utils2 "kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/utils"
+	utils2 "kubevirt.io/applications-aware-quota/pkg/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-)
-
-const (
-	controllerServiceAccountName = utils2.ControllerPodName
-	controllerClusterRoleName    = utils2.ControllerPodName
 )
 
 func createStaticControllerResources(args *FactoryArgs) []client.Object {
@@ -19,7 +14,7 @@ func createStaticControllerResources(args *FactoryArgs) []client.Object {
 }
 
 func createControllerClusterRoleBinding(namespace string) *rbacv1.ClusterRoleBinding {
-	return utils2.ResourceBuilder.CreateClusterRoleBinding(controllerServiceAccountName, controllerClusterRoleName, controllerServiceAccountName, namespace)
+	return utils2.ResourceBuilder.CreateClusterRoleBinding(utils2.ControllerServiceAccountName, utils2.ControllerClusterRoleName, utils2.ControllerServiceAccountName, namespace)
 }
 
 func getControllerClusterPolicyRules() []rbacv1.PolicyRule {
@@ -185,5 +180,5 @@ func getControllerClusterPolicyRules() []rbacv1.PolicyRule {
 }
 
 func createControllerClusterRole() *rbacv1.ClusterRole {
-	return utils2.ResourceBuilder.CreateClusterRole(controllerClusterRoleName, getControllerClusterPolicyRules())
+	return utils2.ResourceBuilder.CreateClusterRole(utils2.ControllerClusterRoleName, getControllerClusterPolicyRules())
 }

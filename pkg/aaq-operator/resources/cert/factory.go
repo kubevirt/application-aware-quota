@@ -4,8 +4,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/cluster"
-	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/namespaced"
-	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/utils"
+	"kubevirt.io/applications-aware-quota/pkg/util"
 	"time"
 )
 
@@ -109,7 +108,7 @@ func createCertificateDefinitions() []CertificateDefinition {
 				Refresh:  24 * time.Hour,
 			},
 			CertBundleConfigmap: createConfigMap("aaq-server-signer-bundle"),
-			TargetSecret:        createSecret(namespaced.SecretResourceName),
+			TargetSecret:        createSecret(util.SecretResourceName),
 			TargetConfig: CertificateConfig{
 				Lifetime: 24 * time.Hour,
 				Refresh:  12 * time.Hour,
@@ -123,7 +122,7 @@ func createSecret(name string) *corev1.Secret {
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   name,
-			Labels: utils.ResourceBuilder.WithCommonLabels(nil),
+			Labels: util.ResourceBuilder.WithCommonLabels(nil),
 		},
 	}
 }
@@ -132,7 +131,7 @@ func createConfigMap(name string) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   name,
-			Labels: utils.ResourceBuilder.WithCommonLabels(nil),
+			Labels: util.ResourceBuilder.WithCommonLabels(nil),
 		},
 	}
 }

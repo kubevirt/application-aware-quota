@@ -20,6 +20,7 @@ import (
 	generrors "errors"
 	"fmt"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/cert"
+	utils "kubevirt.io/applications-aware-quota/pkg/util"
 	"kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	"kubevirt.io/containerized-data-importer/pkg/common"
 	"reflect"
@@ -50,7 +51,6 @@ import (
 
 	clusterResources "kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/cluster"
 	namespaceResources "kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/namespaced"
-	utils "kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/utils"
 	aaqv1 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 )
 
@@ -1330,7 +1330,7 @@ func createReconciler(client client.Client) *ReconcileAAQ {
 		WithWatching(true)
 
 	r.registerHooks()
-
+	addReconcileCallbacks(r)
 	return r
 }
 

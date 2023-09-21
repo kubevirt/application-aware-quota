@@ -26,16 +26,19 @@ type AAQServer struct {
 	bindPort          uint
 	secretCertManager certificate.Manager
 	handler           http.Handler
+	aaqNS             string
 }
 
 // AaqServer returns an initialized uploadProxyApp
-func AaqServer(bindAddress string,
+func AaqServer(aaqNS string,
+	bindAddress string,
 	bindPort uint,
 	secretCertManager certificate.Manager) (Server, error) {
 	app := &AAQServer{
 		secretCertManager: secretCertManager,
 		bindAddress:       bindAddress,
 		bindPort:          bindPort,
+		aaqNS:             aaqNS,
 	}
 
 	app.initHandler()
@@ -50,7 +53,7 @@ func (app *AAQServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (app *AAQServer) initHandler() {
 	mux := http.NewServeMux()
 	mux.HandleFunc(healthzPath, app.handleHealthzRequest)
-	mux.Handle(ServePath, NewAaqServerHandler())
+	mux.Handle(ServePath, NewAaqServerHandler(app.aaqNS))
 	app.handler = cors.AllowAll().Handler(mux)
 
 }

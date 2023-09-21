@@ -13,14 +13,15 @@ import (
 
 type AaqServerHandler struct {
 	aaqCli client.AAQClient
+	aaqNS  string
 }
 
-func NewAaqServerHandler() *AaqServerHandler {
+func NewAaqServerHandler(aaqNS string) *AaqServerHandler {
 	virtCli, err := client.GetAAQClient()
 	if err != nil {
 		panic(err)
 	}
-	return &AaqServerHandler{virtCli}
+	return &AaqServerHandler{virtCli, aaqNS}
 }
 
 func (ash *AaqServerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -30,7 +31,7 @@ func (ash *AaqServerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	handler := handlerv1.NewHandler(in.Request, ash.aaqCli)
+	handler := handlerv1.NewHandler(in.Request, ash.aaqCli, ash.aaqNS)
 
 	out, err := handler.Handle()
 	if err != nil {

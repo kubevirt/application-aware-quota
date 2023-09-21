@@ -7,9 +7,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/namespaced"
-	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/utils"
 	aaq_server2 "kubevirt.io/applications-aware-quota/pkg/aaq-server"
+	"kubevirt.io/applications-aware-quota/pkg/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -67,24 +66,25 @@ func getAaqServerClusterPolicyRules() []rbacv1.PolicyRule {
 }
 
 func createAPIServerClusterRoleBinding(namespace string) *rbacv1.ClusterRoleBinding {
-	return utils.ResourceBuilder.CreateClusterRoleBinding(aaqServerResourceName, aaqServerResourceName, aaqServerResourceName, namespace)
+	return util.ResourceBuilder.CreateClusterRoleBinding(aaqServerResourceName, aaqServerResourceName, aaqServerResourceName, namespace)
 }
 
 func createAPIServerClusterRole() *rbacv1.ClusterRole {
-	return utils.ResourceBuilder.CreateClusterRole(aaqServerResourceName, getAaqServerClusterPolicyRules())
+	return util.ResourceBuilder.CreateClusterRole(aaqServerResourceName, getAaqServerClusterPolicyRules())
 }
 func createGatingMutatingWebhook(namespace string, c client.Client, l logr.Logger) *admissionregistrationv1.MutatingWebhookConfiguration {
-	cr, _ := utils.GetActiveAAQ(c)
+	cr, _ := util.GetActiveAAQ(c)
 	if cr == nil {
 		return nil
 	}
-	serverDeployment, err := utils.GetDeployment(c, aaqServerResourceName, namespace)
+	includeHooks := true
+	serverDeployment, err := util.GetDeployment(c, aaqServerResourceName, namespace)
 	if err != nil || serverDeployment == nil || serverDeployment.Status.ReadyReplicas < 1 {
-		return nil
+		includeHooks = false
 	}
-	controllerDeployment, err := utils.GetDeployment(c, namespaced.ControllerResourceName, namespace)
+	controllerDeployment, err := util.GetDeployment(c, util.ControllerResourceName, namespace)
 	if err != nil || controllerDeployment == nil || controllerDeployment.Status.ReadyReplicas < 1 {
-		return nil
+		includeHooks = false
 	}
 
 	path := aaq_server2.ServePath
@@ -93,18 +93,10 @@ func createGatingMutatingWebhook(namespace string, c client.Client, l logr.Logge
 	exactPolicy := admissionregistrationv1.Equivalent
 	failurePolicy := admissionregistrationv1.Fail
 	sideEffect := admissionregistrationv1.SideEffectClassNone
-	mhc := &admissionregistrationv1.MutatingWebhookConfiguration{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "admissionregistration.k8s.io/v1",
-			Kind:       "MutatingWebhookConfiguration",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: MutatingWebhookConfigurationName,
-			Labels: map[string]string{
-				utils.AAQLabel: AaqServerServiceName,
-			},
-		},
-		Webhooks: []admissionregistrationv1.MutatingWebhook{
+
+	hooks := []admissionregistrationv1.MutatingWebhook{}
+	if includeHooks {
+		hooks = []admissionregistrationv1.MutatingWebhook{
 			{
 				Name:                    "gater.cqo.kubevirt.io",
 				AdmissionReviewVersions: []string{"v1", "v1beta1"},
@@ -132,7 +124,21 @@ func createGatingMutatingWebhook(namespace string, c client.Client, l logr.Logge
 					},
 				},
 			},
+		}
+	}
+
+	mhc := &admissionregistrationv1.MutatingWebhookConfiguration{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "admissionregistration.k8s.io/v1",
+			Kind:       "MutatingWebhookConfiguration",
 		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: MutatingWebhookConfigurationName,
+			Labels: map[string]string{
+				util.AAQLabel: AaqServerServiceName,
+			},
+		},
+		Webhooks: hooks,
 	}
 
 	if c == nil {
@@ -140,31 +146,37 @@ func createGatingMutatingWebhook(namespace string, c client.Client, l logr.Logge
 	}
 	bundle := getAPIServerCABundle(namespace, c, l)
 	if bundle != nil {
-		mhc.Webhooks[0].ClientConfig.CABundle = bundle
+		for i := range mhc.Webhooks {
+			mhc.Webhooks[i].ClientConfig.CABundle = bundle
+		}
 	}
 
 	return mhc
 }
 
 func createGatingValidatingWebhook(namespace string, c client.Client, l logr.Logger) *admissionregistrationv1.ValidatingWebhookConfiguration {
+	cr, _ := util.GetActiveAAQ(c)
+	if cr == nil {
+		return nil
+	}
+	includeHooks := true
+	serverDeployment, err := util.GetDeployment(c, aaqServerResourceName, namespace)
+	if err != nil || serverDeployment == nil || serverDeployment.Status.ReadyReplicas < 1 {
+		includeHooks = false
+	}
+	controllerDeployment, err := util.GetDeployment(c, util.ControllerResourceName, namespace)
+	if err != nil || controllerDeployment == nil || controllerDeployment.Status.ReadyReplicas < 1 {
+		includeHooks = false
+	}
 	path := aaq_server2.ServePath
 	defaultServicePort := int32(443)
 	namespacedScope := admissionregistrationv1.NamespacedScope
 	exactPolicy := admissionregistrationv1.Equivalent
 	failurePolicy := admissionregistrationv1.Fail
 	sideEffect := admissionregistrationv1.SideEffectClassNone
-	mhc := &admissionregistrationv1.ValidatingWebhookConfiguration{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "admissionregistration.k8s.io/v1",
-			Kind:       "ValidatingWebhookConfiguration",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: validatingWebhookConfigurationName,
-			Labels: map[string]string{
-				utils.AAQLabel: AaqServerServiceName,
-			},
-		},
-		Webhooks: []admissionregistrationv1.ValidatingWebhook{
+	hooks := []admissionregistrationv1.ValidatingWebhook{}
+	if includeHooks {
+		hooks = []admissionregistrationv1.ValidatingWebhook{
 			{
 				Name:                    "application.resource.quota.validator",
 				AdmissionReviewVersions: []string{"v1", "v1beta1"},
@@ -195,7 +207,51 @@ func createGatingValidatingWebhook(namespace string, c client.Client, l logr.Log
 					},
 				},
 			},
+			{
+				Name:                    "remove.pod.gate.validator",
+				AdmissionReviewVersions: []string{"v1", "v1beta1"},
+				FailurePolicy:           &failurePolicy,
+				SideEffects:             &sideEffect,
+				MatchPolicy:             &exactPolicy,
+				NamespaceSelector:       cr.Spec.NamespaceSelector,
+				Rules: []admissionregistrationv1.RuleWithOperations{
+					{
+						Operations: []admissionregistrationv1.OperationType{
+							admissionregistrationv1.Update,
+						},
+						Rule: admissionregistrationv1.Rule{
+							APIGroups:   []string{"*"},
+							APIVersions: []string{"*"},
+							Scope:       &namespacedScope,
+							Resources:   []string{"pods"},
+						},
+					},
+				},
+
+				ClientConfig: admissionregistrationv1.WebhookClientConfig{
+					Service: &admissionregistrationv1.ServiceReference{
+						Namespace: namespace,
+						Name:      AaqServerServiceName,
+						Path:      &path,
+						Port:      &defaultServicePort,
+					},
+				},
+			},
+		}
+	}
+
+	mhc := &admissionregistrationv1.ValidatingWebhookConfiguration{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "admissionregistration.k8s.io/v1",
+			Kind:       "ValidatingWebhookConfiguration",
 		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: validatingWebhookConfigurationName,
+			Labels: map[string]string{
+				util.AAQLabel: AaqServerServiceName,
+			},
+		},
+		Webhooks: hooks,
 	}
 
 	if c == nil {
@@ -203,9 +259,10 @@ func createGatingValidatingWebhook(namespace string, c client.Client, l logr.Log
 	}
 	bundle := getAPIServerCABundle(namespace, c, l)
 	if bundle != nil {
-		mhc.Webhooks[0].ClientConfig.CABundle = bundle
+		for i := range mhc.Webhooks {
+			mhc.Webhooks[i].ClientConfig.CABundle = bundle
+		}
 	}
-
 	return mhc
 }
 

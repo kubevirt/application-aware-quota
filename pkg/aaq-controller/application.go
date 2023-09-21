@@ -35,7 +35,6 @@ import (
 	arq_controller2 "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-gate-controller"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-controller/arq-controller"
 	rq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/rq-controller"
-	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/namespaced"
 	"kubevirt.io/applications-aware-quota/pkg/client"
 	"kubevirt.io/applications-aware-quota/pkg/util"
 	"kubevirt.io/kubevirt/pkg/certificates/bootstrap"
@@ -162,7 +161,7 @@ func (mca *AaqControllerApp) Run(stop <-chan struct{}) {
 
 	secretCertManager := bootstrap.NewFallbackCertificateManager(
 		bootstrap.NewSecretCertificateManager(
-			namespaced.SecretResourceName,
+			util.SecretResourceName,
 			mca.aaqNs,
 			secretInformer.GetStore(),
 		),

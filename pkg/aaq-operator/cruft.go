@@ -3,7 +3,7 @@ package aaq_operator
 import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/utils"
+	"kubevirt.io/applications-aware-quota/pkg/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -17,7 +17,7 @@ func (r *ReconcileAAQ) watchAAQCRD() error {
 			if name != "aaqs.aaq.kubevirt.io" {
 				return nil
 			}
-			cr, err := utils.GetActiveAAQ(r.client)
+			cr, err := util.GetActiveAAQ(r.client)
 			if err != nil {
 				return nil
 			}

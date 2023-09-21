@@ -22,7 +22,7 @@ package utils
 import (
 	"context"
 	"encoding/json"
-	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/utils"
+	"kubevirt.io/applications-aware-quota/pkg/util"
 
 	"kubevirt.io/client-go/kubecli"
 
@@ -31,7 +31,7 @@ import (
 )
 
 func GetLeader(virtClient kubecli.KubevirtClient, aaqNS string) string {
-	controllerEndpoint, err := virtClient.CoreV1().Endpoints(aaqNS).Get(context.Background(), utils.ControllerPodName, v1.GetOptions{})
+	controllerEndpoint, err := virtClient.CoreV1().Endpoints(aaqNS).Get(context.Background(), util.ControllerPodName, v1.GetOptions{})
 	if err != nil {
 		return ""
 	}

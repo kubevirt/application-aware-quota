@@ -1,4 +1,4 @@
-package utils
+package util
 
 import (
 	"context"
@@ -37,8 +37,7 @@ const (
 	AaqServerPodName = "aaq-server"
 	// ControllerServiceAccountName is the name of the AAQ controller service account
 	ControllerServiceAccountName = ControllerPodName
-	// CronJobServiceAccountName is the name of the AAQ cron job service account
-	CronJobServiceAccountName = "aaq-cronjob"
+
 	// InstallerPartOfLabel provides a constant to capture our env variable "INSTALLER_PART_OF_LABEL"
 	InstallerPartOfLabel = "INSTALLER_PART_OF_LABEL"
 	// InstallerVersionLabel provides a constant to capture our env variable "INSTALLER_VERSION_LABEL"
@@ -50,6 +49,11 @@ const (
 	// ConfigMapName is the name of the aaq configmap that own aaq resources
 	ConfigMapName              = "aaq-config"
 	OperatorServiceAccountName = "aaq-operator"
+	AAQGate                    = "ApplicationsAwareQuotaGate"
+	ControllerResourceName     = ControllerPodName
+	SecretResourceName         = "aaq-server-cert"
+	AaqServerResourceName      = "aaq-server"
+	ControllerClusterRoleName  = ControllerPodName
 )
 
 var commonLabels = map[string]string{

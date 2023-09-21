@@ -2,7 +2,7 @@ package aaq_operator
 
 import (
 	"context"
-	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/utils"
+	"kubevirt.io/applications-aware-quota/pkg/util"
 
 	aaqcluster "kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/cluster"
 	aaqnamespaced "kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/namespaced"
@@ -63,7 +63,7 @@ func (r *ReconcileAAQ) getNamespacedArgs(cr *aaqv1.AAQ) *aaqnamespaced.FactoryAr
 		if cr.Spec.PriorityClass != nil && string(*cr.Spec.PriorityClass) != "" {
 			result.PriorityClassName = string(*cr.Spec.PriorityClass)
 		} else {
-			result.PriorityClassName = utils.AAQPriorityClass
+			result.PriorityClassName = util.AAQPriorityClass
 		}
 		// Verify the priority class name exists.
 		priorityClass := &schedulingv1.PriorityClass{}

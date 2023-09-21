@@ -6,7 +6,7 @@ import (
 	csvv1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources"
-	utils2 "kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/utils"
+	utils2 "kubevirt.io/applications-aware-quota/pkg/util"
 	"strings"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"

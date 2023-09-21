@@ -20,10 +20,10 @@ import (
 	_ "kubevirt.io/api/core/v1"
 	quota_utils "kubevirt.io/applications-aware-quota/pkg/aaq-controller/quota-utils"
 	"kubevirt.io/applications-aware-quota/pkg/client"
+	"kubevirt.io/applications-aware-quota/pkg/util"
 
 	aaq_evaluator "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-evaluator"
 	built_in_usage_calculators "kubevirt.io/applications-aware-quota/pkg/aaq-controller/built-in-usage-calculators"
-	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/utils"
 	v1alpha12 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	"kubevirt.io/client-go/log"
 	corev1beta1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
@@ -68,7 +68,7 @@ func NewAaqGateController(aaqCli client.AAQClient,
 		podInformer:    podInformer,
 		arqInformer:    arqInformer,
 		arqQueue:       workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq-queue"),
-		recorder:       eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: utils.ControllerPodName}),
+		recorder:       eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: util.ControllerPodName}),
 		aaqEvaluator:   aaq_evaluator.NewAaqEvaluator(nil, podInformer, calcRegistry, clock.RealClock{}),
 		stop:           stop,
 	}
@@ -163,7 +163,7 @@ func (ctrl *AaqGateController) addPod(obj interface{}) {
 
 	if pod.Spec.SchedulingGates != nil &&
 		len(pod.Spec.SchedulingGates) == 1 &&
-		pod.Spec.SchedulingGates[0].Name == "ApplicationsAwareQuotaGate" {
+		pod.Spec.SchedulingGates[0].Name == util.AAQGate {
 		ctrl.addAllArqsInNamespace(pod.Namespace)
 	}
 }
@@ -172,7 +172,7 @@ func (ctrl *AaqGateController) updatePod(old, curr interface{}) {
 
 	if pod.Spec.SchedulingGates != nil &&
 		len(pod.Spec.SchedulingGates) == 1 &&
-		pod.Spec.SchedulingGates[0].Name == "ApplicationsAwareQuotaGate" {
+		pod.Spec.SchedulingGates[0].Name == util.AAQGate {
 		ctrl.addAllArqsInNamespace(pod.Namespace)
 	}
 }
@@ -289,7 +289,7 @@ func (ctrl *AaqGateController) releasePods(podsToRelease []string, ns string) er
 			continue
 		}
 		pod := obj.(*v1.Pod).DeepCopy()
-		if pod.Spec.SchedulingGates != nil && len(pod.Spec.SchedulingGates) == 1 && pod.Spec.SchedulingGates[0].Name == "ApplicationsAwareQuotaGate" {
+		if pod.Spec.SchedulingGates != nil && len(pod.Spec.SchedulingGates) == 1 && pod.Spec.SchedulingGates[0].Name == util.AAQGate {
 			pod.Spec.SchedulingGates = []v1.PodSchedulingGate{}
 			_, err = ctrl.aaqCli.CoreV1().Pods(ns).Update(context.Background(), pod, metav1.UpdateOptions{})
 			if err != nil {

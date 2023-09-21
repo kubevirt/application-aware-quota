@@ -10,7 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 	rq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/rq-controller"
-	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/namespaced"
+	"kubevirt.io/applications-aware-quota/pkg/util"
 	"kubevirt.io/controller-lifecycle-operator-sdk/pkg/sdk/callbacks"
 	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -59,7 +59,7 @@ func reconcileDeleteControllerDeployment(args *callbacks.ReconcileCallbackArgs) 
 }
 
 func isControllerDeployment(d *appsv1.Deployment) bool {
-	return d.Name == namespaced.ControllerResourceName
+	return d.Name == util.ControllerResourceName
 }
 
 func deleteWorkerResources(c client.Client) error {

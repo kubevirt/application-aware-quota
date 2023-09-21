@@ -31,8 +31,8 @@ import (
 	built_in_usage_calculators "kubevirt.io/applications-aware-quota/pkg/aaq-controller/built-in-usage-calculators"
 	aaq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/quota-utils"
 	rq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/rq-controller"
-	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/utils"
 	"kubevirt.io/applications-aware-quota/pkg/client"
+	"kubevirt.io/applications-aware-quota/pkg/util"
 	v1alpha12 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	"kubevirt.io/client-go/log"
 	"kubevirt.io/kubevirt/pkg/controller"
@@ -99,7 +99,7 @@ func NewArqController(clientSet client.AAQClient,
 		missingUsageQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq_priority"),
 		enqueueAllQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq_enqueue_all"),
 		resyncPeriod:      pkgcontroller.StaticResyncPeriodFunc(metav1.Duration{Duration: 5 * time.Minute}.Duration),
-		recorder:          eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: utils.ControllerPodName}),
+		recorder:          eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: util.ControllerPodName}),
 		eval:              aaq_evaluator.NewAaqEvaluator(listerFuncForResource, podInformer, calcRegistry, clock.RealClock{}),
 		stop:              stop,
 	}

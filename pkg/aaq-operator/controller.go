@@ -3,14 +3,12 @@ package aaq_operator
 import (
 	"context"
 	"fmt"
-	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	aaqcerts "kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/cert"
-	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/utils"
 	"kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -154,35 +152,6 @@ func (r *ReconcileAAQ) Reconcile(_ context.Context, request reconcile.Request) (
 		return reconcile.Result{}, err
 	}
 
-	deleteMutatingWebhook := false
-	serverDeployment, err := utils.GetDeployment(r.client, aaqnamespaced.AaqServerResourceName, r.namespacedArgs.Namespace)
-	if err != nil || serverDeployment == nil || serverDeployment.Status.ReadyReplicas < 1 {
-		deleteMutatingWebhook = true
-	}
-	controllerDeployment, err := utils.GetDeployment(r.client, aaqnamespaced.ControllerResourceName, r.namespacedArgs.Namespace)
-	if err != nil || controllerDeployment == nil || controllerDeployment.Status.ReadyReplicas < 1 {
-		deleteMutatingWebhook = true
-	}
-
-	if deleteMutatingWebhook {
-		mhc := &admissionregistrationv1.MutatingWebhookConfiguration{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "admissionregistration.k8s.io/v1",
-				Kind:       "MutatingWebhookConfiguration",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name: aaqcluster.MutatingWebhookConfigurationName,
-			},
-		}
-		err := r.client.Delete(context.TODO(), mhc, &client.DeleteOptions{
-			PropagationPolicy: &[]metav1.DeletionPropagation{metav1.DeletePropagationForeground}[0],
-		})
-		if err != nil && !errors.IsNotFound(err) {
-			reqLogger.Error(err, "Error deleting cdi controller deployment")
-			r.recorder.Event(cr, corev1.EventTypeWarning, "DeleteResourceFailed", fmt.Sprintf("Failed to delete MutatingWebhookConfiguration %s, %v", mhc.Name, err))
-		}
-	}
-
 	return r.reconciler.Reconcile(request, operatorVersion, reqLogger)
 }
 
@@ -212,16 +181,16 @@ func (r *ReconcileAAQ) add(mgr manager.Manager) error {
 // createOperatorConfig creates operator config map
 func (r *ReconcileAAQ) createOperatorConfig(cr client.Object) error {
 	aaqCR := cr.(*v1alpha1.AAQ)
-	installerLabels := utils.GetRecommendedInstallerLabelsFromCr(aaqCR)
+	installerLabels := util.GetRecommendedInstallerLabelsFromCr(aaqCR)
 
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      utils.ConfigMapName,
+			Name:      util.ConfigMapName,
 			Namespace: r.namespace,
 			Labels:    map[string]string{"operator.aaq.kubevirt.io": ""},
 		},
 	}
-	utils.SetRecommendedLabels(cm, installerLabels, "aaq-operator")
+	util.SetRecommendedLabels(cm, installerLabels, "aaq-operator")
 
 	if err := controllerutil.SetControllerReference(cr, cm, r.scheme); err != nil {
 		return err
@@ -232,7 +201,7 @@ func (r *ReconcileAAQ) createOperatorConfig(cr client.Object) error {
 
 func (r *ReconcileAAQ) getConfigMap() (*corev1.ConfigMap, error) {
 	cm := &corev1.ConfigMap{}
-	key := client.ObjectKey{Name: utils.ConfigMapName, Namespace: r.namespace}
+	key := client.ObjectKey{Name: util.ConfigMapName, Namespace: r.namespace}
 
 	if err := r.client.Get(context.TODO(), key, cm); err != nil {
 		if errors.IsNotFound(err) {

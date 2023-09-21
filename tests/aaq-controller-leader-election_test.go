@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
-	utils2 "kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/utils"
+	utils2 "kubevirt.io/applications-aware-quota/pkg/util"
 	"kubevirt.io/applications-aware-quota/tests/framework"
 	"kubevirt.io/applications-aware-quota/tests/utils"
 	"kubevirt.io/kubevirt/tests/framework/matcher"

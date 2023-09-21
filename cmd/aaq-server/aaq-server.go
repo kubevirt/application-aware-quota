@@ -5,7 +5,6 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
-	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/namespaced"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-server"
 	"kubevirt.io/applications-aware-quota/pkg/client"
 	"kubevirt.io/applications-aware-quota/pkg/util"
@@ -36,7 +35,7 @@ func main() {
 
 	secretCertManager := bootstrap.NewFallbackCertificateManager(
 		bootstrap.NewSecretCertificateManager(
-			namespaced.SecretResourceName,
+			util.SecretResourceName,
 			aaqNS,
 			secretInformer.GetStore(),
 		),
@@ -45,7 +44,8 @@ func main() {
 	secretCertManager.Start()
 	defer secretCertManager.Stop()
 
-	aaqServer, err := aaq_server.AaqServer(util.DefaultHost,
+	aaqServer, err := aaq_server.AaqServer(aaqNS,
+		util.DefaultHost,
 		util.DefaultPort,
 		secretCertManager,
 	)

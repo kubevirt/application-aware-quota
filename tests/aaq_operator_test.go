@@ -6,6 +6,7 @@ import (
 	"fmt"
 	schedulev1 "k8s.io/api/scheduling/v1"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/namespaced"
+	resourcesutils "kubevirt.io/applications-aware-quota/pkg/util"
 	"kubevirt.io/applications-aware-quota/tests/utils"
 	"reflect"
 	"runtime"
@@ -22,7 +23,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 
-	resourcesutils "kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/utils"
 	aaqv1 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	"kubevirt.io/applications-aware-quota/tests/framework"
 	sdkapi "kubevirt.io/controller-lifecycle-operator-sdk/api"
