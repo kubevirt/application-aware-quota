@@ -233,7 +233,11 @@ func (ctrl *AaqGateController) execute(key string) (error, enqueueState) {
 	var rqs []v1.ResourceQuota
 	for _, arqObj := range arqsObjs {
 		arq := arqObj.(*v1alpha12.ApplicationsResourceQuota)
-		rqs = append(rqs, v1.ResourceQuota{ObjectMeta: metav1.ObjectMeta{Name: arq.Name, Namespace: arqNS}, Spec: arq.Spec, Status: arq.Status})
+		rq := v1.ResourceQuota{ObjectMeta: metav1.ObjectMeta{Name: arq.Name, Namespace: arqNS},
+			Spec:   v1.ResourceQuotaSpec{Hard: arq.Spec.Hard},
+			Status: v1.ResourceQuotaStatus{Hard: arq.Status.Hard, Used: arq.Status.Used},
+		}
+		rqs = append(rqs, rq)
 	}
 
 	podsList, err := ctrl.aaqCli.CoreV1().Pods(arqNS).List(context.Background(), metav1.ListOptions{})

@@ -37,8 +37,18 @@ type ApplicationsResourceQuota struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   corev1.ResourceQuotaSpec   `json:"spec" valid:"required"`
-	Status corev1.ResourceQuotaStatus `json:"status,omitempty"`
+	Spec   ApplicationsResourceQuotaSpec   `json:"spec" valid:"required"`
+	Status ApplicationsResourceQuotaStatus `json:"status,omitempty"`
+}
+
+// ApplicationsResourceQuotaSpec is an extension of corev1.ResourceQuotaSpec
+type ApplicationsResourceQuotaSpec struct {
+	corev1.ResourceQuotaSpec `json:",inline"`
+}
+
+// ApplicationsResourceQuotaStatus is an extension of corev1.ResourceQuotaStatus
+type ApplicationsResourceQuotaStatus struct {
+	corev1.ResourceQuotaStatus `json:",inline"`
 }
 
 // ApplicationsResourceQuota List is a list of ApplicationsResourceQuotas
@@ -60,6 +70,7 @@ type ApplicationsResourceQuotaList struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:shortName=aaq;aaqs,scope=Cluster
+// +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:printcolumn:name="Phase",type="string",JSONPath=".status.phase"
 type AAQ struct {
@@ -134,7 +145,7 @@ type AAQSpec struct {
 	// PriorityClass of the AAQ control plane
 	PriorityClass *AAQPriorityClass `json:"priorityClass,omitempty"`
 	// namespaces where pods should be gated before scheduling
-	// Default to the empty LabelSelector, which matches everything except operator namespace.
+	// Default to the empty LabelSelector, which matches everything.
 	NamespaceSelector *metav1.LabelSelector `json:"namespaceSelector,omitempty"`
 }
 

@@ -585,10 +585,10 @@ func (ctrl *ArqController) syncResourceQuota(arq *v1alpha12.ApplicationsResource
 	// Create a usage object that is based on the quota resource version that will handle updates
 	// by default, we preserve the past usage observation, and set hard to the current spec
 	usage := arq.DeepCopy()
-	usage.Status = v1.ResourceQuotaStatus{
-		Hard: hardLimits,
-		Used: used,
-	}
+	usage.Status = v1alpha12.ApplicationsResourceQuotaStatus{}
+	usage.Status.Hard = hardLimits
+	usage.Status.Used = used
+
 	dirty = dirty || !quota.Equals(usage.Status.Used, arq.Status.Used)
 
 	// there was a change observed by this controller that requires we update quota

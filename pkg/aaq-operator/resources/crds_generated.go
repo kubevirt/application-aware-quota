@@ -1018,7 +1018,8 @@ spec:
                 type: object
               namespaceSelector:
                 description: namespaces where pods should be gated before scheduling
-                  Default to the empty LabelSelector, which matches everything.
+                  Default to the empty LabelSelector, which matches everything except
+                  operator namespace.
                 properties:
                   matchExpressions:
                     description: matchExpressions is a list of label selector requirements.
@@ -2042,7 +2043,8 @@ spec:
         type: object
     served: true
     storage: true
-    subresources: {}
+    subresources:
+      status: {}
 status:
   acceptedNames:
     kind: ""
@@ -2162,8 +2164,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: ResourceQuotaSpec defines the desired hard limits to enforce
-              for Quota.
+            description: ApplicationsResourceQuotaSpec is an extension of corev1.ResourceQuotaSpec
             properties:
               hard:
                 additionalProperties:
@@ -2224,8 +2225,7 @@ spec:
                 type: array
             type: object
           status:
-            description: ResourceQuotaStatus defines the enforced hard limits and
-              observed use.
+            description: ApplicationsResourceQuotaStatus is an extension of corev1.ResourceQuotaStatus
             properties:
               hard:
                 additionalProperties:

@@ -84,8 +84,9 @@ type AaqEvaluator struct {
 	podInformer cache.SharedIndexInformer
 }
 
-func (aaqe *AaqEvaluator) Constraints(required []corev1.ResourceName, item runtime.Object) error {
-	return aaqe.podEvaluator.Constraints(required, item)
+func (aaqe *AaqEvaluator) Constraints(_ []corev1.ResourceName, _ runtime.Object) error {
+	//let's not repeat kubernetes mistake: https://github.com/kubernetes/kubernetes/blob/46835f8792dfb4a17345e592d1325bf63bc054e4/pkg/quota/v1/evaluator/core/pods.go#L125
+	return nil
 }
 
 func (aaqe *AaqEvaluator) GroupResource() schema.GroupResource {

@@ -95,7 +95,7 @@ func newReconciler(mgr manager.Manager) (*ReconcileAAQ, error) {
 		namespacedArgs: &namespacedArgs,
 	}
 	callbackDispatcher := callbacks.NewCallbackDispatcher(log, restClient, uncachedClient, scheme, namespace)
-	r.reconciler = sdkr.NewReconciler(r, log, restClient, callbackDispatcher, scheme, createVersionLabel, updateVersionLabel, LastAppliedConfigAnnotation, certPollInterval, finalizerName, false, recorder)
+	r.reconciler = sdkr.NewReconciler(r, log, restClient, callbackDispatcher, scheme, createVersionLabel, updateVersionLabel, LastAppliedConfigAnnotation, certPollInterval, finalizerName, true, recorder)
 
 	r.registerHooks()
 	addReconcileCallbacks(r)
@@ -152,7 +152,11 @@ func (r *ReconcileAAQ) Reconcile(_ context.Context, request reconcile.Request) (
 		return reconcile.Result{}, err
 	}
 
-	return r.reconciler.Reconcile(request, operatorVersion, reqLogger)
+	res, err := r.reconciler.Reconcile(request, operatorVersion, reqLogger)
+	if err != nil {
+		reqLogger.Error(err, "failed to reconcile")
+	}
+	return res, err
 }
 
 func (r *ReconcileAAQ) add(mgr manager.Manager) error {
