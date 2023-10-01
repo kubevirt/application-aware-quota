@@ -7,6 +7,7 @@ import (
 	"k8s.io/klog/v2"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-server"
 	"kubevirt.io/applications-aware-quota/pkg/client"
+	"kubevirt.io/applications-aware-quota/pkg/informers"
 	"kubevirt.io/applications-aware-quota/pkg/util"
 	"kubevirt.io/kubevirt/pkg/certificates/bootstrap"
 	"os"
@@ -27,7 +28,7 @@ func main() {
 	defer cancel()
 	stop := ctx.Done()
 
-	secretInformer := util.GetSecretInformer(aaqCli, aaqNS)
+	secretInformer := informers.GetSecretInformer(aaqCli, aaqNS)
 	go secretInformer.Run(stop)
 	if !cache.WaitForCacheSync(stop, secretInformer.HasSynced) {
 		os.Exit(1)

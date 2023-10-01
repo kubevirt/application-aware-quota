@@ -15,6 +15,7 @@ import (
 	v15 "kubevirt.io/api/core/v1"
 	aaq_evaluator "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-evaluator"
 	"kubevirt.io/applications-aware-quota/pkg/client"
+	"kubevirt.io/applications-aware-quota/pkg/informers"
 	"kubevirt.io/applications-aware-quota/pkg/util"
 	"kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	"kubevirt.io/client-go/log"
@@ -27,8 +28,8 @@ func NewVirtLauncherCalculator(stop <-chan struct{}) *VirtLauncherCalculator {
 	if err != nil {
 		panic("NewVirtLauncherCalculator: couldn't get aaqCli")
 	}
-	vmiInformer := util.GetVMIInformer(aaqCli)
-	migrationInformer := util.GetMigrationInformer(aaqCli)
+	vmiInformer := informers.GetVMIInformer(aaqCli)
+	migrationInformer := informers.GetMigrationInformer(aaqCli)
 	go migrationInformer.Run(stop)
 	go vmiInformer.Run(stop)
 
@@ -284,7 +285,7 @@ func UnfinishedVMIPods(aaqCli client.AAQClient, items []runtime.Object, vmi *v15
 		if pod.Status.Phase == corev1.PodFailed || pod.Status.Phase == corev1.PodSucceeded {
 			continue
 		}
-		if app, ok := pod.Labels[v15.AppLabel]; !ok || app != util.LauncherLabel {
+		if app, ok := pod.Labels[v15.AppLabel]; !ok || app != informers.LauncherLabel {
 			continue
 		}
 		if pod.OwnerReferences == nil {

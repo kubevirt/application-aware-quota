@@ -40,6 +40,7 @@ import (
 	configuration_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/configuration-controller"
 	rq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/rq-controller"
 	"kubevirt.io/applications-aware-quota/pkg/client"
+	"kubevirt.io/applications-aware-quota/pkg/informers"
 	"kubevirt.io/applications-aware-quota/pkg/util"
 	"kubevirt.io/kubevirt/pkg/certificates/bootstrap"
 	"kubevirt.io/kubevirt/pkg/virt-controller/leaderelectionconfig"
@@ -101,11 +102,11 @@ func Execute() {
 	app.host = host
 
 	app.aaqCli, err = client.GetAAQClient()
-	app.arqInformer = util.GetApplicationsResourceQuotaInformer(app.aaqCli)
-	app.rqInformer = util.GetResourceQuotaInformer(app.aaqCli)
-	app.aaqjqcInformer = util.GetAAQJobQueueConfig(app.aaqCli)
-	app.podInformer = util.GetPodInformer(app.aaqCli)
-	app.aaqInformer = util.GetAAQInformer(app.aaqCli)
+	app.arqInformer = informers.GetApplicationsResourceQuotaInformer(app.aaqCli)
+	app.rqInformer = informers.GetResourceQuotaInformer(app.aaqCli)
+	app.aaqjqcInformer = informers.GetAAQJobQueueConfig(app.aaqCli)
+	app.podInformer = informers.GetPodInformer(app.aaqCli)
+	app.aaqInformer = informers.GetAAQInformer(app.aaqCli)
 
 	stop := ctx.Done()
 	app.calcRegistry = aaq_evaluator.NewAaqCalculatorsRegistry(10, clock.RealClock{}).AddBuiltInCalculator(util.LauncherConfig, built_in_usage_calculators.NewVirtLauncherCalculator(stop))
@@ -182,7 +183,7 @@ func (mca *AaqControllerApp) initAaqConfigurationController(stop <-chan struct{}
 }
 
 func (mca *AaqControllerApp) Run(stop <-chan struct{}) {
-	secretInformer := util.GetSecretInformer(mca.aaqCli, mca.aaqNs)
+	secretInformer := informers.GetSecretInformer(mca.aaqCli, mca.aaqNs)
 	go secretInformer.Run(stop)
 	if !cache.WaitForCacheSync(stop, secretInformer.HasSynced) {
 		os.Exit(1)
