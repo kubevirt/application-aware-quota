@@ -32,8 +32,12 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/clock"
+	aaq_evaluator "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-evaluator"
 	arq_controller2 "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-gate-controller"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-controller/arq-controller"
+	built_in_usage_calculators "kubevirt.io/applications-aware-quota/pkg/aaq-controller/built-in-usage-calculators"
+	configuration_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/configuration-controller"
 	rq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/rq-controller"
 	"kubevirt.io/applications-aware-quota/pkg/client"
 	"kubevirt.io/applications-aware-quota/pkg/util"
@@ -46,20 +50,25 @@ import (
 )
 
 type AaqControllerApp struct {
-	ctx               context.Context
-	aaqNs             string
-	host              string
-	LeaderElection    leaderelectionconfig.Configuration
-	aaqCli            client.AAQClient
-	arqController     *arq_controller.ArqController
-	aaqGateController *arq_controller2.AaqGateController
-	rqController      *rq_controller.RQController
-	podInformer       cache.SharedIndexInformer
-	arqInformer       cache.SharedIndexInformer
-	rqInformer        cache.SharedIndexInformer
-	aaqjqcInformer    cache.SharedIndexInformer
-	readyChan         chan bool
-	leaderElector     *leaderelection.LeaderElector
+	ctx                          context.Context
+	aaqNs                        string
+	host                         string
+	LeaderElection               leaderelectionconfig.Configuration
+	aaqCli                       client.AAQClient
+	arqController                *arq_controller.ArqController
+	aaqGateController            *arq_controller2.AaqGateController
+	rqController                 *rq_controller.RQController
+	configController             *configuration_controller.AaqConfigurationController
+	podInformer                  cache.SharedIndexInformer
+	arqInformer                  cache.SharedIndexInformer
+	aaqInformer                  cache.SharedIndexInformer
+	rqInformer                   cache.SharedIndexInformer
+	aaqjqcInformer               cache.SharedIndexInformer
+	calcRegistry                 *aaq_evaluator.AaqCalculatorsRegistry
+	readyChan                    chan bool
+	enqueueAllArgControllerChan  chan struct{}
+	enqueueAllGateControllerChan chan struct{}
+	leaderElector                *leaderelection.LeaderElector
 }
 
 func Execute() {
@@ -68,7 +77,8 @@ func Execute() {
 
 	app.LeaderElection = leaderelectionconfig.DefaultLeaderElectionConfiguration()
 	app.readyChan = make(chan bool, 1)
-
+	app.enqueueAllArgControllerChan = make(chan struct{})
+	app.enqueueAllGateControllerChan = make(chan struct{})
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	app.ctx = ctx
@@ -95,11 +105,16 @@ func Execute() {
 	app.rqInformer = util.GetResourceQuotaInformer(app.aaqCli)
 	app.aaqjqcInformer = util.GetAAQJobQueueConfig(app.aaqCli)
 	app.podInformer = util.GetPodInformer(app.aaqCli)
+	app.aaqInformer = util.GetAAQInformer(app.aaqCli)
 
 	stop := ctx.Done()
+	app.calcRegistry = aaq_evaluator.NewAaqCalculatorsRegistry(10, clock.RealClock{}).AddBuiltInCalculator(util.LauncherConfig, built_in_usage_calculators.NewVirtLauncherCalculator(stop))
+
 	app.initArqController(stop)
 	app.initAaqGateController(stop)
 	app.initRQController(stop)
+	app.initAaqConfigurationController(stop)
+
 	app.Run(stop)
 
 	klog.V(2).Infoln("AAQ controller exited")
@@ -131,7 +146,9 @@ func (mca *AaqControllerApp) initArqController(stop <-chan struct{}) {
 		mca.arqInformer,
 		mca.rqInformer,
 		mca.aaqjqcInformer,
+		mca.calcRegistry,
 		stop,
+		mca.enqueueAllArgControllerChan,
 	)
 }
 
@@ -140,7 +157,9 @@ func (mca *AaqControllerApp) initAaqGateController(stop <-chan struct{}) {
 		mca.podInformer,
 		mca.arqInformer,
 		mca.aaqjqcInformer,
+		mca.calcRegistry,
 		stop,
+		mca.enqueueAllGateControllerChan,
 	)
 }
 
@@ -149,6 +168,16 @@ func (mca *AaqControllerApp) initRQController(stop <-chan struct{}) {
 		mca.rqInformer,
 		mca.arqInformer,
 		stop,
+	)
+}
+
+func (mca *AaqControllerApp) initAaqConfigurationController(stop <-chan struct{}) {
+	mca.configController = configuration_controller.NewAaqConfigurationController(mca.aaqCli,
+		mca.aaqInformer,
+		mca.calcRegistry,
+		stop,
+		mca.enqueueAllArgControllerChan,
+		mca.enqueueAllGateControllerChan,
 	)
 }
 
@@ -231,12 +260,14 @@ func (mca *AaqControllerApp) onStartedLeading() func(ctx context.Context) {
 		go mca.arqInformer.Run(stop)
 		go mca.rqInformer.Run(stop)
 		go mca.aaqjqcInformer.Run(stop)
+		go mca.aaqInformer.Run(stop)
 
 		if !cache.WaitForCacheSync(stop,
 			mca.podInformer.HasSynced,
 			mca.arqInformer.HasSynced,
 			mca.aaqjqcInformer.HasSynced,
 			mca.rqInformer.HasSynced,
+			mca.aaqInformer.HasSynced,
 		) {
 			klog.Warningf("failed to wait for caches to sync")
 		}
@@ -245,10 +276,13 @@ func (mca *AaqControllerApp) onStartedLeading() func(ctx context.Context) {
 			mca.arqController.Run(context.Background(), 3)
 		}()
 		go func() {
-			mca.aaqGateController.Run(3)
+			mca.aaqGateController.Run(context.Background(), 3)
 		}()
 		go func() {
 			mca.rqController.Run(3)
+		}()
+		go func() {
+			mca.configController.Run(context.Background(), 1)
 		}()
 		close(mca.readyChan)
 	}

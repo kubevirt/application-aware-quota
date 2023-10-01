@@ -1,5 +1,5 @@
 /*
- * This file is part of the KubeVirt project
+ * This file is part of the AAQ project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -147,7 +147,33 @@ type AAQSpec struct {
 	// namespaces where pods should be gated before scheduling
 	// Default to the empty LabelSelector, which matches everything.
 	NamespaceSelector *metav1.LabelSelector `json:"namespaceSelector,omitempty"`
+	// holds aaq configurations.
+	Configuration AAQConfiguration `json:"configuration,omitempty"`
 }
+
+// AAQConfiguration holds all AAQ configurations
+type AAQConfiguration struct {
+	// VmiCalculatorConfiguration Default is VmiPodUsage please look for VmiCalculatorConfiguration type for more information.
+	VmiCalculatorConfiguration VmiCalculatorConfiguration `json:"vmiCalculatorConfiguration,omitempty"`
+}
+
+type VmiCalculatorConfiguration string
+
+const (
+	// VmiPodUsage Calculate usage of launcher like any other pod but hide migration additional resources
+	VmiPodUsage VmiCalculatorConfiguration = "VmiPodUsage"
+	// VmiUsagePodResources Calculate memory.request/limits as the vmi's ram size and cpu.request/limits as number of threads of vmi
+	VmiUsagePodResources VmiCalculatorConfiguration = "VmiUsagePodResources"
+	// VmiUsageVmiResources Calculate vmi.requests.memory as the vmi's ram size and vmi.requests.cpu as number of threads of vmi
+	// in this configuration no memory.request/limits and cpu.request/limits won't be included
+	VmiUsageVmiResources VmiCalculatorConfiguration = "VmiUsageVmiResources"
+	// ResourcePodsOfVmi Launcher Pods, number.
+	ResourcePodsOfVmi corev1.ResourceName = "requests.instances/vmi"
+	// Vmi CPUs, Total Threads number(Cores*Sockets*Threads).
+	ResourceRequestsVmiCPU corev1.ResourceName = "requests.cpu/vmi"
+	// Vmi Memory Ram Size, in bytes. (500Gi = 500GiB = 500 * 1024 * 1024 * 1024)
+	ResourceRequestsVmiMemory corev1.ResourceName = "requests.memory/vmi"
+)
 
 // AAQPriorityClass defines the priority class of the AAQ control plane.
 type AAQPriorityClass string

@@ -8,7 +8,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	v12 "k8s.io/apiserver/pkg/quota/v1"
-	"k8s.io/apiserver/pkg/quota/v1/generic"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/quota/v1/evaluator/core"
@@ -17,10 +16,11 @@ import (
 	aaq_evaluator "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-evaluator"
 	"kubevirt.io/applications-aware-quota/pkg/client"
 	"kubevirt.io/applications-aware-quota/pkg/util"
+	"kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	"kubevirt.io/client-go/log"
 )
 
-var podObjectCountName = generic.ObjectCountQuotaResourceNameFor(corev1.SchemeGroupVersion.WithResource("pods").GroupResource())
+var MyConfigs = []v1alpha1.VmiCalculatorConfiguration{v1alpha1.VmiPodUsage, v1alpha1.VmiUsagePodResources, v1alpha1.VmiUsageVmiResources}
 
 func NewVirtLauncherCalculator(stop <-chan struct{}) *VirtLauncherCalculator {
 	aaqCli, err := client.GetAAQClient()
@@ -49,6 +49,11 @@ type VirtLauncherCalculator struct {
 	vmiInformer       cache.SharedIndexInformer
 	migrationInformer cache.SharedIndexInformer
 	aaqCli            client.AAQClient
+	calcConfig        v1alpha1.VmiCalculatorConfiguration
+}
+
+func (launchercalc *VirtLauncherCalculator) SetConfiguration(config string) {
+	launchercalc.calcConfig = v1alpha1.VmiCalculatorConfiguration(config)
 }
 
 func (launchercalc *VirtLauncherCalculator) PodUsageFunc(obj runtime.Object, items []runtime.Object, clock clock.Clock) (corev1.ResourceList, error, bool) {
@@ -80,7 +85,11 @@ func (launchercalc *VirtLauncherCalculator) PodUsageFunc(obj runtime.Object, ite
 	}
 
 	if migration == nil || len(launcherPods) == 1 {
-		return CalculateResourceListForLauncherPod(vmi, true), nil, true
+		usage, err := launchercalc.CalculateUsageByConfig(pod, vmi, true)
+		if err != nil {
+			return corev1.ResourceList{}, err, true
+		}
+		return usage, nil, true
 	}
 
 	if len(launcherPods) != 2 {
@@ -98,13 +107,69 @@ func (launchercalc *VirtLauncherCalculator) PodUsageFunc(obj runtime.Object, ite
 	}
 
 	if pod.Name == sourcePod.Name { // we are calculating source resources
-		return CalculateResourceListForLauncherPod(vmi, true), nil, true
+		usage, err := launchercalc.CalculateUsageByConfig(pod, vmi, true)
+		if err != nil {
+			return corev1.ResourceList{}, err, true
+		}
+		return usage, nil, true
+
 	}
-	targetResources := CalculateResourceListForLauncherPod(vmi, false)
-	sourceResources := CalculateResourceListForLauncherPod(vmi, true)
+	targetResources, err := launchercalc.CalculateUsageByConfig(pod, vmi, false)
+	if err != nil {
+		return corev1.ResourceList{}, err, true
+	}
+	sourceResources, err := launchercalc.CalculateUsageByConfig(pod, vmi, true)
+	if err != nil {
+		return corev1.ResourceList{}, err, true
+	}
 	return v12.SubtractWithNonNegativeResult(targetResources, sourceResources), nil, true
 }
-func CalculateResourceListForLauncherPod(vmi *v15.VirtualMachineInstance, isSourceOrSingleLauncher bool) corev1.ResourceList {
+
+func (launchercalc *VirtLauncherCalculator) CalculateUsageByConfig(pod *corev1.Pod, vmi *v15.VirtualMachineInstance, isSourceOrSingleLauncher bool) (corev1.ResourceList, error) {
+	config := launchercalc.calcConfig
+	if !validConfig(config) {
+		config = util.DefaultLauncherConfig
+	}
+	switch config {
+	case v1alpha1.VmiPodUsage:
+		podEvaluator := core.NewPodEvaluator(nil, clock.RealClock{})
+		return podEvaluator.Usage(pod)
+	case v1alpha1.VmiUsagePodResources:
+		return CalculateResourceLauncherVMIUsagePodResources(vmi, isSourceOrSingleLauncher), nil
+	case v1alpha1.VmiUsageVmiResources:
+		vmiRl := corev1.ResourceList{
+			v1alpha1.ResourcePodsOfVmi: *(resource.NewQuantity(1, resource.DecimalSI)),
+		}
+		usageToConvertVmiResources := CalculateResourceLauncherVMIUsagePodResources(vmi, isSourceOrSingleLauncher)
+		if memRq, ok := usageToConvertVmiResources[corev1.ResourceRequestsMemory]; ok {
+			vmiRl[v1alpha1.ResourceRequestsVmiMemory] = memRq
+		}
+		if memLim, ok := usageToConvertVmiResources[corev1.ResourceLimitsMemory]; ok {
+			vmiRl[v1alpha1.ResourceRequestsVmiMemory] = memLim
+		}
+		if cpuRq, ok := usageToConvertVmiResources[corev1.ResourceRequestsCPU]; ok {
+			vmiRl[v1alpha1.ResourceRequestsVmiCPU] = cpuRq
+		}
+		if cpuLim, ok := usageToConvertVmiResources[corev1.ResourceLimitsCPU]; ok {
+			vmiRl[v1alpha1.ResourceRequestsVmiCPU] = cpuLim
+		}
+		return vmiRl, nil
+	}
+
+	podEvaluator := core.NewPodEvaluator(nil, clock.RealClock{})
+	return podEvaluator.Usage(pod)
+}
+
+func validConfig(target v1alpha1.VmiCalculatorConfiguration) bool {
+	for _, item := range MyConfigs {
+		if item == target {
+			return true
+		}
+	}
+	return false
+}
+
+func CalculateResourceLauncherVMIUsagePodResources(vmi *v15.VirtualMachineInstance, isSourceOrSingleLauncher bool) corev1.ResourceList {
 	result := corev1.ResourceList{
 		corev1.ResourcePods: *(resource.NewQuantity(1, resource.DecimalSI)),
 	}
@@ -250,10 +315,6 @@ func podExists(pods []*corev1.Pod, targetPod *corev1.Pod) bool {
 		}
 	}
 	return false
-}
-
-var requestedResourcePrefixes = []string{
-	corev1.ResourceHugePagesPrefix,
 }
 
 func getLatestVmimIfExist(vmi *v15.VirtualMachineInstance, ns string, migrationInformer cache.SharedIndexInformer) (*v15.VirtualMachineInstanceMigration, error) {

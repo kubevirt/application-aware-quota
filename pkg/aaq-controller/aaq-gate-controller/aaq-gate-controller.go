@@ -21,9 +21,9 @@ import (
 	quota_utils "kubevirt.io/applications-aware-quota/pkg/aaq-controller/quota-utils"
 	"kubevirt.io/applications-aware-quota/pkg/client"
 	"kubevirt.io/applications-aware-quota/pkg/util"
+	"kubevirt.io/kubevirt/pkg/controller"
 
 	aaq_evaluator "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-evaluator"
-	built_in_usage_calculators "kubevirt.io/applications-aware-quota/pkg/aaq-controller/built-in-usage-calculators"
 	v1alpha12 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	"kubevirt.io/client-go/log"
 	corev1beta1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
@@ -40,37 +40,38 @@ const (
 )
 
 type AaqGateController struct {
-	podInformer    cache.SharedIndexInformer
-	arqInformer    cache.SharedIndexInformer
-	aaqjqcInformer cache.SharedIndexInformer
-	arqQueue       workqueue.RateLimitingInterface
-	aaqCli         client.AAQClient
-	recorder       record.EventRecorder
-	aaqEvaluator   *aaq_evaluator.AaqEvaluator
-	stop           <-chan struct{}
+	podInformer                  cache.SharedIndexInformer
+	arqInformer                  cache.SharedIndexInformer
+	aaqjqcInformer               cache.SharedIndexInformer
+	arqQueue                     workqueue.RateLimitingInterface
+	aaqCli                       client.AAQClient
+	recorder                     record.EventRecorder
+	aaqEvaluator                 *aaq_evaluator.AaqEvaluator
+	stop                         <-chan struct{}
+	enqueueAllGateControllerChan <-chan struct{}
 }
 
 func NewAaqGateController(aaqCli client.AAQClient,
 	podInformer cache.SharedIndexInformer,
 	arqInformer cache.SharedIndexInformer,
 	aaqjqcInformer cache.SharedIndexInformer,
+	calcRegistry *aaq_evaluator.AaqCalculatorsRegistry,
 	stop <-chan struct{},
+	enqueueAllGateControllerChan <-chan struct{},
 ) *AaqGateController {
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartRecordingToSink(&v14.EventSinkImpl{Interface: aaqCli.CoreV1().Events(v1.NamespaceAll)})
 
-	//todo: make this generic for now we will try only launcher calculator
-	calcRegistry := aaq_evaluator.NewAaqCalculatorsRegistry(10, clock.RealClock{}).AddCalculator(built_in_usage_calculators.NewVirtLauncherCalculator(stop))
-
 	ctrl := AaqGateController{
-		aaqCli:         aaqCli,
-		aaqjqcInformer: aaqjqcInformer,
-		podInformer:    podInformer,
-		arqInformer:    arqInformer,
-		arqQueue:       workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq-queue"),
-		recorder:       eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: util.ControllerPodName}),
-		aaqEvaluator:   aaq_evaluator.NewAaqEvaluator(nil, podInformer, calcRegistry, clock.RealClock{}),
-		stop:           stop,
+		aaqCli:                       aaqCli,
+		aaqjqcInformer:               aaqjqcInformer,
+		podInformer:                  podInformer,
+		arqInformer:                  arqInformer,
+		arqQueue:                     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq-queue"),
+		recorder:                     eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: util.ControllerPodName}),
+		aaqEvaluator:                 aaq_evaluator.NewAaqEvaluator(nil, podInformer, calcRegistry, clock.RealClock{}),
+		stop:                         stop,
+		enqueueAllGateControllerChan: enqueueAllGateControllerChan,
 	}
 
 	_, err := ctrl.podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -117,6 +118,20 @@ func (ctrl *AaqGateController) addAllArqsInNamespace(ns string) {
 	}
 	if !atLeastOneArq {
 		ctrl.arqQueue.Add(ns + "/fake")
+	}
+}
+
+// enqueueAll is called at the fullResyncPeriod interval to force a full recalculation of quota usage statistics
+func (ctrl *AaqGateController) enqueueAll() {
+	arqObjs := ctrl.arqInformer.GetIndexer().List()
+	for _, arqObj := range arqObjs {
+		arq := arqObj.(*v1alpha12.ApplicationsResourceQuota)
+		key, err := controller.KeyFunc(arqObj.(*v1alpha12.ApplicationsResourceQuota))
+		if err != nil {
+			utilruntime.HandleError(fmt.Errorf("couldn't get key for object %+v: %v", arq, err))
+			continue
+		}
+		ctrl.arqQueue.Add(key)
 	}
 }
 
@@ -305,12 +320,24 @@ func (ctrl *AaqGateController) releasePods(podsToRelease []string, ns string) er
 
 }
 
-func (ctrl *AaqGateController) Run(threadiness int) {
+func (ctrl *AaqGateController) Run(ctx context.Context, threadiness int) {
 	defer utilruntime.HandleCrash()
 	klog.Info("Starting Arq controller")
 	defer klog.Info("Shutting down Arq controller")
 	defer ctrl.arqQueue.ShutDown()
 
+	// Start a goroutine to listen for enqueue signals and call enqueueAll in case the configuration is changed.
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ctrl.enqueueAllGateControllerChan:
+				log.Log.Infof("AaqGateController: Signal processed enqueued All")
+				ctrl.enqueueAll()
+			}
+		}
+	}()
 	for i := 0; i < threadiness; i++ {
 		go wait.Until(ctrl.runWorker, time.Second, ctrl.stop)
 	}

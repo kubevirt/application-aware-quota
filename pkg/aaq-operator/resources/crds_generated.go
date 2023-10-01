@@ -79,6 +79,14 @@ spec:
                         type: string
                     type: object
                 type: object
+              configuration:
+                description: holds aaq configurations.
+                properties:
+                  vmiCalculatorConfiguration:
+                    description: VmiCalculatorConfiguration Default is VmiPodUsage
+                      please look for VmiCalculatorConfiguration type for more information.
+                    type: string
+                type: object
               imagePullPolicy:
                 description: PullPolicy describes a policy for if/when to pull a container
                   image
@@ -1018,8 +1026,7 @@ spec:
                 type: object
               namespaceSelector:
                 description: namespaces where pods should be gated before scheduling
-                  Default to the empty LabelSelector, which matches everything except
-                  operator namespace.
+                  Default to the empty LabelSelector, which matches everything.
                 properties:
                   matchExpressions:
                     description: matchExpressions is a list of label selector requirements.

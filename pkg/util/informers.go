@@ -33,6 +33,11 @@ func GetAAQJobQueueConfig(aaqCli client.AAQClient) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(listWatcher, &v1alpha13.AAQJobQueueConfig{}, 1*time.Hour, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 }
 
+func GetAAQInformer(aaqCli client.AAQClient) cache.SharedIndexInformer {
+	listWatcher := NewListWatchFromClient(aaqCli.RestClient(), "aaqs", k8sv1.NamespaceAll, fields.Everything(), labels.Everything())
+	return cache.NewSharedIndexInformer(listWatcher, &v1alpha13.AAQ{}, 1*time.Hour, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+}
+
 func GetPodInformer(aaqCli client.AAQClient) cache.SharedIndexInformer {
 	listWatcher := NewListWatchFromClient(aaqCli.CoreV1().RESTClient(), "pods", k8sv1.NamespaceAll, fields.Everything(), labels.Everything())
 	return cache.NewSharedIndexInformer(listWatcher, &v1.Pod{}, 1*time.Hour, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})

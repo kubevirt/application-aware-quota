@@ -244,28 +244,32 @@ func (ctrl *RQController) execute(key string) (error, enqueueState) {
 
 func FilterNonScheduableResources(resourceList v1.ResourceList) v1.ResourceList {
 	rlCopy := resourceList.DeepCopy()
-	scheduableResources := getSchedulableResources()
-	for _, resourceName := range scheduableResources {
-		delete(rlCopy, resourceName)
+	for resourceName := range resourceList {
+		if isSchedulableResource(resourceName) {
+			delete(rlCopy, resourceName)
+		}
 	}
 	return rlCopy
 }
 
-// getSchedulableResources returns a list of resource names that are not counted in the resource quota.
-func getSchedulableResources() []v1.ResourceName {
-	// Add the resource names that should not be counted in the quota here
-	return []v1.ResourceName{
-		v1.ResourcePods,
-		v1.ResourceCPU,
-		v1.ResourceMemory,
-		v1.ResourceEphemeralStorage,
-		v1.ResourceRequestsCPU,
-		v1.ResourceRequestsMemory,
-		v1.ResourceRequestsEphemeralStorage,
-		v1.ResourceLimitsCPU,
-		v1.ResourceLimitsMemory,
-		v1.ResourceLimitsEphemeralStorage,
+func isSchedulableResource(resourceName v1.ResourceName) bool {
+	schedulableResourcesWithoutPrefix := map[v1.ResourceName]bool{
+		v1.ResourcePods:             true,
+		v1.ResourceCPU:              true,
+		v1.ResourceMemory:           true,
+		v1.ResourceEphemeralStorage: true,
 	}
+
+	if schedulableResourcesWithoutPrefix[resourceName] {
+		return true
+	}
+
+	// Check if the resource name contains the "requests." or "limits." prefix
+	if strings.HasPrefix(string(resourceName), "requests.") || strings.HasPrefix(string(resourceName), "limits.") {
+		return true
+	}
+
+	return false
 }
 
 func (ctrl *RQController) Run(threadiness int) {

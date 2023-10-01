@@ -28,7 +28,6 @@ import (
 	"k8s.io/utils/clock"
 	aaq_evaluator "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-evaluator"
 	arq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-gate-controller"
-	built_in_usage_calculators "kubevirt.io/applications-aware-quota/pkg/aaq-controller/built-in-usage-calculators"
 	aaq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/quota-utils"
 	rq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/rq-controller"
 	"kubevirt.io/applications-aware-quota/pkg/client"
@@ -68,10 +67,11 @@ type ArqController struct {
 	// knows how to calculate usage
 	eval *aaq_evaluator.AaqEvaluator
 
-	recorder     record.EventRecorder
-	aaqEvaluator v12.Evaluator
-	syncHandler  func(key string) error
-	stop         <-chan struct{}
+	recorder       record.EventRecorder
+	aaqEvaluator   v12.Evaluator
+	syncHandler    func(key string) error
+	stop           <-chan struct{}
+	enqueueAllChan <-chan struct{}
 }
 
 func NewArqController(clientSet client.AAQClient,
@@ -79,13 +79,14 @@ func NewArqController(clientSet client.AAQClient,
 	arqInformer cache.SharedIndexInformer,
 	rqInformer cache.SharedIndexInformer,
 	aaqjqcInformer cache.SharedIndexInformer,
+	calcRegistry *aaq_evaluator.AaqCalculatorsRegistry,
 	stop <-chan struct{},
+	enqueueAllChan <-chan struct{},
 ) *ArqController {
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartRecordingToSink(&v14.EventSinkImpl{Interface: clientSet.CoreV1().Events(v1.NamespaceAll)})
 	//todo: make this generic for now we will try only launcher calculator
 	InformerFactory := informers.NewSharedInformerFactoryWithOptions(clientSet, 1*time.Hour)
-	calcRegistry := aaq_evaluator.NewAaqCalculatorsRegistry(10, clock.RealClock{}).AddCalculator(built_in_usage_calculators.NewVirtLauncherCalculator(stop))
 	listerFuncForResource := generic.ListerFuncForResourceFunc(InformerFactory.ForResource)
 	discoveryFunction := discovery.NewDiscoveryClient(clientSet.RestClient()).ServerPreferredNamespacedResources
 
@@ -102,6 +103,7 @@ func NewArqController(clientSet client.AAQClient,
 		recorder:          eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: util.ControllerPodName}),
 		eval:              aaq_evaluator.NewAaqEvaluator(listerFuncForResource, podInformer, calcRegistry, clock.RealClock{}),
 		stop:              stop,
+		enqueueAllChan:    enqueueAllChan,
 	}
 	ctrl.syncHandler = ctrl.syncResourceQuotaFromKey
 
@@ -389,6 +391,19 @@ func (ctrl *ArqController) Run(ctx context.Context, workers int) {
 	if !cache.WaitForNamedCacheSync("resource quota", ctx.Done(), ctrl.informerSyncedFuncs...) {
 		return
 	}
+
+	// Start a goroutine to listen for enqueue signals and call enqueueAll in case the configuration is changed.
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ctrl.enqueueAllChan:
+				log.Log.Infof("ArqController: Signal processed enqueued All")
+				ctrl.enqueueAll()
+			}
+		}
+	}()
 
 	// the workers that chug through the quota calculation backlog
 	for i := 0; i < workers; i++ {

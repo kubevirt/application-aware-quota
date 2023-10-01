@@ -176,6 +176,18 @@ func getControllerClusterPolicyRules() []rbacv1.PolicyRule {
 				"delete",
 			},
 		},
+		{
+			APIGroups: []string{
+				"aaq.kubevirt.io",
+			},
+			Resources: []string{
+				"aaqs",
+			},
+			Verbs: []string{
+				"list",
+				"watch",
+			},
+		},
 	}
 }
 

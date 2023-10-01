@@ -17,55 +17,7 @@ import (
 	"k8s.io/kubernetes/pkg/apis/core/v1/helper/qos"
 	"k8s.io/kubernetes/pkg/quota/v1/evaluator/core"
 	"k8s.io/utils/clock"
-	"kubevirt.io/client-go/log"
 )
-
-// UsageCalculator knows how to evaluate quota usage for a particular app pods
-type UsageCalculator interface {
-	// Usage returns the resource usage for the specified object
-	PodUsageFunc(item runtime.Object, items []runtime.Object, clock clock.Clock) (corev1.ResourceList, error, bool)
-}
-
-func NewAaqCalculatorsRegistry(retriesOnMatchFailure int, clock clock.Clock) *AaqCalculatorsRegistry {
-	return &AaqCalculatorsRegistry{
-		retriesOnMatchFailure: retriesOnMatchFailure,
-		clock:                 clock,
-	}
-}
-
-type AaqCalculatorsRegistry struct {
-	usageCalculators []UsageCalculator
-	// used to track time
-	clock                 clock.Clock
-	retriesOnMatchFailure int
-}
-
-func (aaqe *AaqCalculatorsRegistry) AddCalculator(usageCalculator UsageCalculator) *AaqCalculatorsRegistry {
-	aaqe.usageCalculators = append(aaqe.usageCalculators, usageCalculator)
-	return aaqe
-}
-
-func (aaqe *AaqCalculatorsRegistry) Usage(item runtime.Object, items []runtime.Object) (rlToRet corev1.ResourceList, acceptedErr error) {
-	accepted := false
-	for _, calculator := range aaqe.usageCalculators {
-		for retries := 0; retries < aaqe.retriesOnMatchFailure; retries++ {
-			rl, err, match := calculator.PodUsageFunc(item, items, aaqe.clock)
-			if !match && err == nil {
-				break
-			} else if err == nil {
-				accepted = true
-				rlToRet = quota.Add(rlToRet, rl)
-				break
-			} else {
-				log.Log.Infof(fmt.Sprintf("Retries: %v Error: %v ", retries, err))
-			}
-		}
-	}
-	if !accepted {
-		acceptedErr = fmt.Errorf("pod didn't match any usageFunc")
-	}
-	return rlToRet, acceptedErr
-}
 
 // NewAaqEvaluator returns an evaluator that can evaluate pods with apps consideration
 func NewAaqEvaluator(f v12.ListerForResourceFunc, podInformer cache.SharedIndexInformer, aaqAppUsageCalculator *AaqCalculatorsRegistry, clock clock.Clock) *AaqEvaluator {
