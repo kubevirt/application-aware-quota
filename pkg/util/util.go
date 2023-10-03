@@ -66,15 +66,15 @@ const (
 	// TlsLabel provides a constant to capture our env variable "TLS"
 	TlsLabel = "TLS"
 	// ConfigMapName is the name of the aaq configmap that own aaq resources
-	ConfigMapName                                                     = "aaq-config"
-	OperatorServiceAccountName                                        = "aaq-operator"
-	AAQGate                                                           = "ApplicationsAwareQuotaGate"
-	ControllerResourceName                                            = ControllerPodName
-	SecretResourceName                                                = "aaq-server-cert"
-	AaqServerResourceName                                             = "aaq-server"
-	ControllerClusterRoleName                                         = ControllerPodName
-	DefaultLauncherConfig      aaqv1alpha1.VmiCalculatorConfiguration = aaqv1alpha1.VmiPodUsage
-	LauncherConfig                                                    = "launcherConfig"
+	ConfigMapName                                            = "aaq-config"
+	OperatorServiceAccountName                               = "aaq-operator"
+	AAQGate                                                  = "ApplicationsAwareQuotaGate"
+	ControllerResourceName                                   = ControllerPodName
+	SecretResourceName                                       = "aaq-server-cert"
+	AaqServerResourceName                                    = "aaq-server"
+	ControllerClusterRoleName                                = ControllerPodName
+	DefaultLauncherConfig      aaqv1alpha1.VmiCalcConfigName = aaqv1alpha1.VmiPodUsage
+	LauncherConfig                                           = "launcherConfig"
 )
 
 var commonLabels = map[string]string{

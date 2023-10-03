@@ -157,19 +157,23 @@ type AAQConfiguration struct {
 	VmiCalculatorConfiguration VmiCalculatorConfiguration `json:"vmiCalculatorConfiguration,omitempty"`
 }
 
-type VmiCalculatorConfiguration string //todo: make it a struct
+type VmiCalcConfigName string
+
+type VmiCalculatorConfiguration struct {
+	ConfigName VmiCalcConfigName `json:"configName,omitempty"`
+}
 
 const (
 	// VmiPodUsage Calculate usage of launcher like any other pod but hide migration additional resources
-	VmiPodUsage VmiCalculatorConfiguration = "VmiPodUsage"
+	VmiPodUsage VmiCalcConfigName = "VmiPodUsage"
 	// VirtualResources Calculate memory.request/limits as the vmi's ram size and cpu.request/limits as number of threads of vmi
-	VirtualResources VmiCalculatorConfiguration = "VirtualResources"
+	VirtualResources VmiCalcConfigName = "VirtualResources"
 	// DedicatedVirtualResources Calculate vmi.requests.memory as the vmi's ram size and vmi.requests.cpu as number of threads of vmi
 	// in this configuration no memory.request/limits and cpu.request/limits won't be included
-	DedicatedVirtualResources VmiCalculatorConfiguration = "DedicatedVirtualResources"
+	DedicatedVirtualResources VmiCalcConfigName = "DedicatedVirtualResources"
 	// in this configuration no memory.request/limits and cpu.request/limits won't be included
-	IgnoreVmiCalculator VmiCalculatorConfiguration = "IgnoreVmiCalculator"
-
+	IgnoreVmiCalculator VmiCalcConfigName = "IgnoreVmiCalculator"
+	//VirtualResources:
 	// ResourcePodsOfVmi Launcher Pods, number.
 	ResourcePodsOfVmi corev1.ResourceName = "requests.instances/vmi"
 	// Vmi CPUs, Total Threads number(Cores*Sockets*Threads).

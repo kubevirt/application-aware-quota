@@ -85,7 +85,10 @@ spec:
                   vmiCalculatorConfiguration:
                     description: VmiCalculatorConfiguration Default is VmiPodUsage
                       please look for VmiCalculatorConfiguration type for more information.
-                    type: string
+                    properties:
+                      configName:
+                        type: string
+                    type: object
                 type: object
               imagePullPolicy:
                 description: PullPolicy describes a policy for if/when to pull a container

@@ -21,7 +21,7 @@ import (
 	"kubevirt.io/client-go/log"
 )
 
-var MyConfigs = []v1alpha1.VmiCalculatorConfiguration{v1alpha1.VmiPodUsage, v1alpha1.VirtualResources, v1alpha1.DedicatedVirtualResources}
+var MyConfigs = []v1alpha1.VmiCalcConfigName{v1alpha1.VmiPodUsage, v1alpha1.VirtualResources, v1alpha1.DedicatedVirtualResources}
 
 func NewVirtLauncherCalculator(stop <-chan struct{}) *VirtLauncherCalculator {
 	aaqCli, err := client.GetAAQClient()
@@ -50,11 +50,11 @@ type VirtLauncherCalculator struct {
 	vmiInformer       cache.SharedIndexInformer
 	migrationInformer cache.SharedIndexInformer
 	aaqCli            client.AAQClient
-	calcConfig        v1alpha1.VmiCalculatorConfiguration
+	calcConfig        v1alpha1.VmiCalcConfigName
 }
 
 func (launchercalc *VirtLauncherCalculator) SetConfiguration(config string) {
-	launchercalc.calcConfig = v1alpha1.VmiCalculatorConfiguration(config)
+	launchercalc.calcConfig = v1alpha1.VmiCalcConfigName(config)
 }
 
 func (launchercalc *VirtLauncherCalculator) PodUsageFunc(obj runtime.Object, items []runtime.Object, clock clock.Clock) (corev1.ResourceList, error, bool) {
@@ -164,7 +164,7 @@ func (launchercalc *VirtLauncherCalculator) CalculateUsageByConfig(pod *corev1.P
 	return podEvaluator.Usage(pod)
 }
 
-func validConfig(target v1alpha1.VmiCalculatorConfiguration) bool {
+func validConfig(target v1alpha1.VmiCalcConfigName) bool {
 	for _, item := range MyConfigs {
 		if item == target {
 			return true

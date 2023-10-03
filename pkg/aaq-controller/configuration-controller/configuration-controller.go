@@ -124,7 +124,7 @@ func (ctrl *AaqConfigurationController) execute(_ string) (error, enqueueState) 
 	}
 	aaq := (objs[0]).(*v1alpha12.AAQ)
 
-	ctrl.calcRegistry.ReplaceBuiltInCalculatorConfig(util.LauncherConfig, string(aaq.Spec.Configuration.VmiCalculatorConfiguration))
+	ctrl.calcRegistry.ReplaceBuiltInCalculatorConfig(util.LauncherConfig, string(aaq.Spec.Configuration.VmiCalculatorConfiguration.ConfigName))
 
 	ctrl.enqueueAllArgControllerChan <- struct{}{}
 	ctrl.enqueueAllGateControllerChan <- struct{}{}
