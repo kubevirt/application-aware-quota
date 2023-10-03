@@ -19,15 +19,19 @@ import (
 )
 
 var log = logf.Log.WithName("cmd")
+var defVerbose = fmt.Sprintf("%d", 1) // note flag values are strings
 
 func printVersion() {
 	log.Info(fmt.Sprintf("Go Version: %s", runtime.Version()))
 	log.Info(fmt.Sprintf("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH))
 }
+func init() {
+	// Define a flag named "v" with a default value of false and a usage message.
+	flag.String("v", defVerbose, "Verbosity level")
+}
 
 func main() {
 	flag.Parse()
-	defVerbose := fmt.Sprintf("%d", 1) // note flag values are strings
 	verbose := defVerbose
 	// visit actual flags passed in and if passed check -v and set verbose
 	if verboseEnvVarVal := os.Getenv("VERBOSITY"); verboseEnvVarVal != "" {

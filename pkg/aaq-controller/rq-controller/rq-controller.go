@@ -15,6 +15,7 @@ import (
 	"k8s.io/klog/v2"
 	_ "kubevirt.io/api/core/v1"
 	"kubevirt.io/applications-aware-quota/pkg/client"
+	"kubevirt.io/applications-aware-quota/pkg/util"
 	v1alpha12 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	"kubevirt.io/client-go/log"
 	"strings"
@@ -28,7 +29,6 @@ const (
 	Forget    enqueueState = "Forget"
 	BackOff   enqueueState = "BackOff"
 	RQSuffix  string       = "-non-schedulable-resources-managed-rq-x"
-	RQLabel   string       = "aaq.managed.rq"
 )
 
 type RQController struct {
@@ -198,7 +198,10 @@ func (ctrl *RQController) execute(key string) (error, enqueueState) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: arq.Name + RQSuffix,
 				Labels: map[string]string{
-					RQLabel: "true",
+					util.AAQLabel: "true",
+				},
+				OwnerReferences: []metav1.OwnerReference{
+					*metav1.NewControllerRef(arq, v1alpha12.ApplicationsResourceQuotaGroupVersionKind),
 				},
 			},
 			Spec: v1.ResourceQuotaSpec{
@@ -218,14 +221,14 @@ func (ctrl *RQController) execute(key string) (error, enqueueState) {
 
 	if rq.Labels == nil {
 		rq.Labels = map[string]string{
-			RQLabel: "true",
+			util.AAQLabel: "true",
 		}
 		dirty = true
 	}
 
-	_, ok := rq.Labels[RQLabel]
+	_, ok := rq.Labels[util.AAQLabel]
 	if !ok {
-		rq.Labels[RQLabel] = "true"
+		rq.Labels[util.AAQLabel] = "true"
 		dirty = true
 	}
 

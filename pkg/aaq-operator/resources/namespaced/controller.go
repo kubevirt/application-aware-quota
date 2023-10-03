@@ -9,9 +9,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	utils2 "kubevirt.io/applications-aware-quota/pkg/util"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	sdkapi "kubevirt.io/controller-lifecycle-operator-sdk/api"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func createAAQControllerResources(args *FactoryArgs) []client.Object {

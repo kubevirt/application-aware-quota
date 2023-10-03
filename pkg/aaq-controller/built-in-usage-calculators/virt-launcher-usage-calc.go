@@ -21,7 +21,7 @@ import (
 	"kubevirt.io/client-go/log"
 )
 
-var MyConfigs = []v1alpha1.VmiCalculatorConfiguration{v1alpha1.VmiPodUsage, v1alpha1.VmiUsagePodResources, v1alpha1.VmiUsageVmiResources}
+var MyConfigs = []v1alpha1.VmiCalculatorConfiguration{v1alpha1.VmiPodUsage, v1alpha1.VirtualResources, v1alpha1.DedicatedVirtualResources}
 
 func NewVirtLauncherCalculator(stop <-chan struct{}) *VirtLauncherCalculator {
 	aaqCli, err := client.GetAAQClient()
@@ -58,6 +58,9 @@ func (launchercalc *VirtLauncherCalculator) SetConfiguration(config string) {
 }
 
 func (launchercalc *VirtLauncherCalculator) PodUsageFunc(obj runtime.Object, items []runtime.Object, clock clock.Clock) (corev1.ResourceList, error, bool) {
+	if launchercalc.calcConfig == v1alpha1.IgnoreVmiCalculator {
+		return nil, nil, false
+	}
 	pod, err := aaq_evaluator.ToExternalPodOrError(obj)
 	if err != nil {
 		return corev1.ResourceList{}, err, false
@@ -135,9 +138,9 @@ func (launchercalc *VirtLauncherCalculator) CalculateUsageByConfig(pod *corev1.P
 	case v1alpha1.VmiPodUsage:
 		podEvaluator := core.NewPodEvaluator(nil, clock.RealClock{})
 		return podEvaluator.Usage(pod)
-	case v1alpha1.VmiUsagePodResources:
+	case v1alpha1.VirtualResources:
 		return CalculateResourceLauncherVMIUsagePodResources(vmi, isSourceOrSingleLauncher), nil
-	case v1alpha1.VmiUsageVmiResources:
+	case v1alpha1.DedicatedVirtualResources:
 		vmiRl := corev1.ResourceList{
 			v1alpha1.ResourcePodsOfVmi: *(resource.NewQuantity(1, resource.DecimalSI)),
 		}

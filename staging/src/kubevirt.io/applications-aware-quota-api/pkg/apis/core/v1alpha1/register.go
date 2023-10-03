@@ -28,7 +28,8 @@ import (
 
 var (
 	// SchemeGroupVersion is group version used to register these objects
-	SchemeGroupVersion = schema.GroupVersion{Group: applicationsResourceQuota.GroupName, Version: applicationsResourceQuota.LatestVersion}
+	SchemeGroupVersion                        = schema.GroupVersion{Group: applicationsResourceQuota.GroupName, Version: applicationsResourceQuota.LatestVersion}
+	ApplicationsResourceQuotaGroupVersionKind = schema.GroupVersionKind{Group: applicationsResourceQuota.GroupName, Version: applicationsResourceQuota.LatestVersion, Kind: "ApplicationsResourceQuota"}
 )
 
 // Kind takes an unqualified kind and returns back a Group qualified GroupKind

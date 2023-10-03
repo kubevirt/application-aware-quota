@@ -98,7 +98,6 @@ func newReconciler(mgr manager.Manager) (*ReconcileAAQ, error) {
 	r.reconciler = sdkr.NewReconciler(r, log, restClient, callbackDispatcher, scheme, createVersionLabel, updateVersionLabel, LastAppliedConfigAnnotation, certPollInterval, finalizerName, true, recorder)
 
 	r.registerHooks()
-	addReconcileCallbacks(r)
 
 	return r, nil
 }

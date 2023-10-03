@@ -1330,7 +1330,6 @@ func createReconciler(client client.Client) *ReconcileAAQ {
 		WithWatching(true)
 
 	r.registerHooks()
-	addReconcileCallbacks(r)
 	return r
 }
 
