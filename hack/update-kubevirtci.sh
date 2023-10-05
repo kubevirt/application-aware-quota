@@ -38,8 +38,8 @@ elif [ "$KUBEVIRT_RELEASE" = "latest_stable" ]; then
   kubectl apply -f https://github.com/kubevirt/kubevirt/releases/download/${RELEASE}/kubevirt-operator.yaml
   kubectl apply -f https://github.com/kubevirt/kubevirt/releases/download/${RELEASE}/kubevirt-cr.yaml
 else
-  kubectl apply -f https://github.com/kubevirt/kubevirt/releases/download/${$KUBEVIRT_RELEASE}/kubevirt-operator.yaml
-  kubectl apply -f https://github.com/kubevirt/kubevirt/releases/download/${$KUBEVIRT_RELEASE}/kubevirt-cr.yaml
+  kubectl apply -f https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_RELEASE}/kubevirt-operator.yaml
+  kubectl apply -f https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_RELEASE}/kubevirt-cr.yaml
 fi
 # Ensure the KubeVirt CRD is created
 count=0
