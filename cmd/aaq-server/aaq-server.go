@@ -49,6 +49,7 @@ func main() {
 		util.DefaultHost,
 		util.DefaultPort,
 		secretCertManager,
+		aaqCli,
 	)
 	if err != nil {
 		klog.Fatalf("UploadProxy failed to initialize: %v\n", errors.WithStack(err))

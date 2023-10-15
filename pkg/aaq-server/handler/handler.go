@@ -9,7 +9,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"kubevirt.io/applications-aware-quota/pkg/client"
+	"k8s.io/client-go/kubernetes"
 	"kubevirt.io/applications-aware-quota/pkg/util"
 	"kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	"net/http"
@@ -27,11 +27,11 @@ const (
 
 type Handler struct {
 	request *admissionv1.AdmissionRequest
-	aaqCli  client.AAQClient
+	aaqCli  kubernetes.Interface
 	aaqNS   string
 }
 
-func NewHandler(Request *admissionv1.AdmissionRequest, aaqCli client.AAQClient, aaqNS string) *Handler {
+func NewHandler(Request *admissionv1.AdmissionRequest, aaqCli kubernetes.Interface, aaqNS string) *Handler {
 	return &Handler{
 		request: Request,
 		aaqCli:  aaqCli,

@@ -60,6 +60,7 @@ const (
 	configMapName = "aaq-config"
 
 	normalCreateSuccess = "Normal CreateResourceSuccess Successfully created resource"
+	normalUpdateSuccess = "Normal UpdateResourceSuccess Successfully updated resource"
 )
 
 type args struct {
@@ -491,8 +492,7 @@ var _ = Describe("Controller", func() {
 					doReconcileExpectDelete(args)
 
 					//verify events, this should include an upgrade event
-					match := createNotReadyEventValidationMap()
-					match["Normal DeployCompleted Deployment Completed"] = false
+					match := createReadyEventValidationMap()
 					match["Normal UpgradeStarted Started upgrade to version 1.10.0"] = false
 					validateEvents(args.reconciler, match)
 				})
@@ -1362,6 +1362,8 @@ func createErrorAAQEventValidationMap() map[string]bool {
 func createReadyEventValidationMap() map[string]bool {
 	match := createNotReadyEventValidationMap()
 	match["Normal DeployCompleted Deployment Completed"] = false
+	match[normalUpdateSuccess+" *v1.ValidatingWebhookConfiguration arq-validator"] = false
+	match[normalUpdateSuccess+" *v1.MutatingWebhookConfiguration gating-mutator"] = false
 	return match
 }
 
@@ -1383,7 +1385,10 @@ func createNotReadyEventValidationMap() map[string]bool {
 	match[normalCreateSuccess+" *v1.Service aaq-server"] = false
 	match[normalCreateSuccess+" *v1.Deployment aaq-server"] = false
 	match[normalCreateSuccess+" *v1.Deployment aaq-controller"] = false
+	match[normalCreateSuccess+" *v1.MutatingWebhookConfiguration gating-mutator"] = false
+	match[normalCreateSuccess+" *v1.ValidatingWebhookConfiguration arq-validator"] = false
 	match[normalCreateSuccess+" *v1.CustomResourceDefinition applicationsresourcequotas.aaq.kubevirt.io"] = false
+	match[normalCreateSuccess+" *v1.CustomResourceDefinition aaqjobqueueconfigs.aaq.kubevirt.io"] = false
 	match[normalCreateSuccess+" *v1.Secret aaq-server"] = false
 	match[normalCreateSuccess+" *v1.ConfigMap aaq-server-signer-bundle"] = false
 	match[normalCreateSuccess+" *v1.Secret aaq-server-cert"] = false

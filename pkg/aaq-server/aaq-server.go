@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/rs/cors"
 	"io"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/certificate"
 	"k8s.io/klog/v2"
 	"kubevirt.io/applications-aware-quota/pkg/util"
@@ -33,15 +34,16 @@ type AAQServer struct {
 func AaqServer(aaqNS string,
 	bindAddress string,
 	bindPort uint,
-	secretCertManager certificate.Manager) (Server, error) {
+	secretCertManager certificate.Manager,
+	aaqCli kubernetes.Interface,
+) (Server, error) {
 	app := &AAQServer{
 		secretCertManager: secretCertManager,
 		bindAddress:       bindAddress,
 		bindPort:          bindPort,
 		aaqNS:             aaqNS,
 	}
-
-	app.initHandler()
+	app.initHandler(aaqCli)
 
 	return app, nil
 }
@@ -50,10 +52,10 @@ func (app *AAQServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	app.handler.ServeHTTP(w, r)
 }
 
-func (app *AAQServer) initHandler() {
+func (app *AAQServer) initHandler(aaqCli kubernetes.Interface) {
 	mux := http.NewServeMux()
 	mux.HandleFunc(healthzPath, app.handleHealthzRequest)
-	mux.Handle(ServePath, NewAaqServerHandler(app.aaqNS))
+	mux.Handle(ServePath, NewAaqServerHandler(app.aaqNS, aaqCli))
 	app.handler = cors.AllowAll().Handler(mux)
 
 }

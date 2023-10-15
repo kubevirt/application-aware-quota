@@ -3,7 +3,7 @@ package aaq_operator
 import (
 	"context"
 	"encoding/json"
-	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/namespaced"
+	"kubevirt.io/applications-aware-quota/pkg/util"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -73,7 +73,7 @@ func checkConfigMap(client kubernetes.Interface, namespace, name string, exists 
 func checkCerts(client kubernetes.Interface, namespace string, exists bool) {
 	checkSecret(client, namespace, "aaq-server", exists)
 	checkConfigMap(client, namespace, "aaq-server-signer-bundle", exists)
-	checkSecret(client, namespace, namespaced.SecretResourceName, exists)
+	checkSecret(client, namespace, util.SecretResourceName, exists)
 }
 
 var _ = Describe("Cert rotation tests", func() {
@@ -121,7 +121,7 @@ var _ = Describe("Cert rotation tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			apiCA := getCertNotBefore(client, namespace, "aaq-server")
-			apiServer := getCertNotBefore(client, namespace, namespaced.SecretResourceName)
+			apiServer := getCertNotBefore(client, namespace, util.SecretResourceName)
 
 			n := time.Now()
 
@@ -138,7 +138,7 @@ var _ = Describe("Cert rotation tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			apiCA2 := getCertNotBefore(client, namespace, "aaq-server")
-			apiServer2 := getCertNotBefore(client, namespace, namespaced.SecretResourceName)
+			apiServer2 := getCertNotBefore(client, namespace, util.SecretResourceName)
 
 			Expect(apiCA2.After(n))
 			Expect(apiServer2.After(n))
@@ -147,7 +147,7 @@ var _ = Describe("Cert rotation tests", func() {
 			Expect(apiServer2.After(apiServer))
 
 			apiCAConfig2 := getCertConfigAnno(client, namespace, "aaq-server")
-			apiServerConfig2 := getCertConfigAnno(client, namespace, namespaced.SecretResourceName)
+			apiServerConfig2 := getCertConfigAnno(client, namespace, util.SecretResourceName)
 
 			scc := toSerializedCertConfig(50*time.Hour, 25*time.Hour)
 			scc2 := toSerializedCertConfig(26*time.Hour, 13*time.Hour)
