@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestMutation(t *testing.T) {
+func TestHandler(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Mutation Suite")
 }
