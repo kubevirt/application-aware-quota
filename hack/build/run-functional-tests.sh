@@ -63,7 +63,7 @@ arg_gocli="${GOCLI:+-gocli-path-aaq=$GOCLI}"
 arg_docker_prefix="${DOCKER_PREFIX:+-docker-prefix=$DOCKER_PREFIX}"
 arg_docker_tag="${DOCKER_TAG:+-docker-tag=$DOCKER_TAG}"
 
-test_args="${test_args} -ginkgo.v ${arg_kubeurl} ${arg_namespace} ${arg_kubeconfig} ${arg_kubeconfig_aaq} ${arg_kubectl} ${arg_oc} ${arg_gocli} ${arg_docker_prefix} ${arg_docker_tag}"
+test_args="${test_args}  -ginkgo.v  ${arg_kubeurl} ${arg_namespace} ${arg_kubeconfig} ${arg_kubeconfig_aaq} ${arg_kubectl} ${arg_oc} ${arg_gocli} ${arg_docker_prefix} ${arg_docker_tag}"
 
 echo 'Wait until all AAQ Pods are ready'
 retry_counter=0

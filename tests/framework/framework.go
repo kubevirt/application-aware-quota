@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
-	"kubevirt.io/applications-aware-quota/pkg/client"
+	clientset "kubevirt.io/applications-aware-quota/pkg/generated/aaq/clientset/versioned"
 	"kubevirt.io/client-go/kubecli"
 	"net/http"
 
@@ -33,6 +33,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
+	aaqclientset "kubevirt.io/applications-aware-quota/pkg/generated/aaq/clientset/versioned"
 	crclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	aaqv1 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
@@ -82,7 +83,7 @@ type Clients struct {
 	//  k8sClient provides our k8s client pointer
 	K8sClient *kubernetes.Clientset
 	// AaqClient provides our AAQ client pointer
-	AaqClient *client.AAQClient
+	AaqClient *aaqclientset.Clientset
 	// ExtClient provides our CSI client pointer
 	ExtClient *extclientset.Clientset
 	// CrClient is a controller runtime client
@@ -189,7 +190,7 @@ func (f *Framework) CreateNamespace(prefix string, labels map[string]string) (*v
 	}
 
 	var nsObj *v1.Namespace
-	c := f.VirtClient
+	c := f.K8sClient
 	err := wait.PollImmediate(2*time.Second, nsCreateTime, func() (bool, error) {
 		var err error
 		nsObj, err = c.CoreV1().Namespaces().Create(context.TODO(), ns, metav1.CreateOptions{})
@@ -258,6 +259,19 @@ func (c *Clients) GetExtClient() (*extclientset.Clientset, error) {
 		return nil, err
 	}
 	return extClient, nil
+}
+
+// GetMtqClient gets an instance of a kubernetes client that includes all the MTQ extensions.
+func (c *Clients) GetAaqClient() (*clientset.Clientset, error) {
+	cfg, err := clientcmd.BuildConfigFromFlags(c.KubeURL, c.KubeConfig)
+	if err != nil {
+		return nil, err
+	}
+	aaqClient, err := clientset.NewForConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return aaqClient, nil
 }
 
 // GetCrClient returns a controller runtime client

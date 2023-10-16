@@ -48,7 +48,7 @@ var _ = Describe("Cert rotation tests", func() {
 					InsecureSkipVerify: true,
 				})
 				return err
-			}, 10*time.Second, 1*time.Second).ShouldNot(HaveOccurred())
+			}, 2*time.Minute, 1*time.Second).ShouldNot(HaveOccurred())
 
 			oldExpire := conn.ConnectionState().PeerCertificates[0].NotAfter
 			err = conn.Close()

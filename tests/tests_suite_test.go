@@ -93,7 +93,7 @@ func BuildTestSuite() {
 		}
 		framework.ClientsInstance.K8sClient = kcs
 
-		cs, err := client.GetAAQClient()
+		cs, err := framework.ClientsInstance.GetAaqClient()
 		if err != nil {
 			ginkgo.Fail(fmt.Sprintf("ERROR, unable to create AaqClient: %v", err))
 		}
@@ -117,12 +117,6 @@ func BuildTestSuite() {
 		}
 		framework.ClientsInstance.DynamicClient = dyn
 
-		vc, err := framework.ClientsInstance.GetVirtClient()
-		if err != nil {
-			ginkgo.Fail(fmt.Sprintf("ERROR, unable to create DynamicClient: %v", err))
-		}
-		framework.ClientsInstance.VirtClient = vc
-
 		if qe_reporters.Polarion.Run {
 			afterSuiteReporters = append(afterSuiteReporters, &qe_reporters.Polarion)
 		}
@@ -132,9 +126,9 @@ func BuildTestSuite() {
 	})
 
 	AfterSuite(func() {
-		client := framework.ClientsInstance.VirtClient
+		k8sClient := framework.ClientsInstance.K8sClient
 		Eventually(func() []corev1.Namespace {
-			nsList, _ := client.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{LabelSelector: framework.NsPrefixLabel})
+			nsList, _ := k8sClient.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{LabelSelector: framework.NsPrefixLabel})
 			return nsList.Items
 		}, nsDeletedTimeout, pollInterval).Should(BeEmpty())
 	})

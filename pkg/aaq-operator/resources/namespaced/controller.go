@@ -169,20 +169,22 @@ func createAAQControllerDeployment(image, verbosity, pullPolicy string, imagePul
 			},
 		},
 	}
-	deployment.Spec.Template.Spec.Affinity = &corev1.Affinity{
-		PodAntiAffinity: &corev1.PodAntiAffinity{
-			PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
-				{
-					PodAffinityTerm: corev1.PodAffinityTerm{
-						LabelSelector: &metav1.LabelSelector{
-							MatchLabels: map[string]string{utils2.AAQLabel: utils2.ControllerResourceName},
+	if infraNodePlacement == nil {
+		deployment.Spec.Template.Spec.Affinity = &corev1.Affinity{
+			PodAntiAffinity: &corev1.PodAntiAffinity{
+				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+					{
+						PodAffinityTerm: corev1.PodAffinityTerm{
+							LabelSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{utils2.AAQLabel: utils2.ControllerResourceName},
+							},
+							TopologyKey: "kubernetes.io/hostname",
 						},
-						TopologyKey: "kubernetes.io/hostname",
+						Weight: 100,
 					},
-					Weight: 100,
 				},
 			},
-		},
+		}
 	}
 	return deployment
 }
