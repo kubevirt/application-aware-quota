@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	schedulev1 "k8s.io/api/scheduling/v1"
+	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/cluster"
 	resourcesutils "kubevirt.io/applications-aware-quota/pkg/util"
 	"kubevirt.io/applications-aware-quota/tests/utils"
 	"reflect"
@@ -46,7 +47,8 @@ var _ = Describe("ALL Operator tests", func() {
 			// Condition flags can be found here with their meaning https://github.com/kubevirt/hyperconverged-cluster-operator/blob/main/docs/conditions.md
 			It("Condition flags on CR should be healthy and operating", func() {
 				Eventually(func() error {
-					aaqObject := getAAQ(f)
+					aaqObject, err := utils.GetAAQ(f)
+					Expect(err).ToNot(HaveOccurred())
 					conditionMap := sdk.GetConditionValues(aaqObject.Status.Conditions)
 					if conditionMap[conditions.ConditionAvailable] != corev1.ConditionTrue {
 						return fmt.Errorf("ConditionAvailable is false")
@@ -121,7 +123,8 @@ var _ = Describe("ALL Operator tests", func() {
 		})
 
 		It("should deploy components that tolerate CriticalAddonsOnly taint", func() {
-			aaq := getAAQ(f)
+			aaq, err := utils.GetAAQ(f)
+			Expect(err).ToNot(HaveOccurred())
 			criticalAddonsToleration := corev1.Toleration{
 				Key:      "CriticalAddonsOnly",
 				Operator: corev1.TolerationOpExists,
@@ -169,11 +172,13 @@ var _ = Describe("ALL Operator tests", func() {
 
 	var _ = Describe("Operator delete AAQ CR tests", func() {
 		var cr *aaqv1.AAQ
+		var err error
 		f := framework.NewFramework("operator-delete-aaq-test")
 		var aaqPods *corev1.PodList
 
 		BeforeEach(func() {
-			cr = getAAQ(f)
+			cr, err = utils.GetAAQ(f)
+			Expect(err).ToNot(HaveOccurred())
 			aaqPods = getAAQPods(f)
 		})
 
@@ -200,7 +205,8 @@ var _ = Describe("ALL Operator tests", func() {
 		f := framework.NewFramework("operator-delete-aaq-test")
 
 		BeforeEach(func() {
-			currentCR := getAAQ(f)
+			currentCR, err := utils.GetAAQ(f)
+			Expect(err).ToNot(HaveOccurred())
 
 			aaqBackup = &aaqv1.AAQ{
 				ObjectMeta: metav1.ObjectMeta{
@@ -336,10 +342,12 @@ var _ = Describe("ALL Operator tests", func() {
 
 	var _ = Describe("Operator cert config tests", func() {
 		var aaqBackup *aaqv1.AAQ
+		var err error
 		f := framework.NewFramework("operator-cert-config-test")
 
 		BeforeEach(func() {
-			aaqBackup = getAAQ(f)
+			aaqBackup, err = utils.GetAAQ(f)
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		AfterEach(func() {
@@ -385,7 +393,8 @@ var _ = Describe("ALL Operator tests", func() {
 			}
 
 			Eventually(func() error {
-				cr := getAAQ(f)
+				cr, err := utils.GetAAQ(f)
+				Expect(err).ToNot(HaveOccurred())
 				cr.Spec.CertConfig = &aaqv1.AAQCertConfig{
 					CA: &aaqv1.CertConfig{
 						Duration:    &metav1.Duration{Duration: time.Minute * 20},
@@ -492,7 +501,8 @@ var _ = Describe("ALL Operator tests", func() {
 			if len(list.Items) < 3 {
 				Skip("This test require at least 3 nodes")
 			}
-			aaq = getAAQ(f)
+			aaq, err := utils.GetAAQ(f)
+			Expect(err).ToNot(HaveOccurred())
 			if aaq.Spec.PriorityClass != nil {
 				By(fmt.Sprintf("Current priority class is: [%s]", *aaq.Spec.PriorityClass))
 			}
@@ -502,10 +512,11 @@ var _ = Describe("ALL Operator tests", func() {
 			if aaq == nil {
 				return
 			}
-			cr := getAAQ(f)
+			cr, err := utils.GetAAQ(f)
+			Expect(err).ToNot(HaveOccurred())
 
 			cr.Spec.PriorityClass = aaq.Spec.PriorityClass
-			_, err := f.AaqClient.AaqV1alpha1().AAQs().Update(context.TODO(), cr, metav1.UpdateOptions{})
+			_, err = f.AaqClient.AaqV1alpha1().AAQs().Update(context.TODO(), cr, metav1.UpdateOptions{})
 			Expect(err).ToNot(HaveOccurred())
 
 			if !utils.IsOpenshift(f.K8sClient) {
@@ -542,10 +553,11 @@ var _ = Describe("ALL Operator tests", func() {
 		})
 
 		It("should use kubernetes priority class if set", func() {
-			cr := getAAQ(f)
+			cr, err := utils.GetAAQ(f)
+			Expect(err).ToNot(HaveOccurred())
 			By("Setting the priority class to system cluster critical, which is known to exist")
 			cr.Spec.PriorityClass = &systemClusterCritical
-			_, err := f.AaqClient.AaqV1alpha1().AAQs().Update(context.TODO(), cr, metav1.UpdateOptions{})
+			_, err = f.AaqClient.AaqV1alpha1().AAQs().Update(context.TODO(), cr, metav1.UpdateOptions{})
 			Expect(err).ToNot(HaveOccurred())
 			By("Verifying the AAQ deployment is updated")
 			verifyPodPriorityClass(aaqControllerPodPrefix, string(systemClusterCritical), AAQControllerLabelSelector)
@@ -558,12 +570,61 @@ var _ = Describe("ALL Operator tests", func() {
 			if utils.IsOpenshift(f.K8sClient) {
 				Skip("This test is not needed in OpenShift")
 			}
-			getAAQ(f)
 			_, err := f.K8sClient.SchedulingV1().PriorityClasses().Create(context.TODO(), osUserCrit, metav1.CreateOptions{})
 			Expect(err).ToNot(HaveOccurred())
 			By("Verifying the AAQ control plane is updated")
 			verifyPodPriorityClass(aaqControllerPodPrefix, osUserCrit.Name, AAQControllerLabelSelector)
 			verifyPodPriorityClass(aaqServerPodPrefix, osUserCrit.Name, AAQServerLabelSelector)
+		})
+	})
+	Context("Gating tests", func() {
+		var cr *aaqv1.AAQ
+		var err error
+		f := framework.NewFramework("operator-delete-mtq-test")
+
+		BeforeEach(func() {
+			cr, err = utils.GetAAQ(f)
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		AfterEach(func() {
+			Eventually(func() error {
+				currCr, err := utils.GetAAQ(f)
+				if err != nil {
+					return err
+				}
+				currCr.Spec.NamespaceSelector = cr.Spec.NamespaceSelector
+				_, err = f.AaqClient.AaqV1alpha1().AAQs().Update(context.TODO(), currCr, metav1.UpdateOptions{})
+				return err
+			}, 90*time.Second, 5*time.Second).ShouldNot(HaveOccurred())
+		})
+
+		It("Should be able to modify gated namespaces", func() {
+			labelSelector := &metav1.LabelSelector{
+				MatchLabels: map[string]string{"namespace": "fakenamespace"},
+			}
+			Eventually(func() error {
+				currCr, err := utils.GetAAQ(f)
+				if err != nil {
+					return err
+				}
+				newCr := currCr.DeepCopy()
+				newCr.Spec.NamespaceSelector = labelSelector
+				_, err = f.AaqClient.AaqV1alpha1().AAQs().Update(context.TODO(), newCr, metav1.UpdateOptions{})
+				return err
+			}, 90*time.Second, 5*time.Second).ShouldNot(HaveOccurred())
+
+			Eventually(func() error {
+				mwc, err := f.K8sClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.Background(), cluster.MutatingWebhookConfigurationName, metav1.GetOptions{})
+				if err != nil {
+					return err
+				}
+				if !reflect.DeepEqual(mwc.Webhooks[0].NamespaceSelector, labelSelector) {
+					return fmt.Errorf("NamespaceSelector of MutatingWebhookConfigurations should be propagated")
+				}
+				return nil
+			}, 90*time.Second, 5*time.Second).ShouldNot(HaveOccurred())
+
 		})
 	})
 })
@@ -579,13 +640,6 @@ func getAAQPods(f *framework.Framework) *corev1.PodList {
 	return aaqPods
 }
 
-func getAAQ(f *framework.Framework) *aaqv1.AAQ {
-	By("Getting AAQ resource")
-	aaqs, err := f.AaqClient.AaqV1alpha1().AAQs().List(context.TODO(), metav1.ListOptions{})
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-	ExpectWithOffset(1, aaqs.Items).To(HaveLen(1))
-	return &aaqs.Items[0]
-}
 func removeAAQCrAndOperator(f *framework.Framework, aaq *aaqv1.AAQ) {
 	removeAAQ(f, aaq)
 	By("Deleting AAQ operator")
