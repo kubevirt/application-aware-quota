@@ -5,16 +5,12 @@ import (
 	"fmt"
 	v1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	quota "k8s.io/apiserver/pkg/quota/v1"
-	v12 "k8s.io/apiserver/pkg/quota/v1"
-	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes/scheme"
 	v14 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -22,7 +18,6 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 	pkgcontroller "k8s.io/kubernetes/pkg/controller"
-	quotacontroller "k8s.io/kubernetes/pkg/controller/resourcequota"
 	"k8s.io/utils/clock"
 	aaq_evaluator "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-evaluator"
 	arq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-gate-controller"
@@ -46,28 +41,23 @@ const (
 )
 
 type ArqController struct {
-	InformersStarted <-chan struct{}
-	aaqNs            string
-	podInformer      cache.SharedIndexInformer
-	aaqjqcInformer   cache.SharedIndexInformer
-	aaqCli           client.AAQClient
+	podInformer    cache.SharedIndexInformer
+	aaqjqcInformer cache.SharedIndexInformer
+	aaqCli         client.AAQClient
 	// A lister/getter of resource quota objects
 	arqInformer cache.SharedIndexInformer
 	rqInformer  cache.SharedIndexInformer
 	// A list of functions that return true when their caches have synced
-	informerSyncedFuncs []cache.InformerSynced
-	arqQueue            workqueue.RateLimitingInterface
-	missingUsageQueue   workqueue.RateLimitingInterface
-	enqueueAllQueue     workqueue.RateLimitingInterface
+	arqQueue          workqueue.RateLimitingInterface
+	missingUsageQueue workqueue.RateLimitingInterface
+	enqueueAllQueue   workqueue.RateLimitingInterface
 	// Controls full recalculation of quota usage
 	resyncPeriod pkgcontroller.ResyncPeriodFunc
-
 	// knows how to calculate usage
-	eval *aaq_evaluator.AaqEvaluator
-
+	eval           *aaq_evaluator.AaqEvaluator
 	recorder       record.EventRecorder
-	aaqEvaluator   v12.Evaluator
 	syncHandler    func(key string) error
+	logger         klog.Logger
 	stop           <-chan struct{}
 	enqueueAllChan <-chan struct{}
 }
@@ -83,8 +73,6 @@ func NewArqController(clientSet client.AAQClient,
 ) *ArqController {
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartRecordingToSink(&v14.EventSinkImpl{Interface: clientSet.CoreV1().Events(v1.NamespaceAll)})
-	//todo: make this generic for now we will try only launcher calculator
-	discoveryFunction := discovery.NewDiscoveryClient(clientSet.RestClient()).ServerPreferredNamespacedResources
 
 	ctrl := &ArqController{
 		aaqCli:            clientSet,
@@ -98,40 +86,17 @@ func NewArqController(clientSet client.AAQClient,
 		resyncPeriod:      pkgcontroller.StaticResyncPeriodFunc(metav1.Duration{Duration: 5 * time.Minute}.Duration),
 		recorder:          eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: util.ControllerPodName}),
 		eval:              aaq_evaluator.NewAaqEvaluator(podInformer, calcRegistry, clock.RealClock{}),
+		logger:            klog.FromContext(context.Background()),
 		stop:              stop,
 		enqueueAllChan:    enqueueAllChan,
 	}
 	ctrl.syncHandler = ctrl.syncResourceQuotaFromKey
 
-	logger := klog.FromContext(context.Background())
-
 	arqInformer.AddEventHandlerWithResyncPeriod(
 		cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
-				ctrl.addQuota(logger, obj)
-			},
-			UpdateFunc: func(old, cur interface{}) {
-				// We are only interested in observing updates to quota.spec to drive updates to quota.status.
-				// We ignore all updates to quota.Status because they are all driven by this controller.
-				// IMPORTANT:
-				// We do not use this function to queue up a full quota recalculation.  To do so, would require
-				// us to enqueue all quota.Status updates, and since quota.Status updates involve additional queries
-				// that cannot be backed by a cache and result in a full query of a namespace's content, we do not
-				// want to pay the price on spurious status updates.  As a result, we have a separate routine that is
-				// responsible for enqueue of all resource quotas when doing a full resync (enqueueAll)
-				oldArq := old.(*v1alpha12.ApplicationsResourceQuota)
-				curArq := cur.(*v1alpha12.ApplicationsResourceQuota)
-				if quota.Equals(oldArq.Spec.Hard, curArq.Spec.Hard) {
-					return
-				}
-				ctrl.addQuota(logger, curArq)
-			},
-			// This will enter the sync loop and no-op, because the controller has been deleted from the store.
-			// Note that deleting a controller immediately after scaling it to 0 will not work. The recommended
-			// way of achieving this is by performing a `stop` operation on the controller.
-			DeleteFunc: func(obj interface{}) {
-				ctrl.enqueueArq(logger, obj)
-			},
+			AddFunc:    ctrl.AddArq,
+			UpdateFunc: ctrl.updateArq,
+			DeleteFunc: ctrl.DeleteArq,
 		},
 		ctrl.resyncPeriod(),
 	)
@@ -158,23 +123,6 @@ func NewArqController(clientSet client.AAQClient,
 	if err != nil {
 		panic("something is wrong")
 	}
-
-	// do initial quota monitor setup.  If we have a discovery failure here, it's ok. We'll discover more resources when a later sync happens.
-	resources, err := quotacontroller.GetQuotableResources(discoveryFunction)
-	podResourceMap := make(map[schema.GroupVersionResource]struct{})
-	for resource := range resources {
-		if resource.Resource == "pods" {
-			podResourceMap[resource] = struct{}{}
-		}
-	}
-
-	if discovery.IsGroupDiscoveryFailedError(err) {
-		utilruntime.HandleError(fmt.Errorf("initial discovery check failure, continuing and counting on future sync update: %v", err))
-	} else if err != nil {
-		panic("NewArqController: something is wrong")
-	}
-
-	ctrl.informerSyncedFuncs = ctrl.informerSyncedFuncs
 
 	return ctrl
 }
@@ -271,6 +219,22 @@ func (ctrl *ArqController) enqueueAll() {
 		ctrl.arqQueue.Add(key)
 	}
 }
+func (ctrl *ArqController) updateArq(old, curr interface{}) {
+	oldArq := old.(*v1alpha12.ApplicationsResourceQuota)
+	curArq := curr.(*v1alpha12.ApplicationsResourceQuota)
+	if quota.Equals(oldArq.Spec.Hard, curArq.Spec.Hard) {
+		return
+	}
+	ctrl.addQuota(ctrl.logger, curArq)
+}
+
+func (ctrl *ArqController) AddArq(obj interface{}) {
+	ctrl.addQuota(ctrl.logger, obj)
+}
+
+func (ctrl *ArqController) DeleteArq(obj interface{}) {
+	ctrl.enqueueArq(ctrl.logger, obj)
+}
 
 func (ctrl *ArqController) updatePod(old, curr interface{}) {
 	currPod := curr.(*v1.Pod)
@@ -279,10 +243,12 @@ func (ctrl *ArqController) updatePod(old, curr interface{}) {
 		ctrl.addAllArqsInNamespace(currPod.Namespace)
 	}
 }
+
 func (ctrl *ArqController) AddPod(obj interface{}) {
 	pod := obj.(*v1.Pod)
 	ctrl.addAllArqsInNamespace(pod.Namespace)
 }
+
 func (ctrl *ArqController) DeletePod(obj interface{}) {
 	pod := obj.(*v1.Pod)
 	ctrl.addAllArqsInNamespace(pod.Namespace)
@@ -382,11 +348,7 @@ func (ctrl *ArqController) Run(ctx context.Context, workers int) {
 	defer utilruntime.HandleCrash()
 	defer ctrl.arqQueue.ShutDown()
 	defer ctrl.missingUsageQueue.ShutDown()
-
 	logger := klog.FromContext(ctx)
-	if !cache.WaitForNamedCacheSync("resource quota", ctx.Done(), ctrl.informerSyncedFuncs...) {
-		return
-	}
 
 	// Start a goroutine to listen for enqueue signals and call enqueueAll in case the configuration is changed.
 	go func() {
@@ -481,35 +443,6 @@ func (ctrl *ArqController) addQuota(logger klog.Logger, obj interface{}) {
 
 	// no special priority, go in normal recalc queue
 	ctrl.arqQueue.Add(key)
-}
-
-// replenishQuota is a replenishment function invoked by a controller to notify that a quota should be recalculated
-func (ctrl *ArqController) replenishQuota(ctx context.Context, groupResource schema.GroupResource, namespace string) {
-
-	// check if this namespace even has a quota...
-	arqObjs, err := ctrl.arqInformer.GetIndexer().ByIndex(cache.NamespaceIndex, namespace)
-	if errors.IsNotFound(err) {
-		utilruntime.HandleError(fmt.Errorf("quota controller could not find ApplicationsResourceQuotas associated with namespace: %s, could take up to %v before a quota replenishes", namespace, ctrl.resyncPeriod()))
-		return
-	}
-	if err != nil {
-		utilruntime.HandleError(fmt.Errorf("error checking to see if namespace %s has any ApplicationsResourceQuotas associated with it: %v", namespace, err))
-		return
-	}
-	if len(arqObjs) == 0 {
-		return
-	}
-
-	logger := klog.FromContext(ctx)
-
-	// only queue those quotas that are tracking a resource associated with this kind.
-	for _, arqObj := range arqObjs {
-		arq := arqObj.(*v1alpha12.ApplicationsResourceQuota)
-		resourceQuotaResources := quota.ResourceNames(arq.Status.Hard)
-		if intersection := ctrl.eval.MatchingResources(resourceQuotaResources); len(intersection) > 0 {
-			ctrl.enqueueArq(logger, arq)
-		}
-	}
 }
 
 // obj could be an *v1.ResourceQuota, or a DeletionFinalStateUnknown marker item.
