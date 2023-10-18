@@ -14,9 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	quota "k8s.io/apiserver/pkg/quota/v1"
 	v12 "k8s.io/apiserver/pkg/quota/v1"
-	"k8s.io/apiserver/pkg/quota/v1/generic"
 	"k8s.io/client-go/discovery"
-	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/scheme"
 	v14 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -86,8 +84,6 @@ func NewArqController(clientSet client.AAQClient,
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartRecordingToSink(&v14.EventSinkImpl{Interface: clientSet.CoreV1().Events(v1.NamespaceAll)})
 	//todo: make this generic for now we will try only launcher calculator
-	InformerFactory := informers.NewSharedInformerFactoryWithOptions(clientSet, 1*time.Hour)
-	listerFuncForResource := generic.ListerFuncForResourceFunc(InformerFactory.ForResource)
 	discoveryFunction := discovery.NewDiscoveryClient(clientSet.RestClient()).ServerPreferredNamespacedResources
 
 	ctrl := &ArqController{
@@ -101,7 +97,7 @@ func NewArqController(clientSet client.AAQClient,
 		enqueueAllQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq_enqueue_all"),
 		resyncPeriod:      pkgcontroller.StaticResyncPeriodFunc(metav1.Duration{Duration: 5 * time.Minute}.Duration),
 		recorder:          eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: util.ControllerPodName}),
-		eval:              aaq_evaluator.NewAaqEvaluator(listerFuncForResource, podInformer, calcRegistry, clock.RealClock{}),
+		eval:              aaq_evaluator.NewAaqEvaluator(podInformer, calcRegistry, clock.RealClock{}),
 		stop:              stop,
 		enqueueAllChan:    enqueueAllChan,
 	}

@@ -20,8 +20,8 @@ import (
 )
 
 // NewAaqEvaluator returns an evaluator that can evaluate pods with apps consideration
-func NewAaqEvaluator(f v12.ListerForResourceFunc, podInformer cache.SharedIndexInformer, aaqAppUsageCalculator *AaqCalculatorsRegistry, clock clock.Clock) *AaqEvaluator {
-	podEvaluator := core.NewPodEvaluator(f, clock)
+func NewAaqEvaluator(podInformer cache.SharedIndexInformer, aaqAppUsageCalculator *AaqCalculatorsRegistry, clock clock.Clock) *AaqEvaluator {
+	podEvaluator := core.NewPodEvaluator(nil, clock)
 	return &AaqEvaluator{
 		podEvaluator:                  podEvaluator,
 		podInformer:                   podInformer,

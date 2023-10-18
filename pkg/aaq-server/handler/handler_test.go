@@ -156,7 +156,7 @@ var _ = Describe("Test handler of aaq server", func() {
 		Expect(admissionReview.Response.Result.Message).To(Equal(validPodUpdate))
 	})
 
-	FDescribeTable("ARQ", func(operation admissionv1.Operation) {
+	DescribeTable("ARQ", func(operation admissionv1.Operation) {
 		arq := tests.NewArqBuilder().WithNamespace("testNS").WithResource(v1.ResourceRequestsMemory, resource.MustParse("4Gi")).Build()
 		arqBytes, err := json.Marshal(arq)
 		Expect(err).ToNot(HaveOccurred())

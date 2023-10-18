@@ -69,7 +69,7 @@ func NewAaqGateController(aaqCli client.AAQClient,
 		arqInformer:                  arqInformer,
 		arqQueue:                     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq-queue"),
 		recorder:                     eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: util.ControllerPodName}),
-		aaqEvaluator:                 aaq_evaluator.NewAaqEvaluator(nil, podInformer, calcRegistry, clock.RealClock{}),
+		aaqEvaluator:                 aaq_evaluator.NewAaqEvaluator(podInformer, calcRegistry, clock.RealClock{}),
 		stop:                         stop,
 		enqueueAllGateControllerChan: enqueueAllGateControllerChan,
 	}
@@ -272,7 +272,6 @@ func (ctrl *AaqGateController) execute(key string) (error, enqueueState) {
 				&metav1.CreateOptions{}, false, nil)
 
 			currPodLimitedResource, err := getCurrLimitedResource(ctrl.aaqEvaluator, podCopy)
-
 			if err != nil {
 				return nil, Immediate
 			}
