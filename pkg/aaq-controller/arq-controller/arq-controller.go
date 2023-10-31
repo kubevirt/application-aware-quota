@@ -54,8 +54,8 @@ type ArqController struct {
 	// Controls full recalculation of quota usage
 	resyncPeriod pkgcontroller.ResyncPeriodFunc
 	// knows how to calculate usage
-	evalRegistry   quota.Registry
-	recorder       record.EventRecorder
+	evalRegistry quota.Registry
+	recorder     record.EventRecorder
 	syncHandler    func(key string) error
 	logger         klog.Logger
 	stop           <-chan struct{}

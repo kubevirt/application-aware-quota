@@ -1,20 +1,20 @@
 package aaq_evaluator
 
 import (
+	"fmt"
+	"github.com/google/go-cmp/cmp"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	quota "k8s.io/apiserver/pkg/quota/v1"
 	"k8s.io/apiserver/pkg/quota/v1/generic"
-	"k8s.io/client-go/tools/cache"
 	api "k8s.io/kubernetes/pkg/apis/core"
 	"k8s.io/kubernetes/pkg/util/node"
 	testingclock "k8s.io/utils/clock/testing"
-	"kubevirt.io/applications-aware-quota/pkg/util"
+	"kubevirt.io/applications-aware-quota/pkg/informers"
 	"time"
 )
 
@@ -26,7 +26,7 @@ var _ = Describe("AaqEvaluator", func() {
 		var terminationGracePeriodSeconds int64
 
 		BeforeEach(func() {
-			podInformer := util.NewPodFakeInformer([]runtime.Object{})
+			podInformer := informers.NewFakePodSharedIndexInformer([]metav1.Object{})
 			fakeClock := testingclock.NewFakeClock(time.Now())
 			now := fakeClock.Now()
 			terminationGracePeriodSeconds = int64(30)
@@ -34,12 +34,12 @@ var _ = Describe("AaqEvaluator", func() {
 			deletionTimestampNotPastGracePeriod = metav1.NewTime(fakeClock.Now())
 			eval = NewAaqEvaluator(podInformer, NewAaqCalculatorsRegistry(1, fakeClock), fakeClock)
 		})
-		DescribeTable("Test pod Usage", func(pod *api.Pod, expectedUsage corev1.ResourceList) {
+		DescribeTable("Test pod Usage when ", func(pod *api.Pod, expectedUsage corev1.ResourceList) {
 			actual, err := eval.Usage(pod)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(quota.Equals(expectedUsage, actual)).To(BeTrue())
 		},
-			Entry(" with init container CPU", &api.Pod{
+			Entry("init container CPU", &api.Pod{
 				Spec: api.PodSpec{
 					InitContainers: []api.Container{{
 						Resources: api.ResourceRequirements{
@@ -55,7 +55,7 @@ var _ = Describe("AaqEvaluator", func() {
 				corev1.ResourceCPU:         resource.MustParse("1m"),
 				generic.ObjectCountQuotaResourceNameFor(schema.GroupResource{Resource: "pods"}): resource.MustParse("1"),
 			}),
-			Entry(" with init container MEM", &api.Pod{
+			Entry("init container MEM", &api.Pod{
 				Spec: api.PodSpec{
 					InitContainers: []api.Container{{
 						Resources: api.ResourceRequirements{
@@ -71,7 +71,7 @@ var _ = Describe("AaqEvaluator", func() {
 				corev1.ResourceMemory:         resource.MustParse("1m"),
 				generic.ObjectCountQuotaResourceNameFor(schema.GroupResource{Resource: "pods"}): resource.MustParse("1"),
 			}),
-			Entry(" with init container local ephemeral storage", &api.Pod{
+			Entry("init container local ephemeral storage", &api.Pod{
 				Spec: api.PodSpec{
 					InitContainers: []api.Container{{
 						Resources: api.ResourceRequirements{
@@ -87,7 +87,7 @@ var _ = Describe("AaqEvaluator", func() {
 				corev1.ResourcePods:                     resource.MustParse("1"),
 				generic.ObjectCountQuotaResourceNameFor(schema.GroupResource{Resource: "pods"}): resource.MustParse("1"),
 			}),
-			Entry(" with init container hugepages", &api.Pod{
+			Entry("init container hugepages", &api.Pod{
 				Spec: api.PodSpec{
 					InitContainers: []api.Container{{
 						Resources: api.ResourceRequirements{
@@ -101,7 +101,7 @@ var _ = Describe("AaqEvaluator", func() {
 				corev1.ResourcePods: resource.MustParse("1"),
 				generic.ObjectCountQuotaResourceNameFor(schema.GroupResource{Resource: "pods"}): resource.MustParse("1"),
 			}),
-			Entry(" with init container extended resources", &api.Pod{
+			Entry("init container extended resources", &api.Pod{
 				Spec: api.PodSpec{
 					InitContainers: []api.Container{{
 						Resources: api.ResourceRequirements{
@@ -115,7 +115,7 @@ var _ = Describe("AaqEvaluator", func() {
 				corev1.ResourcePods: resource.MustParse("1"),
 				generic.ObjectCountQuotaResourceNameFor(schema.GroupResource{Resource: "pods"}): resource.MustParse("1"),
 			}),
-			Entry(" with container CPU", &api.Pod{
+			Entry("container CPU", &api.Pod{
 				Spec: api.PodSpec{
 					Containers: []api.Container{{
 						Resources: api.ResourceRequirements{
@@ -131,7 +131,7 @@ var _ = Describe("AaqEvaluator", func() {
 				corev1.ResourceCPU:         resource.MustParse("1m"),
 				generic.ObjectCountQuotaResourceNameFor(schema.GroupResource{Resource: "pods"}): resource.MustParse("1"),
 			}),
-			Entry(" with container MEM", &api.Pod{
+			Entry("container MEM", &api.Pod{
 				Spec: api.PodSpec{
 					Containers: []api.Container{{
 						Resources: api.ResourceRequirements{
@@ -147,7 +147,7 @@ var _ = Describe("AaqEvaluator", func() {
 				corev1.ResourceMemory:         resource.MustParse("1m"),
 				generic.ObjectCountQuotaResourceNameFor(schema.GroupResource{Resource: "pods"}): resource.MustParse("1"),
 			}),
-			Entry(" with container local ephemeral storage", &api.Pod{
+			Entry("container local ephemeral storage", &api.Pod{
 				Spec: api.PodSpec{
 					Containers: []api.Container{{
 						Resources: api.ResourceRequirements{
@@ -163,7 +163,7 @@ var _ = Describe("AaqEvaluator", func() {
 				corev1.ResourcePods:                     resource.MustParse("1"),
 				generic.ObjectCountQuotaResourceNameFor(schema.GroupResource{Resource: "pods"}): resource.MustParse("1"),
 			}),
-			Entry(" with container hugepages", &api.Pod{
+			Entry("container hugepages", &api.Pod{
 				Spec: api.PodSpec{
 					Containers: []api.Container{{
 						Resources: api.ResourceRequirements{
@@ -177,7 +177,7 @@ var _ = Describe("AaqEvaluator", func() {
 				corev1.ResourcePods: resource.MustParse("1"),
 				generic.ObjectCountQuotaResourceNameFor(schema.GroupResource{Resource: "pods"}): resource.MustParse("1"),
 			}),
-			Entry(" with container extended resources", &api.Pod{
+			Entry("container extended resources", &api.Pod{
 				Spec: api.PodSpec{
 					Containers: []api.Container{{
 						Resources: api.ResourceRequirements{
@@ -191,7 +191,7 @@ var _ = Describe("AaqEvaluator", func() {
 				corev1.ResourcePods: resource.MustParse("1"),
 				generic.ObjectCountQuotaResourceNameFor(schema.GroupResource{Resource: "pods"}): resource.MustParse("1"),
 			}),
-			Entry(" with terminated generic count still appears", &api.Pod{
+			Entry("terminated generic count still appears", &api.Pod{
 				Spec: api.PodSpec{
 					Containers: []api.Container{{
 						Resources: api.ResourceRequirements{
@@ -206,7 +206,7 @@ var _ = Describe("AaqEvaluator", func() {
 			}, corev1.ResourceList{
 				generic.ObjectCountQuotaResourceNameFor(schema.GroupResource{Resource: "pods"}): resource.MustParse("1"),
 			}),
-			Entry(" with init container maximums override sum of containers", &api.Pod{
+			Entry("init container maximums override sum of containers", &api.Pod{
 				Spec: api.PodSpec{
 					InitContainers: []api.Container{
 						{
@@ -280,7 +280,7 @@ var _ = Describe("AaqEvaluator", func() {
 				corev1.ResourceName("requests.example.com/dongle"): resource.MustParse("4"),
 				generic.ObjectCountQuotaResourceNameFor(schema.GroupResource{Resource: "pods"}): resource.MustParse("1"),
 			}),
-			Entry(" with pod deletion timestamp exceeded", &api.Pod{
+			Entry("pod deletion timestamp exceeded", &api.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					DeletionTimestamp:          &deletionTimestampPastGracePeriod,
 					DeletionGracePeriodSeconds: &terminationGracePeriodSeconds,
@@ -308,7 +308,7 @@ var _ = Describe("AaqEvaluator", func() {
 			}, corev1.ResourceList{
 				generic.ObjectCountQuotaResourceNameFor(schema.GroupResource{Resource: "pods"}): resource.MustParse("1"),
 			}),
-			Entry(" with pod deletion timestamp not exceeded", &api.Pod{
+			Entry("pod deletion timestamp not exceeded", &api.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					DeletionTimestamp:          &deletionTimestampNotPastGracePeriod,
 					DeletionGracePeriodSeconds: &terminationGracePeriodSeconds,
@@ -337,7 +337,7 @@ var _ = Describe("AaqEvaluator", func() {
 				corev1.ResourceCPU:         resource.MustParse("1"),
 				generic.ObjectCountQuotaResourceNameFor(schema.GroupResource{Resource: "pods"}): resource.MustParse("1"),
 			}),
-			Entry(" with count pod overhead as usage", &api.Pod{
+			Entry("count pod overhead as usage", &api.Pod{
 				Spec: api.PodSpec{
 					Overhead: api.ResourceList{
 						api.ResourceCPU: resource.MustParse("1"),
@@ -366,21 +366,343 @@ var _ = Describe("AaqEvaluator", func() {
 	})
 
 	Context("Test usage func", func() {
-		DescribeTable("Test pod Usage", func(objs []runtime.Object, expectedUsage corev1.ResourceList) {
+		cpu1 := corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1")}
+		DescribeTable("Test pod Usage when ", func(objs []metav1.Object, expectedUsage corev1.ResourceList,
+			quotaScopes []corev1.ResourceQuotaScope, quotaScopeSelector *corev1.ScopeSelector) {
 			fakeClock := testingclock.NewFakeClock(time.Now())
-			podInformer := util.NewPodFakeInformer(objs)
+			podInformer := informers.NewFakePodSharedIndexInformer(objs)
 			evaluator := NewAaqEvaluator(podInformer, NewAaqCalculatorsRegistry(1, fakeClock), fakeClock)
-
-		}, Entry("entry"),
+			usageStatsOption := quota.UsageStatsOptions{
+				Scopes:        quotaScopes,
+				ScopeSelector: quotaScopeSelector,
+			}
+			actual, err := evaluator.UsageStats(usageStatsOption)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(quota.Equals(expectedUsage, actual.Used)).To(BeTrue())
+		}, Entry("all pods in running state", []metav1.Object{
+			makePod("p1", "", cpu1, corev1.PodRunning),
+			makePod("p2", "", cpu1, corev1.PodRunning),
+		}, corev1.ResourceList{
+			corev1.ResourcePods:               resource.MustParse("2"),
+			corev1.ResourceName("count/pods"): resource.MustParse("2"),
+			corev1.ResourceCPU:                resource.MustParse("2"),
+			corev1.ResourceRequestsCPU:        resource.MustParse("2"),
+			corev1.ResourceLimitsCPU:          resource.MustParse("2"),
+		}, nil, nil),
+			Entry("one pods in terminal state", []metav1.Object{
+				makePod("p1", "", cpu1, corev1.PodRunning),
+				makePod("p2", "", cpu1, corev1.PodSucceeded),
+			}, corev1.ResourceList{
+				corev1.ResourcePods:               resource.MustParse("1"),
+				corev1.ResourceName("count/pods"): resource.MustParse("2"),
+				corev1.ResourceCPU:                resource.MustParse("1"),
+				corev1.ResourceRequestsCPU:        resource.MustParse("1"),
+				corev1.ResourceLimitsCPU:          resource.MustParse("1"),
+			}, nil, nil),
+			Entry("partial pods matching quotaScopeSelector", []metav1.Object{
+				makePod("p1", "high-priority", cpu1, corev1.PodRunning),
+				makePod("p2", "high-priority", cpu1, corev1.PodSucceeded),
+				makePod("p3", "low-priority", cpu1, corev1.PodRunning),
+			}, corev1.ResourceList{
+				corev1.ResourcePods:               resource.MustParse("1"),
+				corev1.ResourceName("count/pods"): resource.MustParse("2"),
+				corev1.ResourceCPU:                resource.MustParse("1"),
+				corev1.ResourceRequestsCPU:        resource.MustParse("1"),
+				corev1.ResourceLimitsCPU:          resource.MustParse("1"),
+			}, nil,
+				&corev1.ScopeSelector{
+					MatchExpressions: []corev1.ScopedResourceSelectorRequirement{
+						{
+							ScopeName: corev1.ResourceQuotaScopePriorityClass,
+							Operator:  corev1.ScopeSelectorOpIn,
+							Values:    []string{"high-priority"},
+						},
+					},
+				}),
+			Entry("partial pods matching quotaScopeSelector - w/ scopeName specified", []metav1.Object{
+				makePod("p1", "high-priority", cpu1, corev1.PodRunning),
+				makePod("p2", "high-priority", cpu1, corev1.PodSucceeded),
+				makePod("p3", "low-priority", cpu1, corev1.PodRunning),
+			}, corev1.ResourceList{
+				corev1.ResourcePods:               resource.MustParse("1"),
+				corev1.ResourceName("count/pods"): resource.MustParse("2"),
+				corev1.ResourceCPU:                resource.MustParse("1"),
+				corev1.ResourceRequestsCPU:        resource.MustParse("1"),
+				corev1.ResourceLimitsCPU:          resource.MustParse("1"),
+			}, []corev1.ResourceQuotaScope{
+				corev1.ResourceQuotaScopePriorityClass,
+			}, &corev1.ScopeSelector{
+				MatchExpressions: []corev1.ScopedResourceSelectorRequirement{
+					{
+						ScopeName: corev1.ResourceQuotaScopePriorityClass,
+						Operator:  corev1.ScopeSelectorOpIn,
+						Values:    []string{"high-priority"},
+					},
+				},
+			}),
+			Entry("partial pods matching quotaScopeSelector - w/ multiple scopeNames specified", []metav1.Object{
+				makePod("p1", "high-priority", cpu1, corev1.PodRunning),
+				makePod("p2", "high-priority", cpu1, corev1.PodSucceeded),
+				makePod("p3", "low-priority", cpu1, corev1.PodRunning),
+				makePod("p4", "high-priority", nil, corev1.PodFailed),
+			}, corev1.ResourceList{
+				corev1.ResourceName("count/pods"): resource.MustParse("1"),
+			}, []corev1.ResourceQuotaScope{
+				corev1.ResourceQuotaScopePriorityClass,
+				corev1.ResourceQuotaScopeBestEffort,
+			}, &corev1.ScopeSelector{
+				MatchExpressions: []corev1.ScopedResourceSelectorRequirement{
+					{
+						ScopeName: corev1.ResourceQuotaScopePriorityClass,
+						Operator:  corev1.ScopeSelectorOpIn,
+						Values:    []string{"high-priority"},
+					},
+				},
+			}),
 		)
-	}
+	})
+
+	Context("Test MatchingScopes func", func() {
+		var eval *AaqEvaluator
+		var activeDeadlineSeconds int64
+		BeforeEach(func() {
+			podInformer := informers.NewFakePodSharedIndexInformer([]metav1.Object{})
+			fakeClock := testingclock.NewFakeClock(time.Now())
+			eval = NewAaqEvaluator(podInformer, NewAaqCalculatorsRegistry(1, fakeClock), fakeClock)
+			activeDeadlineSeconds = int64(30)
+
+		})
+		DescribeTable("Test pod MatchingScopes when ", func(pod *corev1.Pod, wantSelectors []corev1.ScopedResourceSelectorRequirement,
+			selectors []corev1.ScopedResourceSelectorRequirement) {
+			if selectors == nil {
+				selectors = []corev1.ScopedResourceSelectorRequirement{
+					{ScopeName: corev1.ResourceQuotaScopeTerminating},
+					{ScopeName: corev1.ResourceQuotaScopeNotTerminating},
+					{ScopeName: corev1.ResourceQuotaScopeBestEffort},
+					{ScopeName: corev1.ResourceQuotaScopeNotBestEffort},
+					{ScopeName: corev1.ResourceQuotaScopePriorityClass, Operator: corev1.ScopeSelectorOpIn, Values: []string{"class1"}},
+					{ScopeName: corev1.ResourceQuotaScopeCrossNamespacePodAffinity},
+				}
+			}
+			gotSelectors, err := eval.MatchingScopes(pod, selectors)
+			Expect(err).ToNot(HaveOccurred())
+			diff := cmp.Diff(wantSelectors, gotSelectors)
+			Expect(diff).To(BeEmpty(), fmt.Sprintf("unexpected diff (-want, +got):\n%s", diff))
+
+		}, Entry("EmptyPod", &corev1.Pod{},
+			[]corev1.ScopedResourceSelectorRequirement{
+				{ScopeName: corev1.ResourceQuotaScopeNotTerminating},
+				{ScopeName: corev1.ResourceQuotaScopeBestEffort},
+			}, nil), Entry("PriorityClass", &corev1.Pod{
+			Spec: corev1.PodSpec{
+				PriorityClassName: "class1",
+			}}, []corev1.ScopedResourceSelectorRequirement{
+			{ScopeName: corev1.ResourceQuotaScopeNotTerminating},
+			{ScopeName: corev1.ResourceQuotaScopeBestEffort},
+			{ScopeName: corev1.ResourceQuotaScopePriorityClass, Operator: corev1.ScopeSelectorOpIn, Values: []string{"class1"}},
+		}, nil), Entry("NotBestEffort", &corev1.Pod{
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{{
+					Resources: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU:                        resource.MustParse("1"),
+							corev1.ResourceMemory:                     resource.MustParse("50M"),
+							corev1.ResourceName("example.com/dongle"): resource.MustParse("1"),
+						},
+						Limits: corev1.ResourceList{
+							corev1.ResourceCPU:                        resource.MustParse("2"),
+							corev1.ResourceMemory:                     resource.MustParse("100M"),
+							corev1.ResourceName("example.com/dongle"): resource.MustParse("1"),
+						},
+					},
+				}},
+			},
+		}, []corev1.ScopedResourceSelectorRequirement{
+			{ScopeName: corev1.ResourceQuotaScopeNotTerminating},
+			{ScopeName: corev1.ResourceQuotaScopeNotBestEffort},
+		}, nil), Entry("Terminating", &corev1.Pod{
+			Spec: corev1.PodSpec{
+				ActiveDeadlineSeconds: &activeDeadlineSeconds,
+			},
+		}, []corev1.ScopedResourceSelectorRequirement{
+			{ScopeName: corev1.ResourceQuotaScopeTerminating},
+			{ScopeName: corev1.ResourceQuotaScopeBestEffort},
+		}, nil), Entry("OnlyTerminating", &corev1.Pod{
+			Spec: corev1.PodSpec{
+				ActiveDeadlineSeconds: &activeDeadlineSeconds,
+			},
+		}, []corev1.ScopedResourceSelectorRequirement{
+			{ScopeName: corev1.ResourceQuotaScopeTerminating},
+		},
+			[]corev1.ScopedResourceSelectorRequirement{
+				{ScopeName: corev1.ResourceQuotaScopeTerminating},
+			}), Entry("CrossNamespaceRequiredAffinity", &corev1.Pod{
+			Spec: corev1.PodSpec{
+				ActiveDeadlineSeconds: &activeDeadlineSeconds,
+				Affinity: &corev1.Affinity{
+					PodAffinity: &corev1.PodAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+							{LabelSelector: &metav1.LabelSelector{}, Namespaces: []string{"ns1"}, NamespaceSelector: &metav1.LabelSelector{}},
+						},
+					},
+				},
+			},
+		}, []corev1.ScopedResourceSelectorRequirement{
+			{ScopeName: corev1.ResourceQuotaScopeTerminating},
+			{ScopeName: corev1.ResourceQuotaScopeBestEffort},
+			{ScopeName: corev1.ResourceQuotaScopeCrossNamespacePodAffinity},
+		}, nil), Entry("CrossNamespaceRequiredAffinityWithSlice", &corev1.Pod{
+			Spec: corev1.PodSpec{
+				ActiveDeadlineSeconds: &activeDeadlineSeconds,
+				Affinity: &corev1.Affinity{
+					PodAffinity: &corev1.PodAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+							{LabelSelector: &metav1.LabelSelector{}, Namespaces: []string{"ns1"}},
+						},
+					},
+				},
+			},
+		}, []corev1.ScopedResourceSelectorRequirement{
+			{ScopeName: corev1.ResourceQuotaScopeTerminating},
+			{ScopeName: corev1.ResourceQuotaScopeBestEffort},
+			{ScopeName: corev1.ResourceQuotaScopeCrossNamespacePodAffinity},
+		}, nil), Entry("CrossNamespacePreferredAffinity", &corev1.Pod{
+			Spec: corev1.PodSpec{
+				ActiveDeadlineSeconds: &activeDeadlineSeconds,
+				Affinity: &corev1.Affinity{
+					PodAffinity: &corev1.PodAffinity{
+						PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+							{PodAffinityTerm: corev1.PodAffinityTerm{LabelSelector: &metav1.LabelSelector{}, Namespaces: []string{"ns2"}, NamespaceSelector: &metav1.LabelSelector{}}},
+						},
+					},
+				},
+			},
+		}, []corev1.ScopedResourceSelectorRequirement{
+			{ScopeName: corev1.ResourceQuotaScopeTerminating},
+			{ScopeName: corev1.ResourceQuotaScopeBestEffort},
+			{ScopeName: corev1.ResourceQuotaScopeCrossNamespacePodAffinity},
+		}, nil), Entry("CrossNamespacePreferredAffinityWithSelector", &corev1.Pod{
+			Spec: corev1.PodSpec{
+				ActiveDeadlineSeconds: &activeDeadlineSeconds,
+				Affinity: &corev1.Affinity{
+					PodAffinity: &corev1.PodAffinity{
+						PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+							{PodAffinityTerm: corev1.PodAffinityTerm{LabelSelector: &metav1.LabelSelector{}, NamespaceSelector: &metav1.LabelSelector{}}},
+						},
+					},
+				},
+			},
+		}, []corev1.ScopedResourceSelectorRequirement{
+			{ScopeName: corev1.ResourceQuotaScopeTerminating},
+			{ScopeName: corev1.ResourceQuotaScopeBestEffort},
+			{ScopeName: corev1.ResourceQuotaScopeCrossNamespacePodAffinity},
+		}, nil), Entry("CrossNamespacePreferredAntiAffinity", &corev1.Pod{
+			Spec: corev1.PodSpec{
+				ActiveDeadlineSeconds: &activeDeadlineSeconds,
+				Affinity: &corev1.Affinity{
+					PodAntiAffinity: &corev1.PodAntiAffinity{
+						PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+							{PodAffinityTerm: corev1.PodAffinityTerm{LabelSelector: &metav1.LabelSelector{}, NamespaceSelector: &metav1.LabelSelector{}}},
+						},
+					},
+				},
+			},
+		}, []corev1.ScopedResourceSelectorRequirement{
+			{ScopeName: corev1.ResourceQuotaScopeTerminating},
+			{ScopeName: corev1.ResourceQuotaScopeBestEffort},
+			{ScopeName: corev1.ResourceQuotaScopeCrossNamespacePodAffinity},
+		}, nil), Entry("CrossNamespaceRequiredAntiAffinity", &corev1.Pod{
+			Spec: corev1.PodSpec{
+				ActiveDeadlineSeconds: &activeDeadlineSeconds,
+				Affinity: &corev1.Affinity{
+					PodAntiAffinity: &corev1.PodAntiAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+							{LabelSelector: &metav1.LabelSelector{}, Namespaces: []string{"ns3"}},
+						},
+					},
+				},
+			},
+		}, []corev1.ScopedResourceSelectorRequirement{
+			{ScopeName: corev1.ResourceQuotaScopeTerminating},
+			{ScopeName: corev1.ResourceQuotaScopeBestEffort},
+			{ScopeName: corev1.ResourceQuotaScopeCrossNamespacePodAffinity},
+		}, nil),
+		)
+	})
+	/*
+		Context("Test UsageResourceResize", func() {
+			var eval *AaqEvaluator
+			BeforeEach(func() {
+				podInformer := informers.NewFakePodSharedIndexInformer([]metav1.Object{})
+				fakeClock := testingclock.NewFakeClock(time.Now())
+				eval = NewAaqEvaluator(podInformer, NewAaqCalculatorsRegistry(1, fakeClock), fakeClock)
+
+			})
+			DescribeTable("Test pod UsageResourceResize when ", func(pod *corev1.Pod, usageFgEnabled corev1.ResourceList, usageFgDisabled corev1.ResourceList) {
+				for _, enabled := range []bool{true, false} {
+					//	defer featuregatetesting.SetFeatureGateDuringTest(nil, feature.DefaultFeatureGate, "InPlacePodVerticalScaling", enabled)()
+					actual, err := eval.Usage(pod)
+					Expect(err).ToNot(HaveOccurred())
+					usage := usageFgEnabled
+					if !enabled {
+						usage = usageFgDisabled
+					}
+					Expect(quota.Equals(usage, actual)).To(BeTrue(), fmt.Sprintf("FG enabled: %v, expected: %v, actual: %v", enabled, usage, actual))
+				}
+			}, Entry("verify Max(Container.Spec.Requests, ContainerStatus.AllocatedResources) for memory resource", &corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceMemory: resource.MustParse("200Mi"),
+								},
+								Limits: corev1.ResourceList{
+									corev1.ResourceMemory: resource.MustParse("400Mi"),
+								},
+							},
+						},
+					},
+				},
+				Status: corev1.PodStatus{
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							ResourceAllocated: corev1.ResourceList{
+								corev1.ResourceMemory: resource.MustParse("150Mi"),
+							},
+						},
+					},
+				},
+			},
+				[]corev1.ScopedResourceSelectorRequirement{
+					{ScopeName: corev1.ResourceQuotaScopeNotTerminating},
+					{ScopeName: corev1.ResourceQuotaScopeBestEffort},
+				}, nil),
+			)
+		})
+
+	*/
 
 })
 
-func newGenericLister(groupResource schema.GroupResource, items []runtime.Object) cache.GenericLister {
-	store := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{"namespace": cache.MetaNamespaceIndexFunc})
-	for _, item := range items {
-		store.Add(item)
+func makePod(name, pcName string, resList corev1.ResourceList, phase corev1.PodPhase) *corev1.Pod {
+	return &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: corev1.PodSpec{
+			PriorityClassName: pcName,
+			Containers: []corev1.Container{
+				{
+					Resources: corev1.ResourceRequirements{
+						Requests: resList,
+						Limits:   resList,
+					},
+				},
+			},
+		},
+		Status: corev1.PodStatus{
+			Phase: phase,
+		},
 	}
-	return cache.NewGenericLister(store, groupResource)
 }
