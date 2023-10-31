@@ -11,6 +11,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	quota "k8s.io/apiserver/pkg/quota/v1"
+	"k8s.io/apiserver/pkg/quota/v1/generic"
 	"k8s.io/client-go/kubernetes/scheme"
 	v14 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -21,7 +22,6 @@ import (
 	"k8s.io/utils/clock"
 	aaq_evaluator "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-evaluator"
 	arq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-gate-controller"
-	aaq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/quota-utils"
 	rq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/rq-controller"
 	"kubevirt.io/applications-aware-quota/pkg/client"
 	"kubevirt.io/applications-aware-quota/pkg/util"
@@ -54,7 +54,7 @@ type ArqController struct {
 	// Controls full recalculation of quota usage
 	resyncPeriod pkgcontroller.ResyncPeriodFunc
 	// knows how to calculate usage
-	eval           *aaq_evaluator.AaqEvaluator
+	evalRegistry   quota.Registry
 	recorder       record.EventRecorder
 	syncHandler    func(key string) error
 	logger         klog.Logger
@@ -85,7 +85,7 @@ func NewArqController(clientSet client.AAQClient,
 		enqueueAllQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq_enqueue_all"),
 		resyncPeriod:      pkgcontroller.StaticResyncPeriodFunc(metav1.Duration{Duration: 5 * time.Minute}.Duration),
 		recorder:          eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: util.ControllerPodName}),
-		eval:              aaq_evaluator.NewAaqEvaluator(podInformer, calcRegistry, clock.RealClock{}),
+		evalRegistry:      generic.NewRegistry([]quota.Evaluator{aaq_evaluator.NewAaqEvaluator(podInformer, calcRegistry, clock.RealClock{})}),
 		logger:            klog.FromContext(context.Background()),
 		stop:              stop,
 		enqueueAllChan:    enqueueAllChan,
@@ -434,9 +434,11 @@ func (ctrl *ArqController) addQuota(logger klog.Logger, obj interface{}) {
 	for constraint := range arq.Status.Hard {
 		if _, usageFound := arq.Status.Used[constraint]; !usageFound {
 			matchedResources := []v1.ResourceName{constraint}
-			if intersection := ctrl.eval.MatchingResources(matchedResources); len(intersection) > 0 {
-				ctrl.missingUsageQueue.Add(key)
-				return
+			for _, evaluator := range ctrl.evalRegistry.List() {
+				if intersection := evaluator.MatchingResources(matchedResources); len(intersection) > 0 {
+					ctrl.missingUsageQueue.Add(key)
+					return
+				}
 			}
 		}
 	}
@@ -500,7 +502,7 @@ func (ctrl *ArqController) syncResourceQuota(arq *v1alpha12.ApplicationsResource
 	hardLimits := quota.Add(v1.ResourceList{}, arq.Spec.Hard)
 
 	var errs []error
-	newUsage, err := aaq_controller.CalculateUsage(arq.Namespace, arq.Spec.Scopes, hardLimits, ctrl.eval, arq.Spec.ScopeSelector)
+	newUsage, err := quota.CalculateUsage(arq.Namespace, arq.Spec.Scopes, hardLimits, ctrl.evalRegistry, arq.Spec.ScopeSelector)
 
 	var rq *v1.ResourceQuota
 	rqObj, exists, err := ctrl.rqInformer.GetIndexer().GetByKey(arq.Namespace + "/" + arq.Name + rq_controller.RQSuffix)

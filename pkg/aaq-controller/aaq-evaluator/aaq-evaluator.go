@@ -11,12 +11,12 @@ import (
 	quota "k8s.io/apiserver/pkg/quota/v1"
 	v12 "k8s.io/apiserver/pkg/quota/v1"
 	"k8s.io/client-go/tools/cache"
-	api "k8s.io/kubernetes/pkg/apis/core"
-	k8s_api_v1 "k8s.io/kubernetes/pkg/apis/core/v1"
 	"k8s.io/kubernetes/pkg/apis/core/v1/helper"
 	"k8s.io/kubernetes/pkg/apis/core/v1/helper/qos"
 	"k8s.io/kubernetes/pkg/quota/v1/evaluator/core"
 	"k8s.io/utils/clock"
+	"kubevirt.io/applications-aware-quota/pkg/util"
+	"kubevirt.io/client-go/log"
 )
 
 // NewAaqEvaluator returns an evaluator that can evaluate pods with apps consideration
@@ -65,8 +65,37 @@ func (aaqe *AaqEvaluator) MatchingResources(input []corev1.ResourceName) []corev
 	return aaqe.podEvaluator.MatchingResources(input)
 }
 
-func (aaqe *AaqEvaluator) Usage(item runtime.Object, items []runtime.Object) (corev1.ResourceList, error) {
-	pod, err := ToExternalPodOrError(item)
+func (aaqe *AaqEvaluator) Usage(item runtime.Object) (corev1.ResourceList, error) {
+	pod, err := util.ToExternalPodOrError(item)
+	if err != nil {
+		return corev1.ResourceList{}, err
+	} else if pod.Spec.SchedulingGates != nil &&
+		len(pod.Spec.SchedulingGates) > 0 {
+		return corev1.ResourceList{}, nil
+	}
+	arqObjs, err := aaqe.podInformer.GetIndexer().ByIndex(cache.NamespaceIndex, pod.Namespace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list content: %v", err)
+	}
+	var runtimeObjects []runtime.Object
+	for _, obj := range arqObjs {
+		pod, ok := obj.(*corev1.Pod)
+		if !ok {
+			log.Log.Infof("Failed to type assert to *v1.Pod")
+			continue
+		}
+		runtimeObjects = append(runtimeObjects, pod.DeepCopy())
+	}
+
+	rl, err := aaqe.aaqAppUsageCalculatorRegistry.Usage(item, runtimeObjects)
+	if err != nil {
+		return aaqe.podEvaluator.Usage(item)
+	}
+	return rl, err
+}
+
+func (aaqe *AaqEvaluator) CalculatorUsage(item runtime.Object, items []runtime.Object) (corev1.ResourceList, error) {
+	pod, err := util.ToExternalPodOrError(item)
 	if err != nil {
 		return corev1.ResourceList{}, err
 	} else if pod.Spec.SchedulingGates != nil &&
@@ -124,7 +153,7 @@ func (aaqe *AaqEvaluator) UsageStats(options v12.UsageStatsOptions) (v12.UsageSt
 		}
 		// only count usage if there was a match
 		if matchesScopes {
-			usage, err := aaqe.Usage(item, runtimeObjects)
+			usage, err := aaqe.CalculatorUsage(item, runtimeObjects)
 			if err != nil {
 				return result, err
 			}
@@ -137,7 +166,7 @@ func (aaqe *AaqEvaluator) UsageStats(options v12.UsageStatsOptions) (v12.UsageSt
 // todo: ask kubernetes to make this funcs global and remove all this code
 // podMatchesScopeFunc is a function that knows how to evaluate if a pod matches a scope
 func podMatchesScopeFunc(selector corev1.ScopedResourceSelectorRequirement, object runtime.Object) (bool, error) {
-	pod, err := ToExternalPodOrError(object)
+	pod, err := util.ToExternalPodOrError(object)
 	if err != nil {
 		return false, err
 	}
@@ -161,21 +190,6 @@ func podMatchesScopeFunc(selector corev1.ScopedResourceSelectorRequirement, obje
 		return usesCrossNamespacePodAffinity(pod), nil
 	}
 	return false, nil
-}
-
-func ToExternalPodOrError(obj runtime.Object) (*corev1.Pod, error) {
-	pod := &corev1.Pod{}
-	switch t := obj.(type) {
-	case *corev1.Pod:
-		pod = t
-	case *api.Pod:
-		if err := k8s_api_v1.Convert_core_Pod_To_v1_Pod(t, pod, nil); err != nil {
-			return nil, err
-		}
-	default:
-		return nil, fmt.Errorf("expect *api.Pod or *v1.Pod, got %v", t)
-	}
-	return pod, nil
 }
 
 func isTerminating(pod *corev1.Pod) bool {

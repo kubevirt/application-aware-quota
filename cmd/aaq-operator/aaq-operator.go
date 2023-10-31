@@ -26,13 +26,10 @@ func printVersion() {
 	log.Info(fmt.Sprintf("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH))
 }
 
-/*
-//Note: some future changes might force us to uncomment this because of some problems in "flags" pkg
 func init() {
 	// Define a flag named "v" with a default value of false and a usage message.
 	flag.String("v", defVerbose, "Verbosity level")
 }
-*/
 
 func main() {
 	flag.Parse()

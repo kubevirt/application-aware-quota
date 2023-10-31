@@ -13,7 +13,6 @@ import (
 	"k8s.io/kubernetes/pkg/quota/v1/evaluator/core"
 	"k8s.io/utils/clock"
 	v15 "kubevirt.io/api/core/v1"
-	aaq_evaluator "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-evaluator"
 	"kubevirt.io/applications-aware-quota/pkg/client"
 	"kubevirt.io/applications-aware-quota/pkg/informers"
 	"kubevirt.io/applications-aware-quota/pkg/util"
@@ -61,7 +60,7 @@ func (launchercalc *VirtLauncherCalculator) PodUsageFunc(obj runtime.Object, ite
 	if launchercalc.calcConfig == v1alpha1.IgnoreVmiCalculator {
 		return nil, nil, false
 	}
-	pod, err := aaq_evaluator.ToExternalPodOrError(obj)
+	pod, err := util.ToExternalPodOrError(obj)
 	if err != nil {
 		return corev1.ResourceList{}, err, false
 	}
@@ -270,7 +269,7 @@ func UnfinishedVMIPods(aaqCli client.AAQClient, items []runtime.Object, vmi *v15
 	pods := []corev1.Pod{}
 	if items != nil {
 		for _, item := range items {
-			pod, err := aaq_evaluator.ToExternalPodOrError(item)
+			pod, err := util.ToExternalPodOrError(item)
 			if err != nil {
 				continue
 			}

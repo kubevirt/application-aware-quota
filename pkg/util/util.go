@@ -8,16 +8,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/certificate"
 	"k8s.io/klog/v2"
+	api "k8s.io/kubernetes/pkg/apis/core"
+	k8s_api_v1 "k8s.io/kubernetes/pkg/apis/core/v1"
 	"k8s.io/utils/pointer"
 	v1 "kubevirt.io/api/core/v1"
-	aaq_evaluator "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-evaluator"
 	aaqv1alpha1 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	sdkapi "kubevirt.io/controller-lifecycle-operator-sdk/api"
 	utils "kubevirt.io/controller-lifecycle-operator-sdk/pkg/sdk/resources"
@@ -321,34 +318,18 @@ func SetupTLS(certManager certificate.Manager) *tls.Config {
 	return tlsConfig
 }
 
-func NewPodFakeInformer(podObjs []k8sruntime.Object) cache.SharedIndexInformer {
-	// Create a fake clientset
-	fakeClientset := fake.NewSimpleClientset()
-
-	// Add the Pods you like to the fake clientset
-	for _, podObj := range podObjs {
-		pod, _ := aaq_evaluator.ToExternalPodOrError(podObj)
-		_, _ = fakeClientset.CoreV1().Pods(pod.Namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
+// todo: ask kubernetes to make this funcs global and remove all this code:
+func ToExternalPodOrError(obj k8sruntime.Object) (*corev1.Pod, error) {
+	pod := &corev1.Pod{}
+	switch t := obj.(type) {
+	case *corev1.Pod:
+		pod = t
+	case *api.Pod:
+		if err := k8s_api_v1.Convert_core_Pod_To_v1_Pod(t, pod, nil); err != nil {
+			return nil, err
+		}
+	default:
+		return nil, fmt.Errorf("expect *api.Pod or *v1.Pod, got %v", t)
 	}
-
-	// Create a list watcher using the fake clientset
-	listWatcher := cache.NewListWatchFromClient(
-		fakeClientset.CoreV1().RESTClient(),
-		"pods",
-		corev1.NamespaceAll,
-		fields.Everything(),
-	)
-
-	// Create an informer for the provided list watcher
-	objInformer := cache.NewSharedIndexInformer(
-		listWatcher,
-		&corev1.Pod{}, // This should match the type of object you want to inform on
-		0,
-		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
-	)
-
-	// Start the informer
-	go objInformer.Run(wait.NeverStop)
-
-	return objInformer
+	return pod, nil
 }

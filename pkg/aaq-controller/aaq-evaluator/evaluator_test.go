@@ -35,7 +35,7 @@ var _ = Describe("AaqEvaluator", func() {
 			eval = NewAaqEvaluator(podInformer, NewAaqCalculatorsRegistry(1, fakeClock), fakeClock)
 		})
 		DescribeTable("Test pod Usage", func(pod *api.Pod, expectedUsage corev1.ResourceList) {
-			actual, err := eval.Usage(pod, nil)
+			actual, err := eval.Usage(pod)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(quota.Equals(expectedUsage, actual)).To(BeTrue())
 		},

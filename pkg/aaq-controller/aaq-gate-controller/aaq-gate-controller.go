@@ -9,6 +9,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	k8sadmission "k8s.io/apiserver/pkg/admission"
+	resourcequota2 "k8s.io/apiserver/pkg/admission/plugin/resourcequota"
 	"k8s.io/apiserver/pkg/admission/plugin/resourcequota/apis/resourcequota"
 	"k8s.io/client-go/kubernetes/scheme"
 	v14 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -18,7 +19,6 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
 	_ "kubevirt.io/api/core/v1"
-	quota_utils "kubevirt.io/applications-aware-quota/pkg/aaq-controller/quota-utils"
 	"kubevirt.io/applications-aware-quota/pkg/client"
 	"kubevirt.io/applications-aware-quota/pkg/util"
 	"kubevirt.io/kubevirt/pkg/controller"
@@ -276,7 +276,7 @@ func (ctrl *AaqGateController) execute(key string) (error, enqueueState) {
 				return nil, Immediate
 			}
 
-			newRq, err := quota_utils.CheckRequest(rqs, podToCreateAttr, ctrl.aaqEvaluator, []resourcequota.LimitedResource{currPodLimitedResource})
+			newRq, err := resourcequota2.CheckRequest(rqs, podToCreateAttr, ctrl.aaqEvaluator, []resourcequota.LimitedResource{currPodLimitedResource})
 			if err == nil {
 				rqs = newRq
 				aaqjqc.Status.PodsInJobQueue = append(aaqjqc.Status.PodsInJobQueue, pod.Name)
@@ -350,7 +350,7 @@ func getCurrLimitedResource(podEvaluator *aaq_evaluator.AaqEvaluator, podToCreat
 		Resource:      "pods",
 		MatchContains: []string{},
 	}
-	usage, err := podEvaluator.Usage(podToCreate, nil)
+	usage, err := podEvaluator.Usage(podToCreate)
 	if err != nil {
 		return launcherLimitedResource, err
 	}
