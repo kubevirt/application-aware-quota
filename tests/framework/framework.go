@@ -8,7 +8,8 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	clientset "kubevirt.io/applications-aware-quota/pkg/generated/aaq/clientset/versioned"
-	"kubevirt.io/client-go/kubecli"
+	virtclientset "kubevirt.io/applications-aware-quota/pkg/generated/kubevirt/clientset/versioned"
+
 	"net/http"
 
 	"os"
@@ -21,7 +22,6 @@ import (
 	promv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	v1 "k8s.io/api/core/v1"
-	extclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -84,8 +84,6 @@ type Clients struct {
 	K8sClient *kubernetes.Clientset
 	// AaqClient provides our AAQ client pointer
 	AaqClient *aaqclientset.Clientset
-	// ExtClient provides our CSI client pointer
-	ExtClient *extclientset.Clientset
 	// CrClient is a controller runtime client
 	CrClient crclient.Client
 	// RestConfig provides a pointer to our REST client config.
@@ -236,29 +234,16 @@ func (c *Clients) GetDynamicClient() (dynamic.Interface, error) {
 	return dyn, nil
 }
 
-func (c *Clients) GetVirtClient() (kubecli.KubevirtClient, error) {
+func (c *Clients) GetVirtClient() (*virtclientset.Clientset, error) {
 	cfg, err := clientcmd.BuildConfigFromFlags(c.KubeURL, c.KubeConfig)
 	if err != nil {
 		return nil, err
 	}
-	vc, err := kubecli.GetKubevirtClientFromRESTConfig(cfg)
+	vc, err := virtclientset.NewForConfig(cfg)
 	if err != nil {
 		return nil, err
 	}
 	return vc, nil
-}
-
-// GetExtClient gets an instance of a kubernetes client that includes all the api extensions.
-func (c *Clients) GetExtClient() (*extclientset.Clientset, error) {
-	cfg, err := clientcmd.BuildConfigFromFlags(c.KubeURL, c.KubeConfig)
-	if err != nil {
-		return nil, err
-	}
-	extClient, err := extclientset.NewForConfig(cfg)
-	if err != nil {
-		return nil, err
-	}
-	return extClient, nil
 }
 
 // GetMtqClient gets an instance of a kubernetes client that includes all the MTQ extensions.

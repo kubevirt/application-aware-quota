@@ -6,10 +6,10 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-server"
+	"kubevirt.io/applications-aware-quota/pkg/certificates/bootstrap"
 	"kubevirt.io/applications-aware-quota/pkg/client"
 	"kubevirt.io/applications-aware-quota/pkg/informers"
 	"kubevirt.io/applications-aware-quota/pkg/util"
-	"kubevirt.io/kubevirt/pkg/certificates/bootstrap"
 	"os"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 )

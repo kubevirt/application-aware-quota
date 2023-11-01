@@ -6,7 +6,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	quota "k8s.io/apiserver/pkg/quota/v1"
 	"k8s.io/utils/clock"
-	"kubevirt.io/client-go/log"
+	"kubevirt.io/applications-aware-quota/pkg/log"
 	"sync"
 )
 

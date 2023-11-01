@@ -22,15 +22,14 @@ package utils
 import (
 	"context"
 	"encoding/json"
+	"k8s.io/client-go/kubernetes"
 	"kubevirt.io/applications-aware-quota/pkg/util"
-
-	"kubevirt.io/client-go/kubecli"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 )
 
-func GetLeader(virtClient kubecli.KubevirtClient, aaqNS string) string {
+func GetLeader(virtClient *kubernetes.Clientset, aaqNS string) string {
 	controllerEndpoint, err := virtClient.CoreV1().Endpoints(aaqNS).Get(context.Background(), util.ControllerPodName, v1.GetOptions{})
 	if err != nil {
 		return ""

@@ -15,9 +15,9 @@ import (
 	"k8s.io/klog/v2"
 	_ "kubevirt.io/api/core/v1"
 	"kubevirt.io/applications-aware-quota/pkg/client"
+	"kubevirt.io/applications-aware-quota/pkg/log"
 	"kubevirt.io/applications-aware-quota/pkg/util"
 	v1alpha12 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
-	"kubevirt.io/client-go/log"
 	"strings"
 	"time"
 )

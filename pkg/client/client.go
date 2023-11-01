@@ -14,12 +14,10 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	v1 "kubevirt.io/api/core/v1"
 	generatedclient "kubevirt.io/applications-aware-quota/pkg/generated/aaq/clientset/versioned"
 	aaqv1alpha1 "kubevirt.io/applications-aware-quota/pkg/generated/aaq/clientset/versioned/typed/core/v1alpha1"
 	kubevirtclient "kubevirt.io/applications-aware-quota/pkg/generated/kubevirt/clientset/versioned"
 	"kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
-	"kubevirt.io/client-go/version"
 )
 
 type AAQClient interface {
@@ -114,12 +112,4 @@ type AAQInterface interface {
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
 	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1alpha1.AAQ, err error)
 	aaqv1alpha1.AAQExpansion
-}
-
-type ServerVersionInterface interface {
-	Get() (*version.Info, error)
-}
-
-type ExpandSpecInterface interface {
-	ForVirtualMachine(vm *v1.VirtualMachine) (*v1.VirtualMachine, error)
 }

@@ -19,13 +19,11 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
 	_ "kubevirt.io/api/core/v1"
-	"kubevirt.io/applications-aware-quota/pkg/client"
-	"kubevirt.io/applications-aware-quota/pkg/util"
-	"kubevirt.io/kubevirt/pkg/controller"
-
 	aaq_evaluator "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-evaluator"
+	"kubevirt.io/applications-aware-quota/pkg/client"
+	"kubevirt.io/applications-aware-quota/pkg/log"
+	"kubevirt.io/applications-aware-quota/pkg/util"
 	v1alpha12 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
-	"kubevirt.io/client-go/log"
 	corev1beta1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 	"time"
 )
@@ -126,7 +124,7 @@ func (ctrl *AaqGateController) enqueueAll() {
 	arqObjs := ctrl.arqInformer.GetIndexer().List()
 	for _, arqObj := range arqObjs {
 		arq := arqObj.(*v1alpha12.ApplicationsResourceQuota)
-		key, err := controller.KeyFunc(arqObj.(*v1alpha12.ApplicationsResourceQuota))
+		key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(arqObj)
 		if err != nil {
 			utilruntime.HandleError(fmt.Errorf("couldn't get key for object %+v: %v", arq, err))
 			continue

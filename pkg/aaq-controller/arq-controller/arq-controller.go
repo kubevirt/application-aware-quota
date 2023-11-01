@@ -18,16 +18,14 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-	pkgcontroller "k8s.io/kubernetes/pkg/controller"
 	"k8s.io/utils/clock"
 	aaq_evaluator "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-evaluator"
 	arq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-gate-controller"
 	rq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/rq-controller"
 	"kubevirt.io/applications-aware-quota/pkg/client"
+	"kubevirt.io/applications-aware-quota/pkg/log"
 	"kubevirt.io/applications-aware-quota/pkg/util"
 	v1alpha12 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
-	"kubevirt.io/client-go/log"
-	"kubevirt.io/kubevirt/pkg/controller"
 	"strings"
 	"time"
 )
@@ -52,10 +50,10 @@ type ArqController struct {
 	missingUsageQueue workqueue.RateLimitingInterface
 	enqueueAllQueue   workqueue.RateLimitingInterface
 	// Controls full recalculation of quota usage
-	resyncPeriod pkgcontroller.ResyncPeriodFunc
+	resyncPeriod time.Duration
 	// knows how to calculate usage
-	evalRegistry quota.Registry
-	recorder     record.EventRecorder
+	evalRegistry   quota.Registry
+	recorder       record.EventRecorder
 	syncHandler    func(key string) error
 	logger         klog.Logger
 	stop           <-chan struct{}
@@ -83,7 +81,7 @@ func NewArqController(clientSet client.AAQClient,
 		arqQueue:          workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq_primary"),
 		missingUsageQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq_priority"),
 		enqueueAllQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq_enqueue_all"),
-		resyncPeriod:      pkgcontroller.StaticResyncPeriodFunc(metav1.Duration{Duration: 5 * time.Minute}.Duration),
+		resyncPeriod:      metav1.Duration{Duration: 5 * time.Minute}.Duration,
 		recorder:          eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: util.ControllerPodName}),
 		evalRegistry:      generic.NewRegistry([]quota.Evaluator{aaq_evaluator.NewAaqEvaluator(podInformer, calcRegistry, clock.RealClock{})}),
 		logger:            klog.FromContext(context.Background()),
@@ -98,7 +96,7 @@ func NewArqController(clientSet client.AAQClient,
 			UpdateFunc: ctrl.updateArq,
 			DeleteFunc: ctrl.DeleteArq,
 		},
-		ctrl.resyncPeriod(),
+		ctrl.resyncPeriod,
 	)
 	_, err := ctrl.podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: ctrl.updatePod,
@@ -211,7 +209,7 @@ func (ctrl *ArqController) enqueueAll() {
 	arqObjs := ctrl.arqInformer.GetIndexer().List()
 	for _, arqObj := range arqObjs {
 		arq := arqObj.(*v1alpha12.ApplicationsResourceQuota)
-		key, err := controller.KeyFunc(arqObj.(*v1alpha12.ApplicationsResourceQuota))
+		key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(arqObj.(*v1alpha12.ApplicationsResourceQuota))
 		if err != nil {
 			utilruntime.HandleError(fmt.Errorf("couldn't get key for object %+v: %v", arq, err))
 			continue
@@ -370,8 +368,8 @@ func (ctrl *ArqController) Run(ctx context.Context, workers int) {
 		go wait.Until(ctrl.runGateWatcherWorker, time.Second, ctrl.stop)
 	}
 	// the timer for how often we do a full recalculation across all quotas
-	if ctrl.resyncPeriod() > 0 {
-		go wait.Until(ctrl.enqueueAll, ctrl.resyncPeriod(), ctrl.stop)
+	if ctrl.resyncPeriod > 0 {
+		go wait.Until(ctrl.enqueueAll, ctrl.resyncPeriod, ctrl.stop)
 	} else {
 		logger.Info("periodic quota controller resync disabled")
 	}
@@ -416,7 +414,7 @@ func (ctrl *ArqController) worker(queue workqueue.RateLimitingInterface) func() 
 }
 
 func (ctrl *ArqController) addQuota(logger klog.Logger, obj interface{}) {
-	key, err := controller.KeyFunc(obj)
+	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		logger.Error(err, "Couldn't get key", "object", obj)
 		return
@@ -449,7 +447,7 @@ func (ctrl *ArqController) addQuota(logger klog.Logger, obj interface{}) {
 
 // obj could be an *v1.ResourceQuota, or a DeletionFinalStateUnknown marker item.
 func (ctrl *ArqController) enqueueArq(logger klog.Logger, obj interface{}) {
-	key, err := controller.KeyFunc(obj)
+	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		logger.Error(err, "Couldn't get key", "object", obj)
 		return

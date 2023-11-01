@@ -15,8 +15,8 @@ import (
 	"k8s.io/kubernetes/pkg/apis/core/v1/helper/qos"
 	"k8s.io/kubernetes/pkg/quota/v1/evaluator/core"
 	"k8s.io/utils/clock"
+	"kubevirt.io/applications-aware-quota/pkg/log"
 	"kubevirt.io/applications-aware-quota/pkg/util"
-	"kubevirt.io/client-go/log"
 )
 
 // NewAaqEvaluator returns an evaluator that can evaluate pods with apps consideration
@@ -134,7 +134,7 @@ func (aaqe *AaqEvaluator) UsageStats(options v12.UsageStatsOptions) (v12.UsageSt
 		// need to verify that the item matches the set of scopes
 		matchesScopes := true
 		for _, scope := range options.Scopes {
-			innerMatch, err := podMatchesScopeFunc(corev1.ScopedResourceSelectorRequirement{ScopeName: scope}, item)
+			innerMatch, err := podMatchesScopeFunc(corev1.ScopedResourceSelectorRequirement{ScopeName: scope, Operator: corev1.ScopeSelectorOpExists}, item)
 			if err != nil {
 				return result, nil
 			}
