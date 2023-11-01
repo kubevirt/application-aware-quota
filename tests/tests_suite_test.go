@@ -7,6 +7,7 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	ginkgo_reporters "github.com/onsi/ginkgo/v2/reporters"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"kubevirt.io/applications-aware-quota/tests/flags"
 	qe_reporters "kubevirt.io/qe-tools/pkg/ginkgo-reporters"
 	"testing"
 	"time"
@@ -57,6 +58,7 @@ func TestTests(t *testing.T) {
 func BuildTestSuite() {
 	BeforeSuite(func() {
 		fmt.Fprintf(ginkgo.GinkgoWriter, "Reading parameters\n")
+		flags.NormalizeFlags()
 		// Read flags, and configure client instances
 		framework.ClientsInstance.KubectlPath = *kubectlPath
 		framework.ClientsInstance.OcPath = *ocPath
