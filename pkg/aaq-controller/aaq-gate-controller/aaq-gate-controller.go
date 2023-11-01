@@ -24,7 +24,6 @@ import (
 	"kubevirt.io/applications-aware-quota/pkg/log"
 	"kubevirt.io/applications-aware-quota/pkg/util"
 	v1alpha12 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
-	corev1beta1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 	"time"
 )
 
@@ -266,7 +265,7 @@ func (ctrl *AaqGateController) execute(key string) (error, enqueueState) {
 
 			podToCreateAttr := k8sadmission.NewAttributesRecord(podCopy, nil,
 				apiextensions.Kind("Pod").WithVersion("version"), podCopy.Namespace, podCopy.Name,
-				corev1beta1.Resource("pods").WithVersion("version"), "", k8sadmission.Create,
+				v1alpha12.Resource("pods").WithVersion("version"), "", k8sadmission.Create,
 				&metav1.CreateOptions{}, false, nil)
 
 			currPodLimitedResource, err := getCurrLimitedResource(ctrl.aaqEvaluator, podCopy)

@@ -32,6 +32,7 @@ require (
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	k8s.io/gengo v0.0.0-20220902162205-c0856e24416d // indirect
 	k8s.io/kube-aggregator v0.27.1 // indirect
+	kubevirt.io/containerized-data-importer-api v1.57.0-alpha1 // indirect
 	sigs.k8s.io/kube-storage-version-migrator v0.0.4 // indirect
 
 )
@@ -48,7 +49,6 @@ require (
 	github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190725173916-b56e63a643cc
 	github.com/rs/cors v1.7.0
 	k8s.io/client-go v12.0.0+incompatible
-	kubevirt.io/containerized-data-importer v1.56.0
 	kubevirt.io/qe-tools v0.1.8
 	sigs.k8s.io/controller-runtime v0.14.6
 )
@@ -108,7 +108,6 @@ require (
 	k8s.io/kubernetes v1.26.3
 	k8s.io/utils v0.0.0-20230505201702-9f6742963106
 	kubevirt.io/api v1.0.0
-	kubevirt.io/containerized-data-importer-api v1.57.0-alpha1
 	kubevirt.io/controller-lifecycle-operator-sdk v0.2.4
 	kubevirt.io/controller-lifecycle-operator-sdk/api v0.0.0-20220329064328-f3cc58c6ed90
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
@@ -146,7 +145,6 @@ replace (
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.26.7
 	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.26.7
 	k8s.io/sample-controller => k8s.io/sample-controller v0.26.7
-	kubevirt.io/kubevirt/tests => kubevirt.io/kubevirt/tests v1.0.0-rc.0
 	kubevirt.io/qe-tools => kubevirt.io/qe-tools v0.1.8
 )
 
