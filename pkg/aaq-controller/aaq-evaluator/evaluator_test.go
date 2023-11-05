@@ -8,11 +8,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	quota "k8s.io/apiserver/pkg/quota/v1"
 	"k8s.io/apiserver/pkg/quota/v1/generic"
 	api "k8s.io/kubernetes/pkg/apis/core"
+	"k8s.io/kubernetes/pkg/quota/v1/evaluator/core"
 	"k8s.io/kubernetes/pkg/util/node"
+	"k8s.io/utils/clock"
 	testingclock "k8s.io/utils/clock/testing"
 	"kubevirt.io/applications-aware-quota/pkg/informers"
 	"time"
@@ -683,7 +686,105 @@ var _ = Describe("AaqEvaluator", func() {
 
 	*/
 
+	Context("test calculators-registery ", func() {
+		var registry *AaqCalculatorsRegistry
+		var fakeClock *testingclock.FakeClock
+		testPod := &corev1.Pod{
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name:    "memory-demo-container",
+						Image:   "busybox",
+						Command: []string{"sh", "-c", "stress --vm 1 --vm-bytes 100M --vm-hang 0"},
+						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceMemory: resource.MustParse("100Mi"),
+							},
+						},
+					},
+				},
+			},
+		}
+		testPodUsage, _ := core.PodUsageFunc(testPod, fakeClock)
+		testPodWithGate := &corev1.Pod{
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name:    "memory-demo-container",
+						Image:   "busybox",
+						Command: []string{"sh", "-c", "stress --vm 1 --vm-bytes 100M --vm-hang 0"},
+						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceMemory: resource.MustParse("100Mi"),
+							},
+						},
+					},
+				},
+				SchedulingGates: []corev1.PodSchedulingGate{{"test"}},
+			},
+		}
+		BeforeEach(func() {
+			fakeClock = testingclock.NewFakeClock(time.Now())
+			registry = NewAaqCalculatorsRegistry(3, fakeClock)
+		})
+
+		It("should add a built-in calculator", func() {
+			fakeCalculator := new(FakeUsageCalculator)
+			registry.AddBuiltInCalculator("test", fakeCalculator)
+			Expect(registry.builtInCalculators["test"]).To(Equal(fakeCalculator))
+		})
+
+		DescribeTable("Test calculators-registery when ", func(pod *corev1.Pod, expectedUsage corev1.ResourceList,
+			fakeCalc1 *FakeUsageCalculator, fakeCalc2 *FakeUsageCalculator) {
+			pods := []metav1.Object{pod}
+			fakeClock := testingclock.NewFakeClock(time.Now())
+			podInformer := informers.NewFakePodSharedIndexInformer(pods)
+			registry.AddBuiltInCalculator("test1", fakeCalc1)
+			registry.AddBuiltInCalculator("test2", fakeCalc2)
+			eval := NewAaqEvaluator(podInformer, registry, fakeClock)
+			actual, err := eval.Usage(pod)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(quota.Equals(expectedUsage, actual)).To(BeTrue())
+
+		}, Entry("Should consider both calculators if both match", &corev1.Pod{}, corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("200m"),
+			corev1.ResourceMemory: resource.MustParse("128Mi"),
+		}, NewFakeUsageCalculator(func(item runtime.Object, items []runtime.Object, clock clock.Clock) (corev1.ResourceList, error, bool) {
+			return corev1.ResourceList{"cpu": resource.MustParse("100m")}, nil, true
+		}), NewFakeUsageCalculator(func(item runtime.Object, items []runtime.Object, clock clock.Clock) (corev1.ResourceList, error, bool) {
+			return corev1.ResourceList{"cpu": resource.MustParse("100m"), "memory": resource.MustParse("128Mi")}, nil, true
+		})), Entry("should not include calculator if doesn't match", &corev1.Pod{}, corev1.ResourceList{
+			corev1.ResourceCPU: resource.MustParse("100m"),
+		}, NewFakeUsageCalculator(func(item runtime.Object, items []runtime.Object, clock clock.Clock) (corev1.ResourceList, error, bool) {
+			return corev1.ResourceList{"cpu": resource.MustParse("100m")}, nil, true
+		}), NewFakeUsageCalculator(func(item runtime.Object, items []runtime.Object, clock clock.Clock) (corev1.ResourceList, error, bool) {
+			return corev1.ResourceList{"cpu": resource.MustParse("100m"), "memory": resource.MustParse("128Mi")}, nil, false
+		})), Entry("should use built pod calculator if non calculator match", testPod, testPodUsage, NewFakeUsageCalculator(func(item runtime.Object, items []runtime.Object, clock clock.Clock) (corev1.ResourceList, error, bool) {
+			return corev1.ResourceList{"cpu": resource.MustParse("100m")}, nil, false
+		}), NewFakeUsageCalculator(func(item runtime.Object, items []runtime.Object, clock clock.Clock) (corev1.ResourceList, error, bool) {
+			return corev1.ResourceList{"cpu": resource.MustParse("100m"), "memory": resource.MustParse("128Mi")}, nil, false
+		})), Entry("should not include gated pod", testPodWithGate, corev1.ResourceList{}, NewFakeUsageCalculator(func(item runtime.Object, items []runtime.Object, clock clock.Clock) (corev1.ResourceList, error, bool) {
+			return corev1.ResourceList{"cpu": resource.MustParse("100m")}, nil, true
+		}), NewFakeUsageCalculator(func(item runtime.Object, items []runtime.Object, clock clock.Clock) (corev1.ResourceList, error, bool) {
+			return corev1.ResourceList{"cpu": resource.MustParse("100m"), "memory": resource.MustParse("128Mi")}, nil, true
+		})),
+		)
+	})
 })
+
+func NewFakeUsageCalculator(usageFunc func(runtime.Object, []runtime.Object, clock.Clock) (corev1.ResourceList, error, bool)) *FakeUsageCalculator {
+	return &FakeUsageCalculator{usageFunc: usageFunc}
+}
+
+type FakeUsageCalculator struct {
+	usageFunc func(runtime.Object, []runtime.Object, clock.Clock) (corev1.ResourceList, error, bool)
+}
+
+func (m *FakeUsageCalculator) SetConfiguration(_ string) {}
+
+func (m *FakeUsageCalculator) PodUsageFunc(item runtime.Object, items []runtime.Object, clock clock.Clock) (corev1.ResourceList, error, bool) {
+	return m.usageFunc(item, items, clock)
+}
 
 func makePod(name, pcName string, resList corev1.ResourceList, phase corev1.PodPhase) *corev1.Pod {
 	return &corev1.Pod{

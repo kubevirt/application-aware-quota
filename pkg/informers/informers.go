@@ -16,8 +16,6 @@ import (
 	"time"
 )
 
-const LauncherLabel = "virt-launcher"
-
 func GetMigrationInformer(aaqCli client.AAQClient) cache.SharedIndexInformer {
 	listWatcher := NewListWatchFromClient(aaqCli.KubevirtClient().KubevirtV1().RESTClient(), "virtualmachineinstancemigrations", metav1.NamespaceAll, fields.Everything(), labels.Everything())
 	return cache.NewSharedIndexInformer(listWatcher, &k6tv1.VirtualMachineInstanceMigration{}, 1*time.Hour, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})

@@ -20,6 +20,8 @@ import (
 	"kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 )
 
+const launcherLabel = "virt-launcher"
+
 var MyConfigs = []v1alpha1.VmiCalcConfigName{v1alpha1.VmiPodUsage, v1alpha1.VirtualResources, v1alpha1.DedicatedVirtualResources}
 
 func NewVirtLauncherCalculator(stop <-chan struct{}) *VirtLauncherCalculator {
@@ -287,7 +289,7 @@ func UnfinishedVMIPods(aaqCli client.AAQClient, items []runtime.Object, vmi *v15
 		if pod.Status.Phase == corev1.PodFailed || pod.Status.Phase == corev1.PodSucceeded {
 			continue
 		}
-		if app, ok := pod.Labels[v15.AppLabel]; !ok || app != informers.LauncherLabel {
+		if app, ok := pod.Labels[v15.AppLabel]; !ok || app != launcherLabel {
 			continue
 		}
 		if pod.OwnerReferences == nil {
