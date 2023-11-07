@@ -12,8 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	quota "k8s.io/apiserver/pkg/quota/v1"
 	"k8s.io/apiserver/pkg/quota/v1/generic"
-	"k8s.io/client-go/kubernetes/scheme"
-	v14 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
@@ -24,7 +22,6 @@ import (
 	rq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/rq-controller"
 	"kubevirt.io/applications-aware-quota/pkg/client"
 	"kubevirt.io/applications-aware-quota/pkg/log"
-	"kubevirt.io/applications-aware-quota/pkg/util"
 	v1alpha12 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	"strings"
 	"time"
@@ -69,8 +66,8 @@ func NewArqController(clientSet client.AAQClient,
 	stop <-chan struct{},
 	enqueueAllChan <-chan struct{},
 ) *ArqController {
-	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartRecordingToSink(&v14.EventSinkImpl{Interface: clientSet.CoreV1().Events(v1.NamespaceAll)})
+	//eventBroadcaster := record.NewBroadcaster()
+	//eventBroadcaster.StartRecordingToSink(&v14.EventSinkImpl{Interface: clientSet.CoreV1().Events(v1.NamespaceAll)})
 
 	ctrl := &ArqController{
 		aaqCli:            clientSet,
@@ -82,11 +79,11 @@ func NewArqController(clientSet client.AAQClient,
 		missingUsageQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq_priority"),
 		enqueueAllQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq_enqueue_all"),
 		resyncPeriod:      metav1.Duration{Duration: 5 * time.Minute}.Duration,
-		recorder:          eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: util.ControllerPodName}),
-		evalRegistry:      generic.NewRegistry([]quota.Evaluator{aaq_evaluator.NewAaqEvaluator(podInformer, calcRegistry, clock.RealClock{})}),
-		logger:            klog.FromContext(context.Background()),
-		stop:              stop,
-		enqueueAllChan:    enqueueAllChan,
+		//recorder:          eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: util.ControllerPodName}),
+		evalRegistry:   generic.NewRegistry([]quota.Evaluator{aaq_evaluator.NewAaqEvaluator(podInformer, calcRegistry, clock.RealClock{})}),
+		logger:         klog.FromContext(context.Background()),
+		stop:           stop,
+		enqueueAllChan: enqueueAllChan,
 	}
 	ctrl.syncHandler = ctrl.syncResourceQuotaFromKey
 
@@ -501,11 +498,15 @@ func (ctrl *ArqController) syncResourceQuota(arq *v1alpha12.ApplicationsResource
 
 	var errs []error
 	newUsage, err := quota.CalculateUsage(arq.Namespace, arq.Spec.Scopes, hardLimits, ctrl.evalRegistry, arq.Spec.ScopeSelector)
+	if err != nil {
+		// if err is non-nil, remember it to return, but continue updating status with any resources in newUsage
+		errs = append(errs, err)
+	}
 
 	var rq *v1.ResourceQuota
 	rqObj, exists, err := ctrl.rqInformer.GetIndexer().GetByKey(arq.Namespace + "/" + arq.Name + rq_controller.RQSuffix)
 	if err != nil {
-		return err
+		errs = append(errs, err)
 	} else if exists {
 		rq = rqObj.(*v1.ResourceQuota).DeepCopy()
 	}
@@ -514,10 +515,6 @@ func (ctrl *ArqController) syncResourceQuota(arq *v1alpha12.ApplicationsResource
 		updateUsageFromResourceQuota(arq, rq, newUsage)
 	}
 
-	if err != nil {
-		// if err is non-nil, remember it to return, but continue updating status with any resources in newUsage
-		errs = append(errs, err)
-	}
 	for key, value := range newUsage {
 		used[key] = value
 	}

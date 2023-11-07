@@ -79,6 +79,9 @@ github.com/golang/glog
 # github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
 ## explicit
 github.com/golang/groupcache/lru
+# github.com/golang/mock v1.6.0
+## explicit; go 1.11
+github.com/golang/mock/gomock
 # github.com/golang/protobuf v1.5.3
 ## explicit; go 1.9
 github.com/golang/protobuf/proto
@@ -952,6 +955,8 @@ k8s.io/klog/v2/internal/clock
 k8s.io/klog/v2/internal/dbg
 k8s.io/klog/v2/internal/serialize
 k8s.io/klog/v2/internal/severity
+k8s.io/klog/v2/internal/verbosity
+k8s.io/klog/v2/ktesting
 # k8s.io/kube-aggregator v0.27.1 => k8s.io/kube-aggregator v0.26.7
 ## explicit; go 1.19
 k8s.io/kube-aggregator/pkg/apis/apiregistration

@@ -17,7 +17,7 @@ import (
 	"k8s.io/kubernetes/pkg/util/node"
 	"k8s.io/utils/clock"
 	testingclock "k8s.io/utils/clock/testing"
-	"kubevirt.io/applications-aware-quota/pkg/informers"
+	fakeinformers "kubevirt.io/applications-aware-quota/pkg/tests-utils"
 	"time"
 )
 
@@ -29,7 +29,7 @@ var _ = Describe("AaqEvaluator", func() {
 		var terminationGracePeriodSeconds int64
 
 		BeforeEach(func() {
-			podInformer := informers.NewFakePodSharedIndexInformer([]metav1.Object{})
+			podInformer := fakeinformers.NewFakeSharedIndexInformer([]metav1.Object{})
 			fakeClock := testingclock.NewFakeClock(time.Now())
 			now := fakeClock.Now()
 			terminationGracePeriodSeconds = int64(30)
@@ -373,7 +373,7 @@ var _ = Describe("AaqEvaluator", func() {
 		DescribeTable("Test pod Usage when ", func(objs []metav1.Object, expectedUsage corev1.ResourceList,
 			quotaScopes []corev1.ResourceQuotaScope, quotaScopeSelector *corev1.ScopeSelector) {
 			fakeClock := testingclock.NewFakeClock(time.Now())
-			podInformer := informers.NewFakePodSharedIndexInformer(objs)
+			podInformer := fakeinformers.NewFakeSharedIndexInformer(objs)
 			evaluator := NewAaqEvaluator(podInformer, NewAaqCalculatorsRegistry(1, fakeClock), fakeClock)
 			usageStatsOption := quota.UsageStatsOptions{
 				Scopes:        quotaScopes,
@@ -469,7 +469,7 @@ var _ = Describe("AaqEvaluator", func() {
 		var eval *AaqEvaluator
 		var activeDeadlineSeconds int64
 		BeforeEach(func() {
-			podInformer := informers.NewFakePodSharedIndexInformer([]metav1.Object{})
+			podInformer := fakeinformers.NewFakeSharedIndexInformer([]metav1.Object{})
 			fakeClock := testingclock.NewFakeClock(time.Now())
 			eval = NewAaqEvaluator(podInformer, NewAaqCalculatorsRegistry(1, fakeClock), fakeClock)
 			activeDeadlineSeconds = int64(30)
@@ -636,7 +636,7 @@ var _ = Describe("AaqEvaluator", func() {
 		Context("Test UsageResourceResize", func() {
 			var eval *AaqEvaluator
 			BeforeEach(func() {
-				podInformer := informers.NewFakePodSharedIndexInformer([]metav1.Object{})
+				podInformer := informers.NewFakeSharedIndexInformer([]metav1.Object{})
 				fakeClock := testingclock.NewFakeClock(time.Now())
 				eval = NewAaqEvaluator(podInformer, NewAaqCalculatorsRegistry(1, fakeClock), fakeClock)
 
@@ -738,7 +738,7 @@ var _ = Describe("AaqEvaluator", func() {
 			fakeCalc1 *FakeUsageCalculator, fakeCalc2 *FakeUsageCalculator) {
 			pods := []metav1.Object{pod}
 			fakeClock := testingclock.NewFakeClock(time.Now())
-			podInformer := informers.NewFakePodSharedIndexInformer(pods)
+			podInformer := fakeinformers.NewFakeSharedIndexInformer(pods)
 			registry.AddBuiltInCalculator("test1", fakeCalc1)
 			registry.AddBuiltInCalculator("test2", fakeCalc2)
 			eval := NewAaqEvaluator(podInformer, registry, fakeClock)
