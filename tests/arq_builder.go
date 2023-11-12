@@ -39,6 +39,24 @@ func (qb *ArqBuilder) WithResource(resourceName v1.ResourceName, requestMemory r
 	return qb
 }
 
+// WithName sets the name for the ResourceQuota.
+func (qb *ArqBuilder) WithSyncStatusHardEmptyStatusUsed() *ArqBuilder {
+	if qb.arq.Spec.Hard == nil {
+		qb.arq.Spec.Hard = make(v1.ResourceList)
+	}
+	if qb.arq.Status.Hard == nil {
+		qb.arq.Status.Hard = make(v1.ResourceList)
+	}
+	if qb.arq.Status.Used == nil {
+		qb.arq.Status.Used = make(v1.ResourceList)
+	}
+	for rqResourceName, q := range qb.arq.Spec.Hard {
+		qb.arq.Status.Hard[rqResourceName] = q
+		qb.arq.Status.Used[rqResourceName] = resource.MustParse("0")
+	}
+	return qb
+}
+
 // Build creates and returns the ResourceQuota.
 func (qb *ArqBuilder) Build() *v1alpha1.ApplicationsResourceQuota {
 	return qb.arq

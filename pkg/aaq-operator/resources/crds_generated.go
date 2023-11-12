@@ -2103,12 +2103,6 @@ spec:
           spec:
             description: CA configuration CA certs are kept in the CA bundle as long
               as they are valid
-            properties:
-              builtInCalculationConfigToApply:
-                description: BuiltInCalculationConfigToApply
-                items:
-                  type: string
-                type: array
             type: object
           status:
             description: AAQJobQueueConfigStatus defines the status with metadata

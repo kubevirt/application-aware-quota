@@ -11,10 +11,7 @@ import (
 	k8sadmission "k8s.io/apiserver/pkg/admission"
 	resourcequota2 "k8s.io/apiserver/pkg/admission/plugin/resourcequota"
 	"k8s.io/apiserver/pkg/admission/plugin/resourcequota/apis/resourcequota"
-	"k8s.io/client-go/kubernetes/scheme"
-	v14 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
@@ -42,7 +39,6 @@ type AaqGateController struct {
 	aaqjqcInformer               cache.SharedIndexInformer
 	arqQueue                     workqueue.RateLimitingInterface
 	aaqCli                       client.AAQClient
-	recorder                     record.EventRecorder
 	aaqEvaluator                 *aaq_evaluator.AaqEvaluator
 	stop                         <-chan struct{}
 	enqueueAllGateControllerChan <-chan struct{}
@@ -56,8 +52,6 @@ func NewAaqGateController(aaqCli client.AAQClient,
 	stop <-chan struct{},
 	enqueueAllGateControllerChan <-chan struct{},
 ) *AaqGateController {
-	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartRecordingToSink(&v14.EventSinkImpl{Interface: aaqCli.CoreV1().Events(v1.NamespaceAll)})
 
 	ctrl := AaqGateController{
 		aaqCli:                       aaqCli,
@@ -65,7 +59,6 @@ func NewAaqGateController(aaqCli client.AAQClient,
 		podInformer:                  podInformer,
 		arqInformer:                  arqInformer,
 		arqQueue:                     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq-queue"),
-		recorder:                     eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: util.ControllerPodName}),
 		aaqEvaluator:                 aaq_evaluator.NewAaqEvaluator(podInformer, calcRegistry, clock.RealClock{}),
 		stop:                         stop,
 		enqueueAllGateControllerChan: enqueueAllGateControllerChan,
@@ -234,8 +227,8 @@ func (ctrl *AaqGateController) execute(key string) (error, enqueueState) {
 		aaqjqc = aaqjqcObj.(*v1alpha12.AAQJobQueueConfig).DeepCopy()
 	}
 	if len(aaqjqc.Status.PodsInJobQueue) != 0 {
-		ctrl.releasePods(aaqjqc.Status.PodsInJobQueue, arqNS)
-		return nil, Immediate //wait for the calculator to process changes
+		err := ctrl.releasePods(aaqjqc.Status.PodsInJobQueue, arqNS)
+		return err, Immediate //wait for the calculator to process changes
 	}
 
 	arqsObjs, err := ctrl.arqInformer.GetIndexer().ByIndex(cache.NamespaceIndex, arqNS)

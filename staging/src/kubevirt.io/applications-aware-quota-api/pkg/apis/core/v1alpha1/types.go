@@ -121,8 +121,6 @@ type AAQJobQueueConfig struct {
 
 // AAQJobQueueConfigSpec defines our specification for JobQueueConfigs
 type AAQJobQueueConfigSpec struct {
-	// BuiltInCalculationConfigToApply
-	BuiltInCalculationConfigsToApply []string `json:"builtInCalculationConfigToApply,omitempty"`
 }
 
 // AAQJobQueueConfigStatus defines the status with metadata for current jobs

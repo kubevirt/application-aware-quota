@@ -21,19 +21,19 @@ import (
 	"kubevirt.io/applications-aware-quota/pkg/client"
 	"kubevirt.io/applications-aware-quota/pkg/generated/aaq/clientset/versioned/fake"
 	"kubevirt.io/applications-aware-quota/pkg/generated/aaq/informers/externalversions"
-	fakeInformers "kubevirt.io/applications-aware-quota/pkg/tests-utils"
+	testsutils "kubevirt.io/applications-aware-quota/pkg/tests-utils"
 	"kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	"time"
 )
 
 var _ = Describe("Test arq-controller", func() {
 	DescribeTable("Test SyncResourceQuota when ", func(arq v1alpha1.ApplicationsResourceQuota, managedRQ corev1.ResourceQuota,
-		status v1alpha1.ApplicationsResourceQuotaStatus, items []metav1.Object, expectedError string) {
+		status v1alpha1.ApplicationsResourceQuotaStatus, podsState []metav1.Object, expectedError string) {
 		ctrl := gomock.NewController(GinkgoT())
 		cli := client.NewMockAAQClient(ctrl)
 		arqmock := client.NewMockApplicationsResourceQuotaInterface(ctrl)
-		podInformer := fakeInformers.NewFakeSharedIndexInformer(items)
-		rqInformer := fakeInformers.NewFakeSharedIndexInformer([]metav1.Object{&managedRQ})
+		podInformer := testsutils.NewFakeSharedIndexInformer(podsState)
+		rqInformer := testsutils.NewFakeSharedIndexInformer([]metav1.Object{&managedRQ})
 		if expectedError != "" {
 			podInformer.InternalGetIndexer = func(i cache.Indexer) cache.Indexer {
 				return FakefailureIndexer{}
@@ -44,7 +44,6 @@ var _ = Describe("Test arq-controller", func() {
 		arqmock.EXPECT().UpdateStatus(context.Background(), expectedArq, metav1.UpdateOptions{}).Times(1)
 		cli.EXPECT().ApplicationsResourceQuotas(arq.Namespace).Return(arqmock).Times(1)
 		qc := setupQuotaController(cli, podInformer, rqInformer)
-		defer close(qc.stop)
 		if err := qc.syncResourceQuota(&arq); err != nil {
 			Expect(expectedError).ToNot(BeEmpty(), "error was not expected")
 			Expect(err.Error()).To(ContainSubstring(expectedError), fmt.Sprintf("unexpected error: %v", err))
@@ -736,24 +735,6 @@ var _ = Describe("Test arq-controller", func() {
 	)
 })
 
-func getResourceList(cpu, memory string) corev1.ResourceList {
-	res := corev1.ResourceList{}
-	if cpu != "" {
-		res[corev1.ResourceCPU] = resource.MustParse(cpu)
-	}
-	if memory != "" {
-		res[corev1.ResourceMemory] = resource.MustParse(memory)
-	}
-	return res
-}
-
-func getResourceRequirements(requests, limits corev1.ResourceList) corev1.ResourceRequirements {
-	res := corev1.ResourceRequirements{}
-	res.Requests = requests
-	res.Limits = limits
-	return res
-}
-
 type errorLister struct {
 }
 
@@ -767,12 +748,7 @@ func (errorLister) ByNamespace(namespace string) cache.GenericNamespaceLister {
 	return errorLister{}
 }
 
-type quotaController struct {
-	*ArqController
-	stop chan struct{}
-}
-
-func setupQuotaController(clientSet client.AAQClient, podInformer cache.SharedIndexInformer, rqInformer cache.SharedIndexInformer) quotaController {
+func setupQuotaController(clientSet client.AAQClient, podInformer cache.SharedIndexInformer, rqInformer cache.SharedIndexInformer) *ArqController {
 	informerFactory := externalversions.NewSharedInformerFactory(fake.NewSimpleClientset(), 0)
 	kubeInformerFactory := informers.NewSharedInformerFactory(k8sfake.NewSimpleClientset(), 0)
 	if podInformer == nil {
@@ -795,7 +771,7 @@ func setupQuotaController(clientSet client.AAQClient, podInformer cache.SharedIn
 	)
 	informerFactory.Start(stop)
 	kubeInformerFactory.Start(stop)
-	return quotaController{qc, stop}
+	return qc
 }
 
 func newTestPods() []metav1.Object {
@@ -805,7 +781,7 @@ func newTestPods() []metav1.Object {
 			Status:     corev1.PodStatus{Phase: corev1.PodRunning},
 			Spec: corev1.PodSpec{
 				Volumes:    []corev1.Volume{{Name: "vol"}},
-				Containers: []corev1.Container{{Name: "ctr", Image: "image", Resources: getResourceRequirements(getResourceList("100m", "1Gi"), getResourceList("", ""))}},
+				Containers: []corev1.Container{{Name: "ctr", Image: "image", Resources: testsutils.GetResourceRequirements(testsutils.GetResourceList("100m", "1Gi"), testsutils.GetResourceList("", ""))}},
 			},
 		},
 		&corev1.Pod{
@@ -813,7 +789,7 @@ func newTestPods() []metav1.Object {
 			Status:     corev1.PodStatus{Phase: corev1.PodRunning},
 			Spec: corev1.PodSpec{
 				Volumes:    []corev1.Volume{{Name: "vol"}},
-				Containers: []corev1.Container{{Name: "ctr", Image: "image", Resources: getResourceRequirements(getResourceList("100m", "1Gi"), getResourceList("", ""))}},
+				Containers: []corev1.Container{{Name: "ctr", Image: "image", Resources: testsutils.GetResourceRequirements(testsutils.GetResourceList("100m", "1Gi"), testsutils.GetResourceList("", ""))}},
 			},
 		},
 		&corev1.Pod{
@@ -821,7 +797,7 @@ func newTestPods() []metav1.Object {
 			Status:     corev1.PodStatus{Phase: corev1.PodFailed},
 			Spec: corev1.PodSpec{
 				Volumes:    []corev1.Volume{{Name: "vol"}},
-				Containers: []corev1.Container{{Name: "ctr", Image: "image", Resources: getResourceRequirements(getResourceList("100m", "1Gi"), getResourceList("", ""))}},
+				Containers: []corev1.Container{{Name: "ctr", Image: "image", Resources: testsutils.GetResourceRequirements(testsutils.GetResourceList("100m", "1Gi"), testsutils.GetResourceList("", ""))}},
 			},
 		},
 	}
@@ -834,7 +810,7 @@ func newBestEffortTestPods() []metav1.Object {
 			Status:     corev1.PodStatus{Phase: corev1.PodRunning},
 			Spec: corev1.PodSpec{
 				Volumes:    []corev1.Volume{{Name: "vol"}},
-				Containers: []corev1.Container{{Name: "ctr", Image: "image", Resources: getResourceRequirements(getResourceList("", ""), getResourceList("", ""))}},
+				Containers: []corev1.Container{{Name: "ctr", Image: "image", Resources: testsutils.GetResourceRequirements(testsutils.GetResourceList("", ""), testsutils.GetResourceList("", ""))}},
 			},
 		},
 		&corev1.Pod{
@@ -842,7 +818,7 @@ func newBestEffortTestPods() []metav1.Object {
 			Status:     corev1.PodStatus{Phase: corev1.PodRunning},
 			Spec: corev1.PodSpec{
 				Volumes:    []corev1.Volume{{Name: "vol"}},
-				Containers: []corev1.Container{{Name: "ctr", Image: "image", Resources: getResourceRequirements(getResourceList("", ""), getResourceList("", ""))}},
+				Containers: []corev1.Container{{Name: "ctr", Image: "image", Resources: testsutils.GetResourceRequirements(testsutils.GetResourceList("", ""), testsutils.GetResourceList("", ""))}},
 			},
 		},
 		&corev1.Pod{
@@ -850,7 +826,7 @@ func newBestEffortTestPods() []metav1.Object {
 			Status:     corev1.PodStatus{Phase: corev1.PodFailed},
 			Spec: corev1.PodSpec{
 				Volumes:    []corev1.Volume{{Name: "vol"}},
-				Containers: []corev1.Container{{Name: "ctr", Image: "image", Resources: getResourceRequirements(getResourceList("100m", "1Gi"), getResourceList("", ""))}},
+				Containers: []corev1.Container{{Name: "ctr", Image: "image", Resources: testsutils.GetResourceRequirements(testsutils.GetResourceList("100m", "1Gi"), testsutils.GetResourceList("", ""))}},
 			},
 		},
 	}
@@ -863,7 +839,7 @@ func newTestPodsWithPriorityClasses() []metav1.Object {
 			Status:     corev1.PodStatus{Phase: corev1.PodRunning},
 			Spec: corev1.PodSpec{
 				Volumes:           []corev1.Volume{{Name: "vol"}},
-				Containers:        []corev1.Container{{Name: "ctr", Image: "image", Resources: getResourceRequirements(getResourceList("500m", "50Gi"), getResourceList("", ""))}},
+				Containers:        []corev1.Container{{Name: "ctr", Image: "image", Resources: testsutils.GetResourceRequirements(testsutils.GetResourceList("500m", "50Gi"), testsutils.GetResourceList("", ""))}},
 				PriorityClassName: "high",
 			},
 		},
@@ -872,7 +848,7 @@ func newTestPodsWithPriorityClasses() []metav1.Object {
 			Status:     corev1.PodStatus{Phase: corev1.PodRunning},
 			Spec: corev1.PodSpec{
 				Volumes:           []corev1.Volume{{Name: "vol"}},
-				Containers:        []corev1.Container{{Name: "ctr", Image: "image", Resources: getResourceRequirements(getResourceList("100m", "1Gi"), getResourceList("", ""))}},
+				Containers:        []corev1.Container{{Name: "ctr", Image: "image", Resources: testsutils.GetResourceRequirements(testsutils.GetResourceList("100m", "1Gi"), testsutils.GetResourceList("", ""))}},
 				PriorityClassName: "low",
 			},
 		},
@@ -881,7 +857,7 @@ func newTestPodsWithPriorityClasses() []metav1.Object {
 			Status:     corev1.PodStatus{Phase: corev1.PodFailed},
 			Spec: corev1.PodSpec{
 				Volumes:    []corev1.Volume{{Name: "vol"}},
-				Containers: []corev1.Container{{Name: "ctr", Image: "image", Resources: getResourceRequirements(getResourceList("100m", "1Gi"), getResourceList("", ""))}},
+				Containers: []corev1.Container{{Name: "ctr", Image: "image", Resources: testsutils.GetResourceRequirements(testsutils.GetResourceList("100m", "1Gi"), testsutils.GetResourceList("", ""))}},
 			},
 		},
 	}
