@@ -278,7 +278,6 @@ func (ctrl *ArqController) Execute() bool {
 }
 
 func (ctrl *ArqController) execute(key string) (error, enqueueState) {
-
 	var aaqjqc *v1alpha12.AAQJobQueueConfig
 	ns, _, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {

@@ -17,6 +17,7 @@ import (
 	"k8s.io/klog/v2"
 	testingclock "k8s.io/utils/clock/testing"
 	aaq_evaluator "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-evaluator"
+	arq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-gate-controller"
 	rq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/rq-controller"
 	"kubevirt.io/applications-aware-quota/pkg/client"
 	"kubevirt.io/applications-aware-quota/pkg/generated/aaq/clientset/versioned/fake"
@@ -43,7 +44,7 @@ var _ = Describe("Test arq-controller", func() {
 		expectedArq.Status = status
 		arqmock.EXPECT().UpdateStatus(context.Background(), expectedArq, metav1.UpdateOptions{}).Times(1)
 		cli.EXPECT().ApplicationsResourceQuotas(arq.Namespace).Return(arqmock).Times(1)
-		qc := setupQuotaController(cli, podInformer, rqInformer)
+		qc := setupQuotaController(cli, podInformer, rqInformer, nil)
 		if err := qc.syncResourceQuota(&arq); err != nil {
 			Expect(expectedError).ToNot(BeEmpty(), "error was not expected")
 			Expect(err.Error()).To(ContainSubstring(expectedError), fmt.Sprintf("unexpected error: %v", err))
@@ -623,11 +624,73 @@ var _ = Describe("Test arq-controller", func() {
 	),
 	)
 
+	Context("Test execute when", func() {
+		var ctrl *gomock.Controller
+		BeforeEach(func() {
+			ctrl = gomock.NewController(GinkgoT())
+		})
+		It(" pods are ungated and aaqjqc queue should become empty", func() {
+			aaqjqcInformer := testsutils.NewFakeSharedIndexInformer([]metav1.Object{&v1alpha1.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: arq_controller.AaqjqcName, Namespace: "testNs"}, Status: v1alpha1.AAQJobQueueConfigStatus{[]string{"pod-test", "pod-test2"}}}})
+			cli := client.NewMockAAQClient(ctrl)
+			fakek8sCli := k8sfake.NewSimpleClientset([]runtime.Object{
+				&corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{Name: "pod-test", Namespace: "testNs"},
+					Status:     corev1.PodStatus{Phase: corev1.PodRunning},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{Name: "ctr", Image: "image", Resources: testsutils.GetResourceRequirements(testsutils.GetResourceList("500m", "1Gi"), testsutils.GetResourceList("", ""))}},
+					},
+				},
+				&corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{Name: "pod-test2", Namespace: "testNs"},
+					Status:     corev1.PodStatus{Phase: corev1.PodRunning},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{Name: "ctr", Image: "image", Resources: testsutils.GetResourceRequirements(testsutils.GetResourceList("500m", "1Gi"), testsutils.GetResourceList("", ""))}},
+					},
+				},
+			}...)
+			cli.EXPECT().CoreV1().Times(1).Return(fakek8sCli.CoreV1())
+			mockAaaqjqcInterface := client.NewMockAAQJobQueueConfigInterface(ctrl)
+			mockAaaqjqcInterface.EXPECT().UpdateStatus(context.Background(), &v1alpha1.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: arq_controller.AaqjqcName, Namespace: "testNs"}, Status: v1alpha1.AAQJobQueueConfigStatus{[]string{}}}, metav1.UpdateOptions{})
+			cli.EXPECT().AAQJobQueueConfigs("testNs").Times(1).Return(mockAaaqjqcInterface)
+			qc := setupQuotaController(cli, nil, nil, aaqjqcInformer)
+			err, es := qc.execute("testNs" + "/fakeArq")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(es).To(Equal(Forget))
+		})
+
+		It(" not all pods are ungated and aaqjqc queue should not become empty", func() {
+			aaqjqcInformer := testsutils.NewFakeSharedIndexInformer([]metav1.Object{&v1alpha1.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: arq_controller.AaqjqcName, Namespace: "testNs"}, Status: v1alpha1.AAQJobQueueConfigStatus{[]string{"pod-test", "pod-test2"}}}})
+			cli := client.NewMockAAQClient(ctrl)
+			fakek8sCli := k8sfake.NewSimpleClientset([]runtime.Object{
+				&corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{Name: "pod-test", Namespace: "testNs"},
+					Status:     corev1.PodStatus{Phase: corev1.PodRunning},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{Name: "ctr", Image: "image", Resources: testsutils.GetResourceRequirements(testsutils.GetResourceList("500m", "1Gi"), testsutils.GetResourceList("", ""))}},
+					},
+				},
+				&corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{Name: "pod-test2", Namespace: "testNs"},
+					Status:     corev1.PodStatus{Phase: corev1.PodRunning},
+					Spec: corev1.PodSpec{
+						SchedulingGates: []corev1.PodSchedulingGate{{"someGate"}},
+						Containers:      []corev1.Container{{Name: "ctr", Image: "image", Resources: testsutils.GetResourceRequirements(testsutils.GetResourceList("500m", "1Gi"), testsutils.GetResourceList("", ""))}},
+					},
+				},
+			}...)
+			cli.EXPECT().CoreV1().Times(1).Return(fakek8sCli.CoreV1())
+			qc := setupQuotaController(cli, nil, nil, aaqjqcInformer)
+			err, es := qc.execute("testNs" + "/fakeArq")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(es).To(Equal(Immediate))
+		})
+	})
+
 	DescribeTable("Test AddQuota when ", func(arq *v1alpha1.ApplicationsResourceQuota,
 		expectedPriority bool) {
 		ctrl := gomock.NewController(GinkgoT())
 		cli := client.NewMockAAQClient(ctrl)
-		qc := setupQuotaController(cli, nil, nil)
+		qc := setupQuotaController(cli, nil, nil, nil)
 		qc.addQuota(klog.FromContext(context.Background()), arq)
 		if expectedPriority {
 			Expect(qc.missingUsageQueue.Len()).To(Equal(1))
@@ -748,7 +811,7 @@ func (errorLister) ByNamespace(namespace string) cache.GenericNamespaceLister {
 	return errorLister{}
 }
 
-func setupQuotaController(clientSet client.AAQClient, podInformer cache.SharedIndexInformer, rqInformer cache.SharedIndexInformer) *ArqController {
+func setupQuotaController(clientSet client.AAQClient, podInformer cache.SharedIndexInformer, rqInformer cache.SharedIndexInformer, aaqjqcInformer cache.SharedIndexInformer) *ArqController {
 	informerFactory := externalversions.NewSharedInformerFactory(fake.NewSimpleClientset(), 0)
 	kubeInformerFactory := informers.NewSharedInformerFactory(k8sfake.NewSimpleClientset(), 0)
 	if podInformer == nil {
@@ -757,6 +820,9 @@ func setupQuotaController(clientSet client.AAQClient, podInformer cache.SharedIn
 	if rqInformer == nil {
 		rqInformer = kubeInformerFactory.Core().V1().ResourceQuotas().Informer()
 	}
+	if aaqjqcInformer == nil {
+		aaqjqcInformer = informerFactory.Aaq().V1alpha1().AAQJobQueueConfigs().Informer()
+	}
 	fakeClock := testingclock.NewFakeClock(time.Now())
 	stop := make(chan struct{})
 	enqueueAllChan := make(chan struct{})
@@ -764,7 +830,7 @@ func setupQuotaController(clientSet client.AAQClient, podInformer cache.SharedIn
 		podInformer,
 		informerFactory.Aaq().V1alpha1().ApplicationsResourceQuotas().Informer(),
 		rqInformer,
-		informerFactory.Aaq().V1alpha1().AAQJobQueueConfigs().Informer(),
+		aaqjqcInformer,
 		aaq_evaluator.NewAaqCalculatorsRegistry(3, fakeClock),
 		stop,
 		enqueueAllChan,
