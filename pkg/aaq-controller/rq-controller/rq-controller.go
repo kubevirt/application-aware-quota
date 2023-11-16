@@ -267,6 +267,9 @@ func isSchedulableResource(resourceName v1.ResourceName) bool {
 		return true
 	}
 
+	if resourceName == v1.ResourceRequestsStorage {
+		return false
+	}
 	// Check if the resource name contains the "requests." or "limits." prefix
 	if strings.HasPrefix(string(resourceName), "requests.") || strings.HasPrefix(string(resourceName), "limits.") {
 		return true

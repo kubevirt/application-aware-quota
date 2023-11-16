@@ -80,7 +80,4 @@ var _ = Describe("AAQ Server", func() {
 			return err
 		}, 2*time.Minute, 1*time.Second).ShouldNot(HaveOccurred())
 	})
-
-	//FIt("Shouldn't remove our gate if another gate exist on pod", func() {}) //todo: move to controller test
-
 })

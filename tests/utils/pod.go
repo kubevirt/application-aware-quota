@@ -269,3 +269,41 @@ func GetSchedulableNode(nodes *v1.NodeList) *string {
 	}
 	return nil
 }
+
+// GetPodConditionFromList extracts the provided condition from the given list of condition and
+// returns the index of the condition and the condition. Returns -1 and nil if the condition is not present.
+func GetPodConditionFromList(conditions []v1.PodCondition, conditionType v1.PodConditionType) (int, *v1.PodCondition) {
+	if conditions == nil {
+		return -1, nil
+	}
+	for i := range conditions {
+		if conditions[i].Type == conditionType {
+			return i, &conditions[i]
+		}
+	}
+	return -1, nil
+}
+
+// GetPodCondition extracts the provided condition from the given status and returns that.
+// Returns nil and -1 if the condition is not present, and the index of the located condition.
+func GetPodCondition(status *v1.PodStatus, conditionType v1.PodConditionType) (int, *v1.PodCondition) {
+	if status == nil {
+		return -1, nil
+	}
+	return GetPodConditionFromList(status.Conditions, conditionType)
+}
+
+// PodSchedulingGated returns a condition function that returns true if the given pod
+// gets unschedulable status of reason 'SchedulingGated'.
+func PodSchedulingGated(c kubernetes.Interface, podNamespace, podName string) bool {
+	pod, err := c.CoreV1().Pods(podNamespace).Get(context.TODO(), podName, metav1.GetOptions{})
+	if err != nil {
+		fmt.Printf(fmt.Sprintf("the error is %v", err.Error()))
+		// This could be a connection error so we want to retry.
+		return false
+	}
+	_, cond := GetPodCondition(&pod.Status, v1.PodScheduled)
+
+	return cond != nil && cond.Status == v1.ConditionFalse &&
+		cond.Reason == v1.PodReasonSchedulingGated && pod.Spec.NodeName == ""
+}

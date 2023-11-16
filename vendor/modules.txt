@@ -955,8 +955,6 @@ k8s.io/klog/v2/internal/clock
 k8s.io/klog/v2/internal/dbg
 k8s.io/klog/v2/internal/serialize
 k8s.io/klog/v2/internal/severity
-k8s.io/klog/v2/internal/verbosity
-k8s.io/klog/v2/ktesting
 # k8s.io/kube-aggregator v0.27.1 => k8s.io/kube-aggregator v0.26.7
 ## explicit; go 1.19
 k8s.io/kube-aggregator/pkg/apis/apiregistration
