@@ -368,9 +368,9 @@ var _ = Describe("AaqEvaluator", func() {
 		)
 	})
 
-	Context("Test usage func", func() {
+	Context("Test UsageStats func", func() {
 		cpu1 := corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1")}
-		DescribeTable("Test pod Usage when ", func(objs []metav1.Object, expectedUsage corev1.ResourceList,
+		DescribeTable("Test pod UsageStats when ", func(objs []metav1.Object, expectedUsage corev1.ResourceList,
 			quotaScopes []corev1.ResourceQuotaScope, quotaScopeSelector *corev1.ScopeSelector) {
 			fakeClock := testingclock.NewFakeClock(time.Now())
 			podInformer := fakeinformers.NewFakeSharedIndexInformer(objs)

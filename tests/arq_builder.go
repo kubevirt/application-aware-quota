@@ -31,11 +31,11 @@ func (qb *ArqBuilder) WithName(name string) *ArqBuilder {
 }
 
 // WithRequestsMemory sets  requests/limits for the ResourceQuota.
-func (qb *ArqBuilder) WithResource(resourceName v1.ResourceName, requestMemory resource.Quantity) *ArqBuilder {
+func (qb *ArqBuilder) WithResource(resourceName v1.ResourceName, val resource.Quantity) *ArqBuilder {
 	if qb.arq.Spec.Hard == nil {
 		qb.arq.Spec.Hard = make(v1.ResourceList)
 	}
-	qb.arq.Spec.Hard[resourceName] = requestMemory
+	qb.arq.Spec.Hard[resourceName] = val
 	return qb
 }
 

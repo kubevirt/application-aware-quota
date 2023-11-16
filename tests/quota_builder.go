@@ -29,6 +29,14 @@ func (qb *QuotaBuilder) WithName(name string) *QuotaBuilder {
 	return qb
 }
 
+func (qb *QuotaBuilder) WithLabel(key string, val string) *QuotaBuilder {
+	if qb.resourceQuota.ObjectMeta.Labels == nil {
+		qb.resourceQuota.ObjectMeta.Labels = map[string]string{}
+	}
+	qb.resourceQuota.ObjectMeta.Labels[key] = val
+	return qb
+}
+
 // WithRequestsMemory sets  requests/limits for the ResourceQuota.
 func (qb *QuotaBuilder) WithResource(resourceName v1.ResourceName, requestMemory resource.Quantity) *QuotaBuilder {
 	if qb.resourceQuota.Spec.Hard == nil {
