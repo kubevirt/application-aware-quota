@@ -12,6 +12,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	quota "k8s.io/apiserver/pkg/quota/v1"
 	"k8s.io/apiserver/pkg/quota/v1/generic"
+	"k8s.io/apiserver/pkg/util/feature"
+	featuregatetesting "k8s.io/component-base/featuregate/testing"
 	api "k8s.io/kubernetes/pkg/apis/core"
 	"k8s.io/kubernetes/pkg/quota/v1/evaluator/core"
 	"k8s.io/kubernetes/pkg/util/node"
@@ -632,59 +634,198 @@ var _ = Describe("AaqEvaluator", func() {
 		}, nil),
 		)
 	})
-	/*
-		Context("Test UsageResourceResize", func() {
-			var eval *AaqEvaluator
-			BeforeEach(func() {
-				podInformer := informers.NewFakeSharedIndexInformer([]metav1.Object{})
-				fakeClock := testingclock.NewFakeClock(time.Now())
-				eval = NewAaqEvaluator(podInformer, NewAaqCalculatorsRegistry(1, fakeClock), fakeClock)
 
-			})
-			DescribeTable("Test pod UsageResourceResize when ", func(pod *corev1.Pod, usageFgEnabled corev1.ResourceList, usageFgDisabled corev1.ResourceList) {
-				for _, enabled := range []bool{true, false} {
-					//	defer featuregatetesting.SetFeatureGateDuringTest(nil, feature.DefaultFeatureGate, "InPlacePodVerticalScaling", enabled)()
-					actual, err := eval.Usage(pod)
-					Expect(err).ToNot(HaveOccurred())
-					usage := usageFgEnabled
-					if !enabled {
-						usage = usageFgDisabled
-					}
-					Expect(quota.Equals(usage, actual)).To(BeTrue(), fmt.Sprintf("FG enabled: %v, expected: %v, actual: %v", enabled, usage, actual))
+	Context("Test UsageResourceResize", func() {
+		var eval *AaqEvaluator
+		BeforeEach(func() {
+			podInformer := fakeinformers.NewFakeSharedIndexInformer([]metav1.Object{})
+			fakeClock := testingclock.NewFakeClock(time.Now())
+			eval = NewAaqEvaluator(podInformer, NewAaqCalculatorsRegistry(1, fakeClock), fakeClock)
+
+		})
+		DescribeTable("Test pod UsageResourceResize when ", func(pod *corev1.Pod, usageFgEnabled corev1.ResourceList, usageFgDisabled corev1.ResourceList) {
+			for _, enabled := range []bool{true, false} {
+				defer featuregatetesting.SetFeatureGateDuringTest(nil, feature.DefaultFeatureGate, "InPlacePodVerticalScaling", enabled)()
+				actual, err := eval.Usage(pod)
+				Expect(err).ToNot(HaveOccurred())
+				usage := usageFgEnabled
+				if !enabled {
+					usage = usageFgDisabled
 				}
-			}, Entry("verify Max(Container.Spec.Requests, ContainerStatus.AllocatedResources) for memory resource", &corev1.Pod{
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Resources: corev1.ResourceRequirements{
-								Requests: corev1.ResourceList{
-									corev1.ResourceMemory: resource.MustParse("200Mi"),
-								},
-								Limits: corev1.ResourceList{
-									corev1.ResourceMemory: resource.MustParse("400Mi"),
-								},
+				Expect(quota.Equals(usage, actual)).To(BeTrue(), fmt.Sprintf("FG enabled: %v, expected: %v, actual: %v", enabled, usage, actual))
+			}
+		}, Entry("verify Max(Container.Spec.Requests, ContainerStatus.AllocatedResources) for memory resource", &corev1.Pod{
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceMemory: resource.MustParse("200Mi"),
 							},
-						},
-					},
-				},
-				Status: corev1.PodStatus{
-					ContainerStatuses: []corev1.ContainerStatus{
-						{
-							ResourceAllocated: corev1.ResourceList{
-								corev1.ResourceMemory: resource.MustParse("150Mi"),
+							Limits: corev1.ResourceList{
+								corev1.ResourceMemory: resource.MustParse("400Mi"),
 							},
 						},
 					},
 				},
 			},
-				[]corev1.ScopedResourceSelectorRequirement{
-					{ScopeName: corev1.ResourceQuotaScopeNotTerminating},
-					{ScopeName: corev1.ResourceQuotaScopeBestEffort},
-				}, nil),
-			)
-		})
-
-	*/
+			Status: corev1.PodStatus{
+				ContainerStatuses: []corev1.ContainerStatus{
+					{
+						AllocatedResources: corev1.ResourceList{
+							corev1.ResourceMemory: resource.MustParse("150Mi"),
+						},
+					},
+				},
+			},
+		},
+			corev1.ResourceList{
+				corev1.ResourceRequestsMemory: resource.MustParse("200Mi"),
+				corev1.ResourceLimitsMemory:   resource.MustParse("400Mi"),
+				corev1.ResourcePods:           resource.MustParse("1"),
+				corev1.ResourceMemory:         resource.MustParse("200Mi"),
+				generic.ObjectCountQuotaResourceNameFor(schema.GroupResource{Resource: "pods"}): resource.MustParse("1"),
+			},
+			corev1.ResourceList{
+				corev1.ResourceRequestsMemory: resource.MustParse("200Mi"),
+				corev1.ResourceLimitsMemory:   resource.MustParse("400Mi"),
+				corev1.ResourcePods:           resource.MustParse("1"),
+				corev1.ResourceMemory:         resource.MustParse("200Mi"),
+				generic.ObjectCountQuotaResourceNameFor(schema.GroupResource{Resource: "pods"}): resource.MustParse("1"),
+			},
+		), Entry("verify Max(Container.Spec.Requests, ContainerStatus.AllocatedResources) for CPU resource", &corev1.Pod{
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU: resource.MustParse("100m"),
+							},
+							Limits: corev1.ResourceList{
+								corev1.ResourceCPU: resource.MustParse("200m"),
+							},
+						},
+					},
+				},
+			},
+			Status: corev1.PodStatus{
+				ContainerStatuses: []corev1.ContainerStatus{
+					{
+						AllocatedResources: corev1.ResourceList{
+							corev1.ResourceCPU: resource.MustParse("150m"),
+						},
+					},
+				},
+			},
+		},
+			corev1.ResourceList{
+				corev1.ResourceRequestsCPU: resource.MustParse("150m"),
+				corev1.ResourceLimitsCPU:   resource.MustParse("200m"),
+				corev1.ResourcePods:        resource.MustParse("1"),
+				corev1.ResourceCPU:         resource.MustParse("150m"),
+				generic.ObjectCountQuotaResourceNameFor(schema.GroupResource{Resource: "pods"}): resource.MustParse("1"),
+			},
+			corev1.ResourceList{
+				corev1.ResourceRequestsCPU: resource.MustParse("100m"),
+				corev1.ResourceLimitsCPU:   resource.MustParse("200m"),
+				corev1.ResourcePods:        resource.MustParse("1"),
+				corev1.ResourceCPU:         resource.MustParse("100m"),
+				generic.ObjectCountQuotaResourceNameFor(schema.GroupResource{Resource: "pods"}): resource.MustParse("1"),
+			},
+		), Entry("verify Max(Container.Spec.Requests, ContainerStatus.AllocatedResources) for CPU and memory resource", &corev1.Pod{
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("100m"),
+								corev1.ResourceMemory: resource.MustParse("200Mi"),
+							},
+							Limits: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("200m"),
+								corev1.ResourceMemory: resource.MustParse("400Mi"),
+							},
+						},
+					},
+				},
+			},
+			Status: corev1.PodStatus{
+				ContainerStatuses: []corev1.ContainerStatus{
+					{
+						AllocatedResources: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("150m"),
+							corev1.ResourceMemory: resource.MustParse("250Mi"),
+						},
+					},
+				},
+			},
+		},
+			corev1.ResourceList{
+				corev1.ResourceRequestsCPU:    resource.MustParse("150m"),
+				corev1.ResourceLimitsCPU:      resource.MustParse("200m"),
+				corev1.ResourceRequestsMemory: resource.MustParse("250Mi"),
+				corev1.ResourceLimitsMemory:   resource.MustParse("400Mi"),
+				corev1.ResourcePods:           resource.MustParse("1"),
+				corev1.ResourceCPU:            resource.MustParse("150m"),
+				corev1.ResourceMemory:         resource.MustParse("250Mi"),
+				generic.ObjectCountQuotaResourceNameFor(schema.GroupResource{Resource: "pods"}): resource.MustParse("1"),
+			},
+			corev1.ResourceList{
+				corev1.ResourceRequestsCPU:    resource.MustParse("100m"),
+				corev1.ResourceLimitsCPU:      resource.MustParse("200m"),
+				corev1.ResourceRequestsMemory: resource.MustParse("200Mi"),
+				corev1.ResourceLimitsMemory:   resource.MustParse("400Mi"),
+				corev1.ResourcePods:           resource.MustParse("1"),
+				corev1.ResourceCPU:            resource.MustParse("100m"),
+				corev1.ResourceMemory:         resource.MustParse("200Mi"),
+				generic.ObjectCountQuotaResourceNameFor(schema.GroupResource{Resource: "pods"}): resource.MustParse("1"),
+			},
+		), Entry("verify Max(Container.Spec.Requests, ContainerStatus.AllocatedResources==nil) for CPU and memory resource", &corev1.Pod{
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("100m"),
+								corev1.ResourceMemory: resource.MustParse("200Mi"),
+							},
+							Limits: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("200m"),
+								corev1.ResourceMemory: resource.MustParse("400Mi"),
+							},
+						},
+					},
+				},
+			},
+			Status: corev1.PodStatus{
+				ContainerStatuses: []corev1.ContainerStatus{
+					{},
+				},
+			},
+		},
+			corev1.ResourceList{
+				corev1.ResourceRequestsCPU:    resource.MustParse("100m"),
+				corev1.ResourceLimitsCPU:      resource.MustParse("200m"),
+				corev1.ResourceRequestsMemory: resource.MustParse("200Mi"),
+				corev1.ResourceLimitsMemory:   resource.MustParse("400Mi"),
+				corev1.ResourcePods:           resource.MustParse("1"),
+				corev1.ResourceCPU:            resource.MustParse("100m"),
+				corev1.ResourceMemory:         resource.MustParse("200Mi"),
+				generic.ObjectCountQuotaResourceNameFor(schema.GroupResource{Resource: "pods"}): resource.MustParse("1"),
+			},
+			corev1.ResourceList{
+				corev1.ResourceRequestsCPU:    resource.MustParse("100m"),
+				corev1.ResourceLimitsCPU:      resource.MustParse("200m"),
+				corev1.ResourceRequestsMemory: resource.MustParse("200Mi"),
+				corev1.ResourceLimitsMemory:   resource.MustParse("400Mi"),
+				corev1.ResourcePods:           resource.MustParse("1"),
+				corev1.ResourceCPU:            resource.MustParse("100m"),
+				corev1.ResourceMemory:         resource.MustParse("200Mi"),
+				generic.ObjectCountQuotaResourceNameFor(schema.GroupResource{Resource: "pods"}): resource.MustParse("1"),
+			},
+		),
+		)
+	})
 
 	Context("test calculators-registery ", func() {
 		var registry *AaqCalculatorsRegistry
