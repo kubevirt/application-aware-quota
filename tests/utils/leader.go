@@ -21,28 +21,20 @@ package utils
 
 import (
 	"context"
-	"encoding/json"
 	"k8s.io/client-go/kubernetes"
 	"kubevirt.io/applications-aware-quota/pkg/util"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/leaderelection/resourcelock"
 )
 
 func GetLeader(virtClient *kubernetes.Clientset, aaqNS string) string {
-	controllerEndpoint, err := virtClient.CoreV1().Endpoints(aaqNS).Get(context.Background(), util.ControllerPodName, v1.GetOptions{})
+	controllerLease, err := virtClient.CoordinationV1().Leases(aaqNS).Get(context.Background(), util.ControllerPodName, v1.GetOptions{})
 	if err != nil {
 		return ""
 	}
-	var record resourcelock.LeaderElectionRecord
-	if recordBytes, found := controllerEndpoint.Annotations[resourcelock.LeaderElectionRecordAnnotationKey]; found {
-		err := json.Unmarshal([]byte(recordBytes), &record)
-		if err != nil {
-			return ""
-		}
-	} else {
-
+	leaderName := controllerLease.Spec.HolderIdentity
+	if leaderName == nil {
 		return ""
 	}
-	return record.HolderIdentity
+	return *leaderName
 }

@@ -33,14 +33,14 @@ rm -rf "${SCRIPT_ROOT}/pkg/generated"
 # --output-base    because this script should also be able to run inside the vendor dir of
 #                  k8s.io/kubernetes. The output-base is needed for the generators to output into the vendor dir
 #                  instead of the $GOPATH directly. For normal projects this can be dropped.
-/bin/bash ${CODEGEN_PKG}/generate-groups.sh  "deepcopy,client,informer,lister" \
+/bin/bash ${CODEGEN_PKG}/kube_codegen.sh  "deepcopy,client,informer,lister" \
   kubevirt.io/applications-aware-quota/pkg/generated/aaq \
   kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis  \
     "core:v1alpha1 " \
     --go-header-file ${SCRIPT_ROOT}/hack/custom-boilerplate.go.txt
 
 
-/bin/bash ${CODEGEN_PKG}/generate-groups.sh  "client" \
+/bin/bash ${CODEGEN_PKG}/kube_codegen.sh "client" \
   kubevirt.io/applications-aware-quota/pkg/generated/kubevirt \
   kubevirt.io/api  \
     "core:v1 " \

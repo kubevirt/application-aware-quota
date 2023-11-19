@@ -1,5 +1,5 @@
 # Builder stage
-FROM golang:1.19-alpine as builder
+FROM golang:1.20-alpine as builder
 
 
 # Install make
@@ -21,7 +21,7 @@ RUN make aaq_operator
 RUN make csv-generator
 
 # Final stage
-FROM golang:1.19-alpine
+FROM golang:1.20-alpine
 
 
 # Copy the binary from the builder stage to the final image

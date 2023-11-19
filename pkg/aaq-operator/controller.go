@@ -10,6 +10,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	aaqcerts "kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/cert"
 	"kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -95,7 +96,8 @@ func newReconciler(mgr manager.Manager) (*ReconcileAAQ, error) {
 		namespacedArgs: &namespacedArgs,
 	}
 	callbackDispatcher := callbacks.NewCallbackDispatcher(log, restClient, uncachedClient, scheme, namespace)
-	r.reconciler = sdkr.NewReconciler(r, log, restClient, callbackDispatcher, scheme, createVersionLabel, updateVersionLabel, LastAppliedConfigAnnotation, certPollInterval, finalizerName, true, recorder)
+	r.getCache = mgr.GetCache
+	r.reconciler = sdkr.NewReconciler(r, log, restClient, callbackDispatcher, scheme, mgr.GetCache, createVersionLabel, updateVersionLabel, LastAppliedConfigAnnotation, certPollInterval, finalizerName, true, recorder)
 
 	r.registerHooks()
 
@@ -122,6 +124,7 @@ type ReconcileAAQ struct {
 
 	certManager CertManager
 	reconciler  *sdkr.Reconciler
+	getCache    func() cache.Cache
 }
 
 // SetController sets the controller dependency

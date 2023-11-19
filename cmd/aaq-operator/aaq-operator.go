@@ -10,6 +10,7 @@ import (
 	"kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	"os"
 	"runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -66,7 +67,7 @@ func main() {
 	}
 
 	managerOpts := manager.Options{
-		Namespace:                  namespace,
+		Cache:                      cache.Options{DefaultNamespaces: getCacheConfig([]string{namespace})},
 		LeaderElection:             true,
 		LeaderElectionNamespace:    namespace,
 		LeaderElectionID:           "aaq-operator-leader-election-helper",
@@ -104,4 +105,14 @@ func main() {
 		log.Error(err, "")
 		os.Exit(1)
 	}
+}
+
+func getCacheConfig(namespaces []string) map[string]cache.Config {
+	cacheConfig := map[string]cache.Config{}
+
+	for _, namespace := range namespaces {
+		cacheConfig[namespace] = cache.Config{}
+	}
+
+	return cacheConfig
 }

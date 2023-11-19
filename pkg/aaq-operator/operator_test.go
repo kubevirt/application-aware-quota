@@ -22,10 +22,8 @@ import (
 	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/cert"
 	utils "kubevirt.io/applications-aware-quota/pkg/util"
 	"kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
-	"reflect"
-	"time"
-
 	"kubevirt.io/controller-lifecycle-operator-sdk/pkg/sdk/callbacks"
+	"reflect"
 
 	sdkapi "kubevirt.io/controller-lifecycle-operator-sdk/api"
 	sdkr "kubevirt.io/controller-lifecycle-operator-sdk/pkg/sdk/reconciler"
@@ -220,7 +218,7 @@ var _ = Describe("Controller", func() {
 					dd.Status.Replicas = *dd.Spec.Replicas
 					dd.Status.ReadyReplicas = dd.Status.Replicas
 
-					err = args.client.Update(context.TODO(), dd)
+					err = args.client.Status().Update(context.TODO(), dd)
 					Expect(err).ToNot(HaveOccurred())
 				}
 
@@ -242,7 +240,7 @@ var _ = Describe("Controller", func() {
 				deployment, err = getDeployment(args.client, deployment)
 				Expect(err).ToNot(HaveOccurred())
 				deployment.Status.ReadyReplicas = 0
-				err = args.client.Update(context.TODO(), deployment)
+				err = args.client.Status().Update(context.TODO(), deployment)
 				Expect(err).ToNot(HaveOccurred())
 
 				doReconcile(args)
@@ -256,7 +254,7 @@ var _ = Describe("Controller", func() {
 				deployment, err = getDeployment(args.client, deployment)
 				Expect(err).ToNot(HaveOccurred())
 				deployment.Status.ReadyReplicas = deployment.Status.Replicas
-				err = args.client.Update(context.TODO(), deployment)
+				err = args.client.Status().Update(context.TODO(), deployment)
 				Expect(err).ToNot(HaveOccurred())
 
 				doReconcile(args)
@@ -294,8 +292,7 @@ var _ = Describe("Controller", func() {
 			It("should succeed when we delete AAQ", func() {
 				args := createArgs()
 				doReconcile(args)
-				args.aaq.DeletionTimestamp = &metav1.Time{Time: time.Now()}
-				err := args.client.Update(context.TODO(), args.aaq)
+				err := args.client.Delete(context.TODO(), args.aaq)
 				Expect(err).ToNot(HaveOccurred())
 				doReconcileExpectDelete(args)
 				validateEvents(args.reconciler, createNotReadyEventValidationMap())
@@ -452,9 +449,9 @@ var _ = Describe("Controller", func() {
 					//Modify CRD to be of previousVersion
 					Expect(crSetVersion(args.reconciler.reconciler, args.aaq, prevVersion)).To(Succeed())
 					//marc AAQ CR for deltetion
-					args.aaq.SetDeletionTimestamp(&metav1.Time{Time: time.Now()})
 					args.aaq.Finalizers = append(args.aaq.Finalizers, "keepmearound")
 					Expect(args.client.Update(context.TODO(), args.aaq)).To(Succeed())
+					Expect(args.client.Delete(context.TODO(), args.aaq)).To(Succeed())
 
 					doReconcile(args)
 
@@ -485,8 +482,7 @@ var _ = Describe("Controller", func() {
 					doReconcile(args)
 
 					//mark AAQ CR for deltetion
-					args.aaq.SetDeletionTimestamp(&metav1.Time{Time: time.Now()})
-					Expect(args.client.Update(context.TODO(), args.aaq)).To(Succeed())
+					Expect(args.client.Delete(context.TODO(), args.aaq)).To(Succeed())
 
 					doReconcileExpectDelete(args)
 
@@ -1110,7 +1106,7 @@ func setDeploymentsReady(args *args) bool {
 		if d.Spec.Replicas != nil {
 			d.Status.Replicas = *d.Spec.Replicas
 			d.Status.ReadyReplicas = d.Status.Replicas
-			err = args.client.Update(context.TODO(), d)
+			err = args.client.Status().Update(context.TODO(), d)
 			Expect(err).ToNot(HaveOccurred())
 		}
 
@@ -1142,7 +1138,7 @@ func setDeploymentsDegraded(args *args) {
 		if d.Spec.Replicas != nil {
 			d.Status.Replicas = int32(0)
 			d.Status.ReadyReplicas = d.Status.Replicas
-			err = args.client.Update(context.TODO(), d)
+			err = args.client.Status().Update(context.TODO(), d)
 			Expect(err).ToNot(HaveOccurred())
 		}
 
@@ -1325,7 +1321,7 @@ func createReconciler(client client.Client) *ReconcileAAQ {
 		certManager:    newFakeCertManager(client, namespace),
 	}
 	callbackDispatcher := callbacks.NewCallbackDispatcher(log, client, client, scheme.Scheme, namespace)
-	r.reconciler = sdkr.NewReconciler(r, log, client, callbackDispatcher, scheme.Scheme, createVersionLabel, updateVersionLabel, LastAppliedConfigAnnotation, certPollInterval, finalizerName, false, recorder).
+	r.reconciler = sdkr.NewReconciler(r, log, client, callbackDispatcher, scheme.Scheme, nil, createVersionLabel, updateVersionLabel, LastAppliedConfigAnnotation, certPollInterval, finalizerName, false, recorder).
 		WithWatching(true)
 
 	r.registerHooks()

@@ -19,7 +19,6 @@ import (
 	"strconv"
 	"time"
 
-	promv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
@@ -263,10 +262,6 @@ func (c *Clients) GetAaqClient() (*clientset.Clientset, error) {
 func (c *Clients) GetCrClient() (crclient.Client, error) {
 
 	if err := aaqv1.AddToScheme(scheme.Scheme); err != nil {
-		return nil, err
-	}
-
-	if err := promv1.AddToScheme(scheme.Scheme); err != nil {
 		return nil, err
 	}
 	client, err := crclient.New(c.RestConfig, crclient.Options{Scheme: scheme.Scheme})

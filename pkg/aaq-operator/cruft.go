@@ -1,6 +1,7 @@
 package aaq_operator
 
 import (
+	"context"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"kubevirt.io/applications-aware-quota/pkg/util"
@@ -11,8 +12,8 @@ import (
 )
 
 func (r *ReconcileAAQ) watchAAQCRD() error {
-	if err := r.controller.Watch(&source.Kind{Type: &extv1.CustomResourceDefinition{}}, handler.EnqueueRequestsFromMapFunc(
-		func(obj client.Object) []reconcile.Request {
+	if err := r.controller.Watch(source.Kind(r.getCache(), &extv1.CustomResourceDefinition{}), handler.EnqueueRequestsFromMapFunc(
+		func(_ context.Context, obj client.Object) []reconcile.Request {
 			name := obj.GetName()
 			if name != "aaqs.aaq.kubevirt.io" {
 				return nil
