@@ -108,6 +108,9 @@ csv-generator:
 	go build -o bin/csv-generator -v tools/csv-generator/csv-generator.go
 	chmod 777 bin/csv-generator
 
+release-description:
+	./hack/build/release-description.sh ${RELREF} ${PREREF}
+
 clean:
 	rm ./aaq_controller ./aaq_operator ./aaq_server -f
 
