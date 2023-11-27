@@ -1,0 +1,31 @@
+This release follows b5a730cc8ba9495b6a9ae7a9c43dd5bc671483b1 and consists of 59 changes, contributed by
+2 people, leading to 6009 files changed, 1856001 insertions(+), 1 deletion(-).
+
+The source code and selected binaries are available for download at:
+<https://github.com/kubevirt/applications-aware-quota/releases/tag/6f60d1efa2f6165f8eb20699f8bbf8036d7fe36b>.
+
+Pre-built AAQ containers are published on Quay.io and can be viewed at:
+<https://quay.io/repository/kubevirt/aaq-controller/>
+<https://quay.io/repository/kubevirt/aaq-server/>
+<https://quay.io/repository/kubevirt/aaq-operator/>
+
+
+Notable changes
+---------------
+
+First release of AAQ Operator
+
+Contributors
+------------
+
+2 people contributed to this release:
+
+        57	bmordeha <bmordeha@redhat.com>
+         2	Barakmor1 <91669950+Barakmor1@users.noreply.github.com>
+
+Additional Resources
+--------------------
+- Mailing list: <https://groups.google.com/forum/#!forum/kubevirt-dev>
+- [License][license]
+
+[license]: https://github.com/kubevirt/applications-aware-quota/blob/main/LICENSE
