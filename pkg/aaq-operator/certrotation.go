@@ -26,7 +26,7 @@ const (
 	annCertConfig = "operator.aaq.kubevirt.io/certConfig"
 )
 
-// CertManager is the client interface to the certificate manager/refresher
+// CertManager is the client interface to the certificate manager/refresher.
 type CertManager interface {
 	Sync(certs []aaqcerts.CertificateDefinition) error
 }
