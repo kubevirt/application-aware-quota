@@ -59,9 +59,6 @@ func (launchercalc *VirtLauncherCalculator) SetConfiguration(config string) {
 }
 
 func (launchercalc *VirtLauncherCalculator) PodUsageFunc(obj runtime.Object, items []runtime.Object, clock clock.Clock) (corev1.ResourceList, error, bool) {
-	if launchercalc.calcConfig == v1alpha1.IgnoreVmiCalculator {
-		return nil, nil, false
-	}
 	pod, err := util.ToExternalPodOrError(obj)
 	if err != nil {
 		return corev1.ResourceList{}, err, false
@@ -78,9 +75,7 @@ func (launchercalc *VirtLauncherCalculator) PodUsageFunc(obj runtime.Object, ite
 	vmi := vmiObj.(*v15.VirtualMachineInstance)
 	launcherPods := UnfinishedVMIPods(launchercalc.aaqCli, items, vmi)
 
-	if !podExists(launcherPods, pod) {
-		return corev1.ResourceList{}, nil, true
-	} else if !podExists(launcherPods, pod) { //sanity check
+	if !podExists(launcherPods, pod) { //sanity check
 		return corev1.ResourceList{}, fmt.Errorf("can't detect pod as launcher pod"), true
 	}
 
@@ -89,45 +84,33 @@ func (launchercalc *VirtLauncherCalculator) PodUsageFunc(obj runtime.Object, ite
 		return corev1.ResourceList{}, err, true
 	}
 
-	if migration == nil || len(launcherPods) == 1 {
-		usage, err := launchercalc.CalculateUsageByConfig(pod, vmi, true)
-		if err != nil {
-			return corev1.ResourceList{}, err, true
-		}
-		return usage, nil, true
-	}
-
-	if len(launcherPods) != 2 {
-		return corev1.ResourceList{}, fmt.Errorf("something is wrong 2 launchers pods should exist while migration"), true
-	}
-
-	sourcePod := getSourcePod(launcherPods, migration)
+	sourcePod := getSourcePod(launcherPods, vmi)
 	targetPod := getTargetPod(launcherPods, migration)
-	if sourcePod == nil || targetPod == nil {
-		var launcherPodsForErr []string
-		for _, pod := range launcherPods {
-			launcherPodsForErr = append(launcherPodsForErr, pod.Name)
-		}
-		return corev1.ResourceList{}, fmt.Errorf(fmt.Sprintf("something is wrong could not detect source or target pod launcherPods in ns: %v  source == nil: %v target == nil: %v ", launcherPodsForErr, sourcePod == nil, targetPod == nil)), true
+
+	sourceResources, err := launchercalc.calculateSourceUsageByConfig(pod, vmi)
+	if err != nil {
+		return corev1.ResourceList{}, err, true
 	}
 
-	if pod.Name == sourcePod.Name { // we are calculating source resources
-		usage, err := launchercalc.CalculateUsageByConfig(pod, vmi, true)
+	if pod.Name == sourcePod.Name {
+		return sourceResources, nil, true
+	} else if targetPod != nil && pod.Name == targetPod.Name {
+		targetResources, err := launchercalc.calculateTargetUsageByConfig(pod, vmi)
 		if err != nil {
 			return corev1.ResourceList{}, err, true
 		}
-		return usage, nil, true
+		return v12.SubtractWithNonNegativeResult(targetResources, sourceResources), nil, true
+	}
+	//shouldn't get here unless we evaluate orphan launcher pod, in that case the pod will be deleted soon
+	return corev1.ResourceList{}, nil, true
+}
 
-	}
-	targetResources, err := launchercalc.CalculateUsageByConfig(pod, vmi, false)
-	if err != nil {
-		return corev1.ResourceList{}, err, true
-	}
-	sourceResources, err := launchercalc.CalculateUsageByConfig(pod, vmi, true)
-	if err != nil {
-		return corev1.ResourceList{}, err, true
-	}
-	return v12.SubtractWithNonNegativeResult(targetResources, sourceResources), nil, true
+func (launchercalc *VirtLauncherCalculator) calculateSourceUsageByConfig(pod *corev1.Pod, vmi *v15.VirtualMachineInstance) (corev1.ResourceList, error) {
+	return launchercalc.CalculateUsageByConfig(pod, vmi, true)
+}
+
+func (launchercalc *VirtLauncherCalculator) calculateTargetUsageByConfig(pod *corev1.Pod, vmi *v15.VirtualMachineInstance) (corev1.ResourceList, error) {
+	return launchercalc.CalculateUsageByConfig(pod, vmi, false)
 }
 
 func (launchercalc *VirtLauncherCalculator) CalculateUsageByConfig(pod *corev1.Pod, vmi *v15.VirtualMachineInstance, isSourceOrSingleLauncher bool) (corev1.ResourceList, error) {
@@ -348,22 +331,28 @@ func getTargetPod(allPods []*corev1.Pod, migration *v15.VirtualMachineInstanceMi
 	for _, pod := range allPods {
 		migrationUID, migrationLabelExist := pod.Labels[v15.MigrationJobLabel]
 		migrationName, migrationAnnExist := pod.Annotations[v15.MigrationJobNameAnnotation]
-		if migrationLabelExist && migrationAnnExist && migrationUID == string(migration.UID) && migrationName == migration.Name {
+		if migration != nil && migrationLabelExist && migrationAnnExist && migrationUID == string(migration.UID) && migrationName == migration.Name {
 			return pod
 		}
 	}
 	return nil
 }
 
-func getSourcePod(allPods []*corev1.Pod, migration *v15.VirtualMachineInstanceMigration) *corev1.Pod {
-	targetPod := getTargetPod(allPods, migration)
-	if targetPod == nil {
-		return nil
-	}
-	for _, pod := range allPods {
-		if pod.Name != targetPod.Name {
-			return pod
+func getSourcePod(pods []*corev1.Pod, vmi *v15.VirtualMachineInstance) *corev1.Pod {
+	var curPod *corev1.Pod = nil
+	for _, pod := range pods {
+		if vmi.Status.NodeName != "" &&
+			vmi.Status.NodeName != pod.Spec.NodeName {
+			// This pod isn't scheduled to the current node.
+			// This can occur during the initial migration phases when
+			// a new target node is being prepared for the VMI.
+			continue
+		}
+
+		if curPod == nil || curPod.CreationTimestamp.Before(&pod.CreationTimestamp) {
+			curPod = pod
 		}
 	}
-	return nil
+
+	return curPod
 }
