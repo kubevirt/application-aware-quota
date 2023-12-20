@@ -1442,6 +1442,7 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		_, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod2, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
 		verifyPodIsGated(f.K8sClient, f.Namespace.Name, pod2.Name)
+		err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Delete(ctx, pod2.Name, *metav1.NewDeleteOptions(0))
 
 		By("Deleting first pod")
 		err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Delete(ctx, pod.Name, *metav1.NewDeleteOptions(0))
