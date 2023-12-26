@@ -485,6 +485,20 @@ func (mr *MockAAQClientMockRecorder) Discovery() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Discovery", reflect.TypeOf((*MockAAQClient)(nil).Discovery))
 }
 
+// DiscoveryClient mocks base method.
+func (m *MockAAQClient) DiscoveryClient() discovery.DiscoveryInterface {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DiscoveryClient")
+	ret0, _ := ret[0].(discovery.DiscoveryInterface)
+	return ret0
+}
+
+// DiscoveryClient indicates an expected call of DiscoveryClient.
+func (mr *MockAAQClientMockRecorder) DiscoveryClient() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DiscoveryClient", reflect.TypeOf((*MockAAQClient)(nil).DiscoveryClient))
+}
+
 // DiscoveryV1 mocks base method.
 func (m *MockAAQClient) DiscoveryV1() v19.DiscoveryV1Interface {
 	m.ctrl.T.Helper()

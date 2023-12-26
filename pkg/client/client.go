@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -28,6 +29,7 @@ type AAQClient interface {
 	AAQ() AAQInterface
 	GeneratedAAQClient() generatedclient.Interface
 	KubevirtClient() kubevirtclient.Interface
+	DiscoveryClient() discovery.DiscoveryInterface
 	Config() *rest.Config
 }
 
@@ -38,6 +40,7 @@ type aaq struct {
 	config             *rest.Config
 	generatedAAQClient *generatedclient.Clientset
 	kubevirtClient     *kubevirtclient.Clientset
+	discoveryClient    *discovery.DiscoveryClient
 	dynamicClient      dynamic.Interface
 	*kubernetes.Clientset
 }
@@ -70,6 +73,10 @@ func (k aaq) AAQ() AAQInterface {
 
 func (k aaq) DynamicClient() dynamic.Interface {
 	return k.dynamicClient
+}
+
+func (k aaq) DiscoveryClient() discovery.DiscoveryInterface {
+	return k.discoveryClient
 }
 
 // ApplicationsResourceQuotaInterface has methods to work with ApplicationsResourceQuotas resources.

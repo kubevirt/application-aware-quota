@@ -68,6 +68,7 @@ func createCRDResources(args *FactoryArgs) []client.Object {
 	return []client.Object{
 		createApplicationsResourceQuotaCRD(),
 		createAaqJobQueueConfigsCRD(),
+		createClusterAppsResourceQuotaCRD(),
 	}
 }
 
