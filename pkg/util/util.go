@@ -4,17 +4,21 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	secv1 "github.com/openshift/api/security/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/util/certificate"
 	"k8s.io/klog/v2"
 	api "k8s.io/kubernetes/pkg/apis/core"
 	k8s_api_v1 "k8s.io/kubernetes/pkg/apis/core/v1"
 	"k8s.io/utils/pointer"
 	v1 "kubevirt.io/api/core/v1"
+	client2 "kubevirt.io/applications-aware-quota/pkg/client"
 	aaqv1alpha1 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	sdkapi "kubevirt.io/controller-lifecycle-operator-sdk/api"
 	utils "kubevirt.io/controller-lifecycle-operator-sdk/pkg/sdk/resources"
@@ -332,4 +336,77 @@ func ToExternalPodOrError(obj k8sruntime.Object) (*corev1.Pod, error) {
 		return nil, fmt.Errorf("expect *api.Pod or *v1.Pod, got %v", t)
 	}
 	return pod, nil
+}
+
+func IsOnOpenShift(clientset client2.AAQClient) (bool, error) {
+	_, apis, err := clientset.DiscoveryClient().ServerGroupsAndResources()
+	if err != nil && !discovery.IsGroupDiscoveryFailedError(err) {
+		return false, err
+	}
+
+	// In case of an error, check if security.openshift.io is the reason (unlikely).
+	// If it is, we are obviously on an openshift cluster.
+	// Otherwise we can do a positive check.
+	if discovery.IsGroupDiscoveryFailedError(err) {
+		e := err.(*discovery.ErrGroupDiscoveryFailed)
+		if _, exists := e.Groups[secv1.GroupVersion]; exists {
+			return true, nil
+		}
+	}
+
+	for _, api := range apis {
+		if api.GroupVersion == secv1.GroupVersion.String() {
+			for _, resource := range api.APIResources {
+				if resource.Name == "securitycontextconstraints" {
+					return true, nil
+				}
+			}
+		}
+	}
+
+	return false, nil
+}
+
+// SetOwnerRuntime makes the current "active" AAQ CR the owner of the object using runtime lib client
+func SetOwnerRuntime(client client.Client, object metav1.Object) error {
+	namespace := GetNamespace()
+	configMap := &corev1.ConfigMap{}
+	if err := client.Get(context.TODO(), types.NamespacedName{Name: ConfigMapName, Namespace: namespace}, configMap); err != nil {
+		klog.Warningf("ConfigMap %s does not exist, so not assigning owner", ConfigMapName)
+		return nil
+	}
+	return SetConfigAsOwner(configMap, object)
+}
+
+// SetConfigAsOwner sets the passed in config map as owner of the object
+func SetConfigAsOwner(configMap *corev1.ConfigMap, object metav1.Object) error {
+	configMapOwner := getController(configMap.GetOwnerReferences())
+
+	if configMapOwner == nil {
+		return fmt.Errorf("configmap has no owner")
+	}
+
+	for _, o := range object.GetOwnerReferences() {
+		if o.Controller != nil && *o.Controller {
+			if o.UID == configMapOwner.UID {
+				// already set to current obj
+				return nil
+			}
+
+			return fmt.Errorf("object %+v already owned by %+v", object, o)
+		}
+	}
+
+	object.SetOwnerReferences(append(object.GetOwnerReferences(), *configMapOwner))
+
+	return nil
+}
+
+func getController(owners []metav1.OwnerReference) *metav1.OwnerReference {
+	for _, owner := range owners {
+		if owner.Controller != nil && *owner.Controller {
+			return &owner
+		}
+	}
+	return nil
 }

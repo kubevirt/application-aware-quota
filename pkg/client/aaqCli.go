@@ -2,6 +2,7 @@ package client
 
 import (
 	"flag"
+	"k8s.io/client-go/discovery"
 	"os"
 	"sync"
 
@@ -226,6 +227,11 @@ func GetAAQClientFromRESTConfig(config *rest.Config) (AAQClient, error) {
 		return nil, err
 	}
 
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+
 	dynamicClient, err := dynamic.NewForConfig(&shallowCopy)
 	if err != nil {
 		return nil, err
@@ -238,6 +244,7 @@ func GetAAQClientFromRESTConfig(config *rest.Config) (AAQClient, error) {
 		&shallowCopy,
 		generatedAAQClient,
 		kubevirtClient,
+		discoveryClient,
 		dynamicClient,
 		coreClient,
 	}, nil
