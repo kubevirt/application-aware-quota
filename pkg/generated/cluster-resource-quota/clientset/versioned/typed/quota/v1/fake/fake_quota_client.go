@@ -21,32 +21,24 @@ package fake
 import (
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
-	v1alpha1 "kubevirt.io/applications-aware-quota/pkg/generated/aaq/clientset/versioned/typed/core/v1alpha1"
+	v1 "kubevirt.io/applications-aware-quota/pkg/generated/cluster-resource-quota/clientset/versioned/typed/quota/v1"
 )
 
-type FakeAaqV1alpha1 struct {
+type FakeQuotaV1 struct {
 	*testing.Fake
 }
 
-func (c *FakeAaqV1alpha1) AAQs() v1alpha1.AAQInterface {
-	return &FakeAAQs{c}
+func (c *FakeQuotaV1) AppliedClusterResourceQuotas(namespace string) v1.AppliedClusterResourceQuotaInterface {
+	return &FakeAppliedClusterResourceQuotas{c, namespace}
 }
 
-func (c *FakeAaqV1alpha1) AAQJobQueueConfigs(namespace string) v1alpha1.AAQJobQueueConfigInterface {
-	return &FakeAAQJobQueueConfigs{c, namespace}
-}
-
-func (c *FakeAaqV1alpha1) ApplicationsResourceQuotas(namespace string) v1alpha1.ApplicationsResourceQuotaInterface {
-	return &FakeApplicationsResourceQuotas{c, namespace}
-}
-
-func (c *FakeAaqV1alpha1) ClusterAppsResourceQuotas() v1alpha1.ClusterAppsResourceQuotaInterface {
-	return &FakeClusterAppsResourceQuotas{c}
+func (c *FakeQuotaV1) ClusterResourceQuotas() v1.ClusterResourceQuotaInterface {
+	return &FakeClusterResourceQuotas{c}
 }
 
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
-func (c *FakeAaqV1alpha1) RESTClient() rest.Interface {
+func (c *FakeQuotaV1) RESTClient() rest.Interface {
 	var ret *rest.RESTClient
 	return ret
 }

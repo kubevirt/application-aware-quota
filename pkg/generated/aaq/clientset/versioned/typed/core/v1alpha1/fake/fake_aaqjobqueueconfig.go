@@ -23,7 +23,6 @@ import (
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -36,9 +35,9 @@ type FakeAAQJobQueueConfigs struct {
 	ns   string
 }
 
-var aaqjobqueueconfigsResource = schema.GroupVersionResource{Group: "aaq.kubevirt.io", Version: "v1alpha1", Resource: "aaqjobqueueconfigs"}
+var aaqjobqueueconfigsResource = v1alpha1.SchemeGroupVersion.WithResource("aaqjobqueueconfigs")
 
-var aaqjobqueueconfigsKind = schema.GroupVersionKind{Group: "aaq.kubevirt.io", Version: "v1alpha1", Kind: "AAQJobQueueConfig"}
+var aaqjobqueueconfigsKind = v1alpha1.SchemeGroupVersion.WithKind("AAQJobQueueConfig")
 
 // Get takes name of the aAQJobQueueConfig, and returns the corresponding aAQJobQueueConfig object, and an error if there is any.
 func (c *FakeAAQJobQueueConfigs) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.AAQJobQueueConfig, err error) {

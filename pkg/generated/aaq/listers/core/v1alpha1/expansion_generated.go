@@ -37,3 +37,7 @@ type ApplicationsResourceQuotaListerExpansion interface{}
 // ApplicationsResourceQuotaNamespaceListerExpansion allows custom methods to be added to
 // ApplicationsResourceQuotaNamespaceLister.
 type ApplicationsResourceQuotaNamespaceListerExpansion interface{}
+
+// ClusterAppsResourceQuotaListerExpansion allows custom methods to be added to
+// ClusterAppsResourceQuotaLister.
+type ClusterAppsResourceQuotaListerExpansion interface{}

@@ -23,7 +23,6 @@ import (
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -36,9 +35,9 @@ type FakeApplicationsResourceQuotas struct {
 	ns   string
 }
 
-var applicationsresourcequotasResource = schema.GroupVersionResource{Group: "aaq.kubevirt.io", Version: "v1alpha1", Resource: "applicationsresourcequotas"}
+var applicationsresourcequotasResource = v1alpha1.SchemeGroupVersion.WithResource("applicationsresourcequotas")
 
-var applicationsresourcequotasKind = schema.GroupVersionKind{Group: "aaq.kubevirt.io", Version: "v1alpha1", Kind: "ApplicationsResourceQuota"}
+var applicationsresourcequotasKind = v1alpha1.SchemeGroupVersion.WithKind("ApplicationsResourceQuota")
 
 // Get takes name of the applicationsResourceQuota, and returns the corresponding applicationsResourceQuota object, and an error if there is any.
 func (c *FakeApplicationsResourceQuotas) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ApplicationsResourceQuota, err error) {
