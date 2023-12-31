@@ -89,16 +89,16 @@ func NewArqController(clientSet client.AAQClient,
 
 	arqInformer.AddEventHandlerWithResyncPeriod(
 		cache.ResourceEventHandlerFuncs{
-			AddFunc:    ctrl.AddArq,
+			AddFunc:    ctrl.addArq,
 			UpdateFunc: ctrl.updateArq,
-			DeleteFunc: ctrl.DeleteArq,
+			DeleteFunc: ctrl.deleteArq,
 		},
 		ctrl.resyncPeriod,
 	)
 	_, err := ctrl.podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: ctrl.updatePod,
-		AddFunc:    ctrl.AddPod,
-		DeleteFunc: ctrl.DeletePod,
+		AddFunc:    ctrl.addPod,
+		DeleteFunc: ctrl.deletePod,
 	})
 	if err != nil {
 		panic("something is wrong")
@@ -223,11 +223,11 @@ func (ctrl *ArqController) updateArq(old, curr interface{}) {
 	ctrl.addQuota(ctrl.logger, curArq)
 }
 
-func (ctrl *ArqController) AddArq(obj interface{}) {
+func (ctrl *ArqController) addArq(obj interface{}) {
 	ctrl.addQuota(ctrl.logger, obj)
 }
 
-func (ctrl *ArqController) DeleteArq(obj interface{}) {
+func (ctrl *ArqController) deleteArq(obj interface{}) {
 	ctrl.enqueueArq(ctrl.logger, obj)
 }
 
@@ -239,12 +239,12 @@ func (ctrl *ArqController) updatePod(old, curr interface{}) {
 	}
 }
 
-func (ctrl *ArqController) AddPod(obj interface{}) {
+func (ctrl *ArqController) addPod(obj interface{}) {
 	pod := obj.(*v1.Pod)
 	ctrl.addAllArqsInNamespace(pod.Namespace)
 }
 
-func (ctrl *ArqController) DeletePod(obj interface{}) {
+func (ctrl *ArqController) deletePod(obj interface{}) {
 	pod := obj.(*v1.Pod)
 	ctrl.addAllArqsInNamespace(pod.Namespace)
 }
@@ -544,8 +544,7 @@ func (ctrl *ArqController) syncResourceQuota(arq *v1alpha12.ApplicationsResource
 func updateUsageFromResourceQuota(arq *v1alpha12.ApplicationsResourceQuota, rq *v1.ResourceQuota, newUsage map[v1.ResourceName]resource.Quantity) {
 	nonSchedulableResourcesHard := rq_controller.FilterNonScheduableResources(arq.Status.Hard)
 	if quota.Equals(rq.Spec.Hard, nonSchedulableResourcesHard) && rq.Status.Used != nil {
-		nonSchedulableResourcesUsage := rq_controller.FilterNonScheduableResources(rq.Status.Used)
-		for key, value := range nonSchedulableResourcesUsage {
+		for key, value := range rq.Status.Used {
 			newUsage[key] = value
 		}
 	}
