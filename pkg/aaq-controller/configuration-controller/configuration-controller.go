@@ -31,26 +31,31 @@ type AaqConfigurationController struct {
 	aaqCli                       client.AAQClient
 	calcRegistry                 *aaq_evaluator.AaqCalculatorsRegistry
 	stop                         <-chan struct{}
+	enqueueAllCargControllerChan chan<- struct{}
 	enqueueAllArgControllerChan  chan<- struct{}
 	enqueueAllGateControllerChan chan<- struct{}
+	onOpenshift                  bool
 }
 
 func NewAaqConfigurationController(aaqCli client.AAQClient,
 	aaqInformer cache.SharedIndexInformer,
 	calcRegistry *aaq_evaluator.AaqCalculatorsRegistry,
 	stop <-chan struct{},
+	enqueueAllCargControllerChan chan<- struct{},
 	enqueueAllArgControllerChan chan<- struct{},
 	enqueueAllGateControllerChan chan<- struct{},
+	onOpenshift bool,
 ) *AaqConfigurationController {
-
 	ctrl := AaqConfigurationController{
 		aaqCli:                       aaqCli,
 		aaqInformer:                  aaqInformer,
 		aaqQueue:                     workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "aaq-queue"),
 		calcRegistry:                 calcRegistry,
 		stop:                         stop,
+		enqueueAllCargControllerChan: enqueueAllCargControllerChan,
 		enqueueAllArgControllerChan:  enqueueAllArgControllerChan,
 		enqueueAllGateControllerChan: enqueueAllGateControllerChan,
+		onOpenshift:                  onOpenshift,
 	}
 
 	_, err := ctrl.aaqInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -128,6 +133,9 @@ func (ctrl *AaqConfigurationController) execute(_ string) (error, enqueueState) 
 
 	ctrl.enqueueAllArgControllerChan <- struct{}{}
 	ctrl.enqueueAllGateControllerChan <- struct{}{}
+	if ctrl.onOpenshift {
+		ctrl.enqueueAllCargControllerChan <- struct{}{}
+	}
 
 	return nil, Forget
 }

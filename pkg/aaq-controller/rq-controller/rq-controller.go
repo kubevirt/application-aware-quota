@@ -29,6 +29,8 @@ const (
 	Forget    enqueueState = "Forget"
 	BackOff   enqueueState = "BackOff"
 	RQSuffix  string       = "-non-schedulable-resources-managed-rq-x"
+	//todo:move this to crq-controller
+	CRQSuffix string = "-non-schedulable-resources-managed-crq-x"
 )
 
 type RQController struct {
