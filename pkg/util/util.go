@@ -10,7 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/util/certificate"
 	"k8s.io/klog/v2"
@@ -70,6 +69,8 @@ const (
 	InstallerPartOfLabel = "INSTALLER_PART_OF_LABEL"
 	// InstallerVersionLabel provides a constant to capture our env variable "INSTALLER_VERSION_LABEL"
 	InstallerVersionLabel = "INSTALLER_VERSION_LABEL"
+	// InstallerVersionLabel provides a constant to capture our env variable "INSTALLER_VERSION_LABEL"
+	IsOnOpenshift = "IS_ON_OPENSHIFT"
 	// TlsLabel provides a constant to capture our env variable "TLS"
 	TlsLabel = "TLS"
 	// ConfigMapName is the name of the aaq configmap that own aaq resources
@@ -338,10 +339,16 @@ func ToExternalPodOrError(obj k8sruntime.Object) (*corev1.Pod, error) {
 	return pod, nil
 }
 
-func IsOnOpenShift(clientset client2.AAQClient) (bool, error) {
+func OnOpenshift() bool {
+	clientset, err := client2.GetAAQClient()
+	if err != nil {
+		klog.Error(err.Error())
+		os.Exit(1)
+	}
 	_, apis, err := clientset.DiscoveryClient().ServerGroupsAndResources()
 	if err != nil && !discovery.IsGroupDiscoveryFailedError(err) {
-		return false, err
+		klog.Error(err.Error())
+		os.Exit(1)
 	}
 
 	// In case of an error, check if security.openshift.io is the reason (unlikely).
@@ -350,7 +357,7 @@ func IsOnOpenShift(clientset client2.AAQClient) (bool, error) {
 	if discovery.IsGroupDiscoveryFailedError(err) {
 		e := err.(*discovery.ErrGroupDiscoveryFailed)
 		if _, exists := e.Groups[secv1.GroupVersion]; exists {
-			return true, nil
+			return true
 		}
 	}
 
@@ -358,55 +365,11 @@ func IsOnOpenShift(clientset client2.AAQClient) (bool, error) {
 		if api.GroupVersion == secv1.GroupVersion.String() {
 			for _, resource := range api.APIResources {
 				if resource.Name == "securitycontextconstraints" {
-					return true, nil
+					return true
 				}
 			}
 		}
 	}
 
-	return false, nil
-}
-
-// SetOwnerRuntime makes the current "active" AAQ CR the owner of the object using runtime lib client
-func SetOwnerRuntime(client client.Client, object metav1.Object) error {
-	namespace := GetNamespace()
-	configMap := &corev1.ConfigMap{}
-	if err := client.Get(context.TODO(), types.NamespacedName{Name: ConfigMapName, Namespace: namespace}, configMap); err != nil {
-		klog.Warningf("ConfigMap %s does not exist, so not assigning owner", ConfigMapName)
-		return nil
-	}
-	return SetConfigAsOwner(configMap, object)
-}
-
-// SetConfigAsOwner sets the passed in config map as owner of the object
-func SetConfigAsOwner(configMap *corev1.ConfigMap, object metav1.Object) error {
-	configMapOwner := getController(configMap.GetOwnerReferences())
-
-	if configMapOwner == nil {
-		return fmt.Errorf("configmap has no owner")
-	}
-
-	for _, o := range object.GetOwnerReferences() {
-		if o.Controller != nil && *o.Controller {
-			if o.UID == configMapOwner.UID {
-				// already set to current obj
-				return nil
-			}
-
-			return fmt.Errorf("object %+v already owned by %+v", object, o)
-		}
-	}
-
-	object.SetOwnerReferences(append(object.GetOwnerReferences(), *configMapOwner))
-
-	return nil
-}
-
-func getController(owners []metav1.OwnerReference) *metav1.OwnerReference {
-	for _, owner := range owners {
-		if owner.Controller != nil && *owner.Controller {
-			return &owner
-		}
-	}
-	return nil
+	return false
 }

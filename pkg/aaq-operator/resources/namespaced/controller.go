@@ -18,7 +18,7 @@ func createAAQControllerResources(args *FactoryArgs) []client.Object {
 		createAAQControllerServiceAccount(),
 		createControllerRoleBinding(),
 		createControllerRole(),
-		createAAQControllerDeployment(args.ControllerImage, args.Verbosity, args.PullPolicy, args.ImagePullSecrets, args.PriorityClassName, args.InfraNodePlacement),
+		createAAQControllerDeployment(args.ControllerImage, args.Verbosity, args.PullPolicy, args.ImagePullSecrets, args.PriorityClassName, args.InfraNodePlacement, args.OnOpenshift),
 	}
 }
 func createControllerRoleBinding() *rbacv1.RoleBinding {
@@ -92,7 +92,7 @@ func createAAQControllerServiceAccount() *corev1.ServiceAccount {
 	return utils2.ResourceBuilder.CreateServiceAccount(utils2.ControllerResourceName)
 }
 
-func createAAQControllerDeployment(image, verbosity, pullPolicy string, imagePullSecrets []corev1.LocalObjectReference, priorityClassName string, infraNodePlacement *sdkapi.NodePlacement) *appsv1.Deployment {
+func createAAQControllerDeployment(image, verbosity, pullPolicy string, imagePullSecrets []corev1.LocalObjectReference, priorityClassName string, infraNodePlacement *sdkapi.NodePlacement, onOpenshift bool) *appsv1.Deployment {
 	defaultMode := corev1.ConfigMapVolumeSourceDefaultMode
 	deployment := utils2.CreateDeployment(utils2.ControllerResourceName, utils2.AAQLabel, utils2.ControllerResourceName, utils2.ControllerResourceName, imagePullSecrets, 2, infraNodePlacement)
 	if priorityClassName != "" {
@@ -106,6 +106,9 @@ func createAAQControllerDeployment(image, verbosity, pullPolicy string, imagePul
 		},
 	}
 	container := utils2.CreateContainer(utils2.ControllerResourceName, image, verbosity, pullPolicy)
+	if onOpenshift {
+		container.Args = append(container.Args, []string{"--" + utils2.IsOnOpenshift, "true"}...)
+	}
 	container.Ports = createAAQControllerPorts()
 	container.Env = []corev1.EnvVar{
 		{
@@ -188,6 +191,7 @@ func createAAQControllerDeployment(image, verbosity, pullPolicy string, imagePul
 	}
 	return deployment
 }
+
 func createAAQControllerPorts() []corev1.ContainerPort {
 	return []corev1.ContainerPort{
 		{
