@@ -11,9 +11,10 @@ import (
 
 // FactoryArgs contains the required parameters to generate all cluster-scoped resources
 type FactoryArgs struct {
-	Namespace string
-	Client    client.Client
-	Logger    logr.Logger
+	Namespace   string
+	Client      client.Client
+	Logger      logr.Logger
+	OnOpenshift bool
 }
 
 type factoryFunc func(*FactoryArgs) []client.Object

@@ -58,11 +58,12 @@ func newReconciler(mgr manager.Manager) (*ReconcileAAQ, error) {
 	var namespacedArgs aaqnamespaced.FactoryArgs
 	namespace := util.GetNamespace()
 	restClient := mgr.GetClient()
-
+	onOpenshift := util.OnOpenshift()
 	clusterArgs := &aaqcluster.FactoryArgs{
-		Namespace: namespace,
-		Client:    restClient,
-		Logger:    log,
+		Namespace:   namespace,
+		Client:      restClient,
+		Logger:      log,
+		OnOpenshift: onOpenshift,
 	}
 
 	err := envconfig.Process("", &namespacedArgs)
@@ -72,6 +73,7 @@ func newReconciler(mgr manager.Manager) (*ReconcileAAQ, error) {
 	}
 
 	namespacedArgs.Namespace = namespace
+	namespacedArgs.OnOpenshift = onOpenshift
 
 	log.Info("", "VARS", fmt.Sprintf("%+v", namespacedArgs))
 

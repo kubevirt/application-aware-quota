@@ -5,18 +5,18 @@ import (
 	"encoding/json"
 	"fmt"
 	admissionv1 "k8s.io/api/admission/v1"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 	handlerv1 "kubevirt.io/applications-aware-quota/pkg/aaq-server/handler"
+	"kubevirt.io/applications-aware-quota/pkg/client"
 	"net/http"
 )
 
 type AaqServerHandler struct {
-	aaqCli kubernetes.Interface
+	aaqCli client.AAQClient
 	aaqNS  string
 }
 
-func NewAaqServerHandler(aaqNS string, aaqCli kubernetes.Interface) *AaqServerHandler {
+func NewAaqServerHandler(aaqNS string, aaqCli client.AAQClient) *AaqServerHandler {
 	return &AaqServerHandler{aaqCli, aaqNS}
 }
 
