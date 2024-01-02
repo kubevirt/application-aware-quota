@@ -18,6 +18,7 @@ import (
 	"kubevirt.io/applications-aware-quota/pkg/log"
 	"kubevirt.io/applications-aware-quota/pkg/util"
 	v1alpha12 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
+	"reflect"
 	"strings"
 	"time"
 )
@@ -205,7 +206,9 @@ func (ctrl *RQController) execute(key string) (error, enqueueState) {
 				},
 			},
 			Spec: v1.ResourceQuotaSpec{
-				Hard: nonSchedulableResourcesLimitations,
+				Hard:          nonSchedulableResourcesLimitations,
+				Scopes:        arq.Spec.Scopes,
+				ScopeSelector: arq.Spec.ScopeSelector,
 			},
 		}
 		rq, err = ctrl.aaqCli.CoreV1().ResourceQuotas(arqNS).Create(context.Background(), rq, metav1.CreateOptions{})
@@ -217,7 +220,9 @@ func (ctrl *RQController) execute(key string) (error, enqueueState) {
 	}
 	rq := rqObj.(*v1.ResourceQuota).DeepCopy()
 
-	dirty := !quota.Equals(rq.Spec.Hard, nonSchedulableResourcesLimitations)
+	dirty := !quota.Equals(rq.Spec.Hard, nonSchedulableResourcesLimitations) ||
+		!reflect.DeepEqual(rq.Spec.ScopeSelector, arq.Spec.ScopeSelector) ||
+		!reflect.DeepEqual(rq.Spec.Scopes, arq.Spec.Scopes)
 
 	if rq.Labels == nil {
 		rq.Labels = map[string]string{
@@ -236,7 +241,12 @@ func (ctrl *RQController) execute(key string) (error, enqueueState) {
 		return nil, Forget
 	}
 
-	rq.Spec.Hard = nonSchedulableResourcesLimitations
+	rq.Spec = v1.ResourceQuotaSpec{
+		Hard:          nonSchedulableResourcesLimitations,
+		Scopes:        arq.Spec.Scopes,
+		ScopeSelector: arq.Spec.ScopeSelector,
+	}
+
 	_, err = ctrl.aaqCli.CoreV1().ResourceQuotas(arqNS).Update(context.Background(), rq, metav1.UpdateOptions{})
 	if err != nil {
 		return err, Immediate
