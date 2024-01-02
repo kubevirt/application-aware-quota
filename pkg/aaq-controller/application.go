@@ -39,6 +39,7 @@ import (
 	arq_controller2 "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-gate-controller"
 	carq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/additional-openshift-controllers/carq-controller"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-controller/additional-openshift-controllers/clusterquotamapping"
+	crq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/additional-openshift-controllers/crq-controller"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-controller/arq-controller"
 	built_in_usage_calculators "kubevirt.io/applications-aware-quota/pkg/aaq-controller/built-in-usage-calculators"
 	configuration_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/configuration-controller"
@@ -66,6 +67,7 @@ type AaqControllerApp struct {
 	clusterQuotaMappingController *clusterquotamapping.ClusterQuotaMappingController
 	aaqGateController             *arq_controller2.AaqGateController
 	rqController                  *rq_controller.RQController
+	crqController                 *crq_controller.CRQController
 	configController              *configuration_controller.AaqConfigurationController
 	podInformer                   cache.SharedIndexInformer
 	arqInformer                   cache.SharedIndexInformer
@@ -139,6 +141,7 @@ func Execute() {
 		app.carqInformer = informers.GetClusterAppsResourceQuotaInformer(app.aaqCli)
 		app.crqInformer = informers.GetClusterResourceQuotaInformer(app.aaqCli)
 		app.nsInformer = informers.GetNamespaceInformer(app.aaqCli)
+		app.initCRQController(stop)
 		app.initClusterQuotaMappingController(stop)
 		app.initCarqController(stop, app.clusterQuotaMappingController.GetClusterQuotaMapper())
 	}
@@ -216,6 +219,14 @@ func (mca *AaqControllerApp) initRQController(stop <-chan struct{}) {
 	mca.rqController = rq_controller.NewRQController(mca.aaqCli,
 		mca.rqInformer,
 		mca.arqInformer,
+		stop,
+	)
+}
+
+func (mca *AaqControllerApp) initCRQController(stop <-chan struct{}) {
+	mca.crqController = crq_controller.NewCRQController(mca.aaqCli,
+		mca.crqInformer,
+		mca.carqInformer,
 		stop,
 	)
 }
@@ -337,6 +348,9 @@ func (mca *AaqControllerApp) onStartedLeading() func(ctx context.Context) {
 			}()
 			go func() {
 				mca.carqController.Run(context.Background(), 3)
+			}()
+			go func() {
+				mca.crqController.Run(3)
 			}()
 		}
 

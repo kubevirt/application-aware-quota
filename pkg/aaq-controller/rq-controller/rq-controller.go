@@ -29,8 +29,6 @@ const (
 	Forget    enqueueState = "Forget"
 	BackOff   enqueueState = "BackOff"
 	RQSuffix  string       = "-non-schedulable-resources-managed-rq-x"
-	//todo:move this to crq-controller
-	CRQSuffix string = "-non-schedulable-resources-managed-crq-x"
 )
 
 type RQController struct {
@@ -182,7 +180,7 @@ func (ctrl *RQController) execute(key string) (error, enqueueState) {
 	}
 
 	arq := arqObj.(*v1alpha12.ApplicationsResourceQuota).DeepCopy()
-	nonSchedulableResourcesLimitations := FilterNonScheduableResources(arq.Spec.Hard)
+	nonSchedulableResourcesLimitations := util.FilterNonScheduableResources(arq.Spec.Hard)
 	if len(nonSchedulableResourcesLimitations) == 0 {
 		err = ctrl.aaqCli.CoreV1().ResourceQuotas(arqNS).Delete(context.Background(), arqName+RQSuffix, metav1.DeleteOptions{})
 		if err != nil && !errors.IsNotFound(err) {
@@ -245,39 +243,6 @@ func (ctrl *RQController) execute(key string) (error, enqueueState) {
 	}
 
 	return nil, Forget
-}
-
-func FilterNonScheduableResources(resourceList v1.ResourceList) v1.ResourceList {
-	rlCopy := resourceList.DeepCopy()
-	for resourceName := range resourceList {
-		if isSchedulableResource(resourceName) {
-			delete(rlCopy, resourceName)
-		}
-	}
-	return rlCopy
-}
-
-func isSchedulableResource(resourceName v1.ResourceName) bool {
-	schedulableResourcesWithoutPrefix := map[v1.ResourceName]bool{
-		v1.ResourcePods:             true,
-		v1.ResourceCPU:              true,
-		v1.ResourceMemory:           true,
-		v1.ResourceEphemeralStorage: true,
-	}
-
-	if schedulableResourcesWithoutPrefix[resourceName] {
-		return true
-	}
-
-	if resourceName == v1.ResourceRequestsStorage {
-		return false
-	}
-	// Check if the resource name contains the "requests." or "limits." prefix
-	if strings.HasPrefix(string(resourceName), "requests.") || strings.HasPrefix(string(resourceName), "limits.") {
-		return true
-	}
-
-	return false
 }
 
 func (ctrl *RQController) Run(threadiness int) {

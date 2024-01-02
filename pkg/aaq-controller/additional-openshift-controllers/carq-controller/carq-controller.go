@@ -22,7 +22,7 @@ import (
 	"k8s.io/utils/clock"
 	aaq_evaluator "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-evaluator"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-controller/additional-openshift-controllers/clusterquotamapping"
-	rq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/rq-controller"
+	crq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/additional-openshift-controllers/crq-controller"
 	"kubevirt.io/applications-aware-quota/pkg/client"
 	"kubevirt.io/applications-aware-quota/pkg/log"
 	"kubevirt.io/applications-aware-quota/pkg/util"
@@ -311,7 +311,7 @@ func (ctrl *CarqController) syncQuotaForNamespaces(originalQuota *v1alpha1.Clust
 	}
 
 	var crq *quotav1.ClusterResourceQuota
-	crqObj, exists, err := ctrl.crqInformer.GetIndexer().GetByKey("/" + quota.Name + rq_controller.CRQSuffix)
+	crqObj, exists, err := ctrl.crqInformer.GetIndexer().GetByKey(quota.Name + crq_controller.CRQSuffix)
 	if err != nil {
 		reconcilationErrors = append(reconcilationErrors, err)
 	} else if exists {
@@ -361,7 +361,7 @@ func (ctrl *CarqController) addAllCarqsAppliedToNamespace(namespace string) {
 func (ctrl *CarqController) updateCRQ(old, curr interface{}) {
 	crq := curr.(*quotav1.ClusterResourceQuota)
 	carq := &v1alpha1.ClusterAppsResourceQuota{
-		ObjectMeta: metav1.ObjectMeta{Name: strings.TrimSuffix(crq.Name, rq_controller.CRQSuffix), Namespace: crq.Namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: strings.TrimSuffix(crq.Name, crq_controller.CRQSuffix), Namespace: crq.Namespace},
 	}
 	ctrl.enqueueClusterQuota(carq)
 	return
@@ -370,7 +370,7 @@ func (ctrl *CarqController) updateCRQ(old, curr interface{}) {
 func (ctrl *CarqController) deleteCRQ(obj interface{}) {
 	crq := obj.(*quotav1.ClusterResourceQuota)
 	carq := &v1alpha1.ClusterAppsResourceQuota{
-		ObjectMeta: metav1.ObjectMeta{Name: strings.TrimSuffix(crq.Name, rq_controller.CRQSuffix), Namespace: crq.Namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: strings.TrimSuffix(crq.Name, crq_controller.CRQSuffix), Namespace: crq.Namespace},
 	}
 	ctrl.enqueueClusterQuota(carq)
 	return
@@ -379,7 +379,7 @@ func (ctrl *CarqController) deleteCRQ(obj interface{}) {
 func (ctrl *CarqController) addCRQ(obj interface{}) {
 	crq := obj.(*quotav1.ClusterResourceQuota)
 	carq := &v1alpha1.ClusterAppsResourceQuota{
-		ObjectMeta: metav1.ObjectMeta{Name: strings.TrimSuffix(crq.Name, rq_controller.CRQSuffix), Namespace: crq.Namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: strings.TrimSuffix(crq.Name, crq_controller.CRQSuffix), Namespace: crq.Namespace},
 	}
 	ctrl.enqueueClusterQuota(carq)
 	return
@@ -453,7 +453,7 @@ func (c *CarqController) RemoveMapping(quotaName, namespaceName string) {
 var quotaUsageCalculationFunc = utilquota.CalculateUsage
 
 func updateUsageFromResourceQuota(carq *v1alpha1.ClusterAppsResourceQuota, crq *quotav1.ClusterResourceQuota) {
-	nonSchedulableResourcesHard := rq_controller.FilterNonScheduableResources(carq.Status.Total.Hard)
+	nonSchedulableResourcesHard := util.FilterNonScheduableResources(carq.Status.Total.Hard)
 	if quota.Equals(crq.Spec.Quota.Hard, nonSchedulableResourcesHard) && crq.Status.Total.Used != nil {
 		for key, value := range crq.Status.Total.Used {
 			carq.Status.Total.Used[key] = value
