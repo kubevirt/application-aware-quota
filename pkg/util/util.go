@@ -373,3 +373,36 @@ func OnOpenshift() bool {
 
 	return false
 }
+
+func FilterNonScheduableResources(resourceList corev1.ResourceList) corev1.ResourceList {
+	rlCopy := resourceList.DeepCopy()
+	for resourceName := range resourceList {
+		if isSchedulableResource(resourceName) {
+			delete(rlCopy, resourceName)
+		}
+	}
+	return rlCopy
+}
+
+func isSchedulableResource(resourceName corev1.ResourceName) bool {
+	schedulableResourcesWithoutPrefix := map[corev1.ResourceName]bool{
+		corev1.ResourcePods:             true,
+		corev1.ResourceCPU:              true,
+		corev1.ResourceMemory:           true,
+		corev1.ResourceEphemeralStorage: true,
+	}
+
+	if schedulableResourcesWithoutPrefix[resourceName] {
+		return true
+	}
+
+	if resourceName == corev1.ResourceRequestsStorage {
+		return false
+	}
+	// Check if the resource name contains the "requests." or "limits." prefix
+	if strings.HasPrefix(string(resourceName), "requests.") || strings.HasPrefix(string(resourceName), "limits.") {
+		return true
+	}
+
+	return false
+}

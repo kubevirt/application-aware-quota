@@ -110,6 +110,7 @@ func getControllerClusterPolicyRules() []rbacv1.PolicyRule {
 				"watch",
 				"create",
 				"delete",
+				"update",
 			},
 		},
 		{
@@ -162,6 +163,30 @@ func getControllerClusterPolicyRules() []rbacv1.PolicyRule {
 				"get",
 				"watch",
 				"list",
+			},
+		},
+		{
+			APIGroups: []string{
+				"aaq.kubevirt.io",
+			},
+			Resources: []string{
+				"clusterappsresourcequotas/finalizers",
+			},
+			Verbs: []string{
+				"create",
+				"update",
+			},
+		},
+		{
+			APIGroups: []string{
+				"aaq.kubevirt.io",
+			},
+			Resources: []string{
+				"applicationsresourcequotas/finalizers",
+			},
+			Verbs: []string{
+				"create",
+				"update",
 			},
 		},
 		{

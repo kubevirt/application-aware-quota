@@ -22,6 +22,7 @@ import (
 	rq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/rq-controller"
 	"kubevirt.io/applications-aware-quota/pkg/client"
 	"kubevirt.io/applications-aware-quota/pkg/log"
+	"kubevirt.io/applications-aware-quota/pkg/util"
 	v1alpha12 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	"strings"
 	"time"
@@ -542,7 +543,7 @@ func (ctrl *ArqController) syncResourceQuota(arq *v1alpha12.ApplicationsResource
 }
 
 func updateUsageFromResourceQuota(arq *v1alpha12.ApplicationsResourceQuota, rq *v1.ResourceQuota, newUsage map[v1.ResourceName]resource.Quantity) {
-	nonSchedulableResourcesHard := rq_controller.FilterNonScheduableResources(arq.Status.Hard)
+	nonSchedulableResourcesHard := util.FilterNonScheduableResources(arq.Status.Hard)
 	if quota.Equals(rq.Spec.Hard, nonSchedulableResourcesHard) && rq.Status.Used != nil {
 		for key, value := range rq.Status.Used {
 			newUsage[key] = value
