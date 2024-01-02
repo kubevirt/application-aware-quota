@@ -66,11 +66,14 @@ func createResourceGroup(funcMap factoryFuncMap, group string, args *FactoryArgs
 }
 
 func createCRDResources(args *FactoryArgs) []client.Object {
-	return []client.Object{
+	objs := []client.Object{
 		createApplicationsResourceQuotaCRD(),
 		createAaqJobQueueConfigsCRD(),
-		createClusterAppsResourceQuotaCRD(),
 	}
+	if args.OnOpenshift {
+		objs = append(objs, createClusterAppsResourceQuotaCRD())
+	}
+	return objs
 }
 
 // GetClusterRolePolicyRules returns all cluster PolicyRules
