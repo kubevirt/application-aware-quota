@@ -127,7 +127,8 @@ type AAQJobQueueConfigSpec struct {
 // AAQJobQueueConfigStatus defines the status with metadata for current jobs
 type AAQJobQueueConfigStatus struct {
 	// BuiltInCalculationConfigToApply
-	PodsInJobQueue []string `json:"podsInJobQueue,omitempty"`
+	PodsInJobQueue []string        `json:"podsInJobQueue,omitempty"`
+	ControllerLock map[string]bool `json:"controllerLock,omitempty"`
 }
 
 // AAQSpec defines our specification for the AAQ installation

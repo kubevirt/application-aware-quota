@@ -18,9 +18,11 @@ import (
 	utilquota "k8s.io/apiserver/pkg/quota/v1"
 	"k8s.io/apiserver/pkg/quota/v1/generic"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
 	aaq_evaluator "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-evaluator"
+	arq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-gate-controller"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-controller/additional-openshift-controllers/clusterquotamapping"
 	crq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/additional-openshift-controllers/crq-controller"
 	"kubevirt.io/applications-aware-quota/pkg/client"
@@ -31,6 +33,14 @@ import (
 	"strings"
 	"sync"
 	"time"
+)
+
+type enqueueState string
+
+const (
+	Immediate enqueueState = "Immediate"
+	Forget    enqueueState = "Forget"
+	BackOff   enqueueState = "BackOff"
 )
 
 type CarqController struct {
@@ -47,8 +57,8 @@ type CarqController struct {
 	// queue tracks which clusterquotas to update along with a list of namespaces for that clusterquota
 	queue util.BucketingWorkQueue
 
-	// queueForAaqjqc tracks changes in the cluster Aaqjqc
-	queueForAaqjqc util.BucketingWorkQueue
+	// nsQueue tracks changes in Aaqjqcs
+	nsQueue workqueue.RateLimitingInterface
 
 	// knows how to calculate usage
 	registry utilquota.Registry
@@ -86,6 +96,7 @@ func NewCarqController(aaqCli client.AAQClient,
 		resyncPeriod:       metav1.Duration{Duration: 5 * time.Minute}.Duration,
 		registry:           generic.NewRegistry([]quota.Evaluator{aaq_evaluator.NewAaqEvaluator(podInformer, calcRegistry, clock.RealClock{})}),
 		queue:              util.NewBucketingWorkQueue("controller_clusterquotareconcilationcontroller"),
+		nsQueue:            workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "ns_queue"),
 		enqueueAllChan:     enqueueAllChan,
 		stop:               stop,
 	}
@@ -144,6 +155,8 @@ func (c *CarqController) Run(ctx context.Context, workers int) {
 	// the workers that chug through the quota calculation backlog
 	for i := 0; i < workers; i++ {
 		go wait.Until(c.worker, time.Second, c.stop)
+		go wait.Until(c.runGateWatcherWorker, time.Second, c.stop)
+
 	}
 
 	// the timer for how often we do a full recalculation across all quotas
@@ -319,7 +332,7 @@ func (ctrl *CarqController) syncQuotaForNamespaces(originalQuota *v1alpha1.Clust
 	}
 
 	if exists && crq.Status.Total.Hard != nil && quota.Status.Total.Hard != nil {
-		updateUsageFromResourceQuota(quota, crq)
+		updateUsageFromClusterResourceQuota(quota, crq)
 	}
 
 	// Remove any namespaces from quota.status that no longer match.
@@ -388,8 +401,8 @@ func (ctrl *CarqController) addCRQ(obj interface{}) {
 // When a ApplicationsResourceQuotaaqjqc.Status.PodsInJobQueuea is updated, enqueue all gated pods for revaluation
 func (ctrl *CarqController) updateAaqjqc(old, cur interface{}) {
 	aaqjqc := cur.(*v1alpha1.AAQJobQueueConfig)
-	if aaqjqc.Status.PodsInJobQueue != nil && len(aaqjqc.Status.PodsInJobQueue) > 0 {
-		ctrl.calculateAll(ctrl.queueForAaqjqc)
+	if aaqjqc.Status.ControllerLock[arq_controller.ClusterAppsResourceQuotaLockName] {
+		ctrl.nsQueue.Add(aaqjqc.Namespace)
 	}
 	return
 }
@@ -397,8 +410,8 @@ func (ctrl *CarqController) updateAaqjqc(old, cur interface{}) {
 // When a ApplicationsResourceQuotaaqjqc.Status.PodsInJobQueuea is updated, enqueue all gated pods for revaluation
 func (ctrl *CarqController) addAaqjqc(obj interface{}) {
 	aaqjqc := obj.(*v1alpha1.AAQJobQueueConfig)
-	if aaqjqc.Status.PodsInJobQueue != nil && len(aaqjqc.Status.PodsInJobQueue) > 0 {
-		ctrl.calculateAll(ctrl.queueForAaqjqc)
+	if aaqjqc.Status.ControllerLock[arq_controller.ClusterAppsResourceQuotaLockName] {
+		ctrl.nsQueue.Add(aaqjqc.Namespace)
 	}
 	return
 }
@@ -452,7 +465,7 @@ func (c *CarqController) RemoveMapping(quotaName, namespaceName string) {
 // NEVER CHANGE THIS OUTSIDE A TEST
 var quotaUsageCalculationFunc = utilquota.CalculateUsage
 
-func updateUsageFromResourceQuota(carq *v1alpha1.ClusterAppsResourceQuota, crq *quotav1.ClusterResourceQuota) {
+func updateUsageFromClusterResourceQuota(carq *v1alpha1.ClusterAppsResourceQuota, crq *quotav1.ClusterResourceQuota) {
 	nonSchedulableResourcesHard := util.FilterNonScheduableResources(carq.Status.Total.Hard)
 	if quota.Equals(crq.Spec.Quota.Hard, nonSchedulableResourcesHard) && crq.Status.Total.Used != nil {
 		for key, value := range crq.Status.Total.Used {
@@ -475,4 +488,89 @@ func updateUsageFromResourceQuota(carq *v1alpha1.ClusterAppsResourceQuota, crq *
 			}
 		}
 	}
+}
+
+func (ctrl *CarqController) runGateWatcherWorker() {
+	for ctrl.Execute() {
+	}
+}
+
+func (ctrl *CarqController) Execute() bool {
+	ns, quit := ctrl.nsQueue.Get()
+	if quit {
+		return false
+	}
+	defer ctrl.nsQueue.Done(ns)
+	err, enqueueState := ctrl.execute(ns.(string))
+
+	if err != nil {
+		log.Log.Infof(fmt.Sprintf("ArqController: Error with key: %v err: %v", ns, err))
+	}
+	switch enqueueState {
+	case BackOff:
+		ctrl.nsQueue.AddRateLimited(ns)
+	case Forget:
+		ctrl.nsQueue.Forget(ns)
+	case Immediate:
+		ctrl.nsQueue.Add(ns)
+	}
+
+	return true
+}
+
+func (ctrl *CarqController) execute(ns string) (error, enqueueState) {
+	var aaqjqc *v1alpha1.AAQJobQueueConfig
+	aaqjqcObj, exists, err := ctrl.aaqjqcInformer.GetIndexer().GetByKey(ns + "/" + arq_controller.AaqjqcName)
+	if err != nil {
+		return err, Immediate
+	} else if exists {
+		aaqjqc = aaqjqcObj.(*v1alpha1.AAQJobQueueConfig).DeepCopy()
+	}
+
+	if aaqjqc != nil && aaqjqc.Status.ControllerLock != nil && aaqjqc.Status.ControllerLock[arq_controller.ClusterAppsResourceQuotaLockName] {
+		if res, err := ctrl.verifyPodsWithOutSchedulingGates(ns, aaqjqc.Status.PodsInJobQueue); err != nil || !res {
+			return err, Immediate //wait until gate controller remove the scheduling gates
+		}
+	}
+
+	carqs, _ := ctrl.clusterQuotaMapper.GetClusterQuotasFor(ns)
+	for _, carq := range carqs {
+		quotaObj, exists, err := ctrl.carqInformer.GetIndexer().GetByKey(carq)
+		if !exists || err != nil {
+			return err, Immediate
+		}
+		err, retryItems := ctrl.syncQuotaForNamespaces(quotaObj.(*v1alpha1.ClusterAppsResourceQuota), []workItem{{namespaceName: ns, forceRecalculation: true}})
+		if err != nil || len(retryItems) != 0 {
+			return err, Immediate
+		}
+	}
+
+	if aaqjqc != nil && aaqjqc.Status.ControllerLock != nil && aaqjqc.Status.ControllerLock[arq_controller.ClusterAppsResourceQuotaLockName] {
+		aaqjqc.Status.ControllerLock[arq_controller.ClusterAppsResourceQuotaLockName] = false
+		_, err = ctrl.aaqCli.AAQJobQueueConfigs(ns).UpdateStatus(context.Background(), aaqjqc, metav1.UpdateOptions{})
+		if err != nil {
+			return err, Immediate
+		}
+	}
+	return nil, Forget
+}
+
+// CheckPodsForSchedulingGates checks that all pods in the specified namespace
+// with the specified names do not have scheduling gates.
+func (ctrl *CarqController) verifyPodsWithOutSchedulingGates(namespace string, podNames []string) (bool, error) {
+	podList, err := ctrl.aaqCli.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return false, err
+	}
+
+	// Iterate through all pods and check for scheduling gates.
+	for _, pod := range podList.Items {
+		for _, name := range podNames {
+			if pod.Name == name && len(pod.Spec.SchedulingGates) > 0 {
+				return false, nil
+			}
+		}
+	}
+
+	return true, nil
 }

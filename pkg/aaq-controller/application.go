@@ -29,6 +29,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	v14 "k8s.io/client-go/kubernetes/typed/core/v1"
+	v12 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
@@ -47,6 +48,7 @@ import (
 	rq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/rq-controller"
 	"kubevirt.io/applications-aware-quota/pkg/certificates/bootstrap"
 	"kubevirt.io/applications-aware-quota/pkg/client"
+	"kubevirt.io/applications-aware-quota/pkg/generated/aaq/listers/core/v1alpha1"
 	"kubevirt.io/applications-aware-quota/pkg/informers"
 	"kubevirt.io/applications-aware-quota/pkg/util"
 	golog "log"
@@ -131,11 +133,9 @@ func Execute() {
 
 	stop := ctx.Done()
 	app.calcRegistry = aaq_evaluator.NewAaqCalculatorsRegistry(10, clock.RealClock{}).AddBuiltInCalculator(util.LauncherConfig, built_in_usage_calculators.NewVirtLauncherCalculator(stop))
-
-	app.initArqController(stop)
-	app.initAaqGateController(stop)
-	app.initRQController(stop)
-	app.initAaqConfigurationController(stop)
+	var clusterQuotaLister v1alpha1.ClusterAppsResourceQuotaLister
+	var namespaceLister v12.NamespaceLister
+	var clusterQuotaMapper clusterquotamapping.ClusterQuotaMapper
 
 	if app.onOpenshift {
 		app.carqInformer = informers.GetClusterAppsResourceQuotaInformer(app.aaqCli)
@@ -144,7 +144,15 @@ func Execute() {
 		app.initCRQController(stop)
 		app.initClusterQuotaMappingController(stop)
 		app.initCarqController(stop, app.clusterQuotaMappingController.GetClusterQuotaMapper())
+		clusterQuotaLister = v1alpha1.NewClusterAppsResourceQuotaLister(app.carqInformer.GetIndexer())
+		namespaceLister = v12.NewNamespaceLister(app.nsInformer.GetIndexer())
+		clusterQuotaMapper = app.clusterQuotaMappingController.GetClusterQuotaMapper()
 	}
+
+	app.initArqController(stop)
+	app.initAaqGateController(stop, clusterQuotaLister, namespaceLister, clusterQuotaMapper)
+	app.initRQController(stop)
+	app.initAaqConfigurationController(stop)
 
 	app.Run(stop)
 
@@ -204,12 +212,21 @@ func (mca *AaqControllerApp) initClusterQuotaMappingController(stop <-chan struc
 	)
 }
 
-func (mca *AaqControllerApp) initAaqGateController(stop <-chan struct{}) {
+func (mca *AaqControllerApp) initAaqGateController(stop <-chan struct{},
+	clusterQuotaLister v1alpha1.ClusterAppsResourceQuotaLister,
+	namespaceLister v12.NamespaceLister,
+	clusterQuotaMapper clusterquotamapping.ClusterQuotaMapper,
+) {
 	mca.aaqGateController = arq_controller2.NewAaqGateController(mca.aaqCli,
 		mca.podInformer,
 		mca.arqInformer,
 		mca.aaqjqcInformer,
+		mca.carqInformer,
 		mca.calcRegistry,
+		clusterQuotaLister,
+		namespaceLister,
+		clusterQuotaMapper,
+		mca.onOpenshift,
 		stop,
 		mca.enqueueAllGateControllerChan,
 	)
