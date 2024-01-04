@@ -182,6 +182,13 @@ func (in *AAQJobQueueConfigStatus) DeepCopyInto(out *AAQJobQueueConfigStatus) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.ControllerLock != nil {
+		in, out := &in.ControllerLock, &out.ControllerLock
+		*out = make(map[string]bool, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	return
 }
 

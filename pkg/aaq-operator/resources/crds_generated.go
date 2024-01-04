@@ -2108,6 +2108,10 @@ spec:
             description: AAQJobQueueConfigStatus defines the status with metadata
               for current jobs
             properties:
+              controllerLock:
+                additionalProperties:
+                  type: boolean
+                type: object
               podsInJobQueue:
                 description: BuiltInCalculationConfigToApply
                 items:

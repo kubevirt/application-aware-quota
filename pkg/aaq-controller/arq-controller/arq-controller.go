@@ -46,7 +46,7 @@ type ArqController struct {
 	// A list of functions that return true when their caches have synced
 	arqQueue          workqueue.RateLimitingInterface
 	missingUsageQueue workqueue.RateLimitingInterface
-	enqueueAllQueue   workqueue.RateLimitingInterface
+	nsQueue           workqueue.RateLimitingInterface
 	// Controls full recalculation of quota usage
 	resyncPeriod time.Duration
 	// knows how to calculate usage
@@ -78,7 +78,7 @@ func NewArqController(clientSet client.AAQClient,
 		aaqjqcInformer:    aaqjqcInformer,
 		arqQueue:          workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq_primary"),
 		missingUsageQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq_priority"),
-		enqueueAllQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq_enqueue_all"),
+		nsQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "ns_queue"),
 		resyncPeriod:      metav1.Duration{Duration: 5 * time.Minute}.Duration,
 		//recorder:          eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: util.ControllerPodName}),
 		evalRegistry:   generic.NewRegistry([]quota.Evaluator{aaq_evaluator.NewAaqEvaluator(podInformer, calcRegistry, clock.RealClock{})}),
@@ -167,8 +167,8 @@ func (ctrl *ArqController) addRQ(obj interface{}) {
 // When a ApplicationsResourceQuotaaqjqc.Status.PodsInJobQueuea is updated, enqueue all gated pods for revaluation
 func (ctrl *ArqController) updateAaqjqc(old, cur interface{}) {
 	aaqjqc := cur.(*v1alpha12.AAQJobQueueConfig)
-	if aaqjqc.Status.PodsInJobQueue != nil && len(aaqjqc.Status.PodsInJobQueue) > 0 {
-		ctrl.addAllArqsInNamespace(aaqjqc.Namespace)
+	if aaqjqc.Status.ControllerLock[arq_controller.ApplicationsResourceQuotaLockName] {
+		ctrl.nsQueue.Add(aaqjqc.Namespace)
 	}
 	return
 }
@@ -176,30 +176,10 @@ func (ctrl *ArqController) updateAaqjqc(old, cur interface{}) {
 // When a ApplicationsResourceQuotaaqjqc.Status.PodsInJobQueuea is updated, enqueue all gated pods for revaluation
 func (ctrl *ArqController) addAaqjqc(obj interface{}) {
 	aaqjqc := obj.(*v1alpha12.AAQJobQueueConfig)
-	if aaqjqc.Status.PodsInJobQueue != nil && len(aaqjqc.Status.PodsInJobQueue) > 0 {
-		ctrl.addAllArqsInNamespace(aaqjqc.Namespace)
+	if aaqjqc.Status.ControllerLock[arq_controller.ApplicationsResourceQuotaLockName] {
+		ctrl.nsQueue.Add(aaqjqc.Namespace)
 	}
 	return
-}
-
-func (ctrl *ArqController) addAllArqsInNamespace(ns string) {
-	arqObjs, err := ctrl.arqInformer.GetIndexer().ByIndex(cache.NamespaceIndex, ns)
-	if err != nil {
-		log.Log.Infof("AaqGateController: Error failed to list pod from podInformer")
-	}
-	found := false
-	for _, arqObj := range arqObjs {
-		arq := arqObj.(*v1alpha12.ApplicationsResourceQuota)
-		key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(arq)
-		if err != nil {
-			return
-		}
-		found = true
-		ctrl.enqueueAllQueue.Add(key)
-	}
-	if !found {
-		ctrl.enqueueAllQueue.Add(ns + "/fake")
-	}
 }
 
 // enqueueAll is called at the fullResyncPeriod interval to force a full recalculation of quota usage statistics
@@ -236,18 +216,18 @@ func (ctrl *ArqController) updatePod(old, curr interface{}) {
 	currPod := curr.(*v1.Pod)
 	oldPod := old.(*v1.Pod)
 	if len(oldPod.Spec.SchedulingGates) == 0 && len(currPod.Spec.SchedulingGates) == 0 {
-		ctrl.addAllArqsInNamespace(currPod.Namespace)
+		ctrl.nsQueue.Add(currPod.Namespace)
 	}
 }
 
 func (ctrl *ArqController) addPod(obj interface{}) {
 	pod := obj.(*v1.Pod)
-	ctrl.addAllArqsInNamespace(pod.Namespace)
+	ctrl.nsQueue.Add(pod.Namespace)
 }
 
 func (ctrl *ArqController) deletePod(obj interface{}) {
 	pod := obj.(*v1.Pod)
-	ctrl.addAllArqsInNamespace(pod.Namespace)
+	ctrl.nsQueue.Add(pod.Namespace)
 }
 
 func (ctrl *ArqController) runGateWatcherWorker() {
@@ -256,39 +236,41 @@ func (ctrl *ArqController) runGateWatcherWorker() {
 }
 
 func (ctrl *ArqController) Execute() bool {
-	key, quit := ctrl.enqueueAllQueue.Get()
+	ns, quit := ctrl.nsQueue.Get()
 	if quit {
 		return false
 	}
-	defer ctrl.enqueueAllQueue.Done(key)
-	err, enqueueState := ctrl.execute(key.(string))
+	defer ctrl.nsQueue.Done(ns)
+	err, enqueueState := ctrl.execute(ns.(string))
 
 	if err != nil {
-		log.Log.Infof(fmt.Sprintf("ArqController: Error with key: %v err: %v", key, err))
+		log.Log.Infof(fmt.Sprintf("ArqController: Error with key: %v err: %v", ns, err))
 	}
 	switch enqueueState {
 	case BackOff:
-		ctrl.enqueueAllQueue.AddRateLimited(key)
+		ctrl.nsQueue.AddRateLimited(ns)
 	case Forget:
-		ctrl.enqueueAllQueue.Forget(key)
+		ctrl.nsQueue.Forget(ns)
 	case Immediate:
-		ctrl.enqueueAllQueue.Add(key)
+		ctrl.nsQueue.Add(ns)
 	}
 
 	return true
 }
 
-func (ctrl *ArqController) execute(key string) (error, enqueueState) {
+func (ctrl *ArqController) execute(ns string) (error, enqueueState) {
 	var aaqjqc *v1alpha12.AAQJobQueueConfig
-	ns, _, err := cache.SplitMetaNamespaceKey(key)
-	if err != nil {
-		return err, Forget
-	}
 	aaqjqcObj, exists, err := ctrl.aaqjqcInformer.GetIndexer().GetByKey(ns + "/" + arq_controller.AaqjqcName)
 	if err != nil {
 		return err, Immediate
 	} else if exists {
 		aaqjqc = aaqjqcObj.(*v1alpha12.AAQJobQueueConfig).DeepCopy()
+	}
+
+	if aaqjqc != nil && aaqjqc.Status.ControllerLock != nil && aaqjqc.Status.ControllerLock[arq_controller.ApplicationsResourceQuotaLockName] {
+		if res, err := ctrl.verifyPodsWithOutSchedulingGates(ns, aaqjqc.Status.PodsInJobQueue); err != nil || !res {
+			return err, Immediate //wait until gate controller remove the scheduling gates
+		}
 	}
 
 	arqObjs, err := ctrl.arqInformer.GetIndexer().ByIndex(cache.NamespaceIndex, ns)
@@ -304,16 +286,11 @@ func (ctrl *ArqController) execute(key string) (error, enqueueState) {
 		}
 	}
 
-	if aaqjqc != nil {
-		if res, err := ctrl.verifyPodsWithOutSchedulingGates(ns, aaqjqc.Status.PodsInJobQueue); err != nil || !res {
+	if aaqjqc != nil && aaqjqc.Status.ControllerLock != nil && aaqjqc.Status.ControllerLock[arq_controller.ApplicationsResourceQuotaLockName] {
+		aaqjqc.Status.ControllerLock[arq_controller.ApplicationsResourceQuotaLockName] = false
+		_, err = ctrl.aaqCli.AAQJobQueueConfigs(ns).UpdateStatus(context.Background(), aaqjqc, metav1.UpdateOptions{})
+		if err != nil {
 			return err, Immediate
-		}
-		if len(aaqjqc.Status.PodsInJobQueue) > 0 {
-			aaqjqc.Status.PodsInJobQueue = []string{}
-			_, err = ctrl.aaqCli.AAQJobQueueConfigs(ns).UpdateStatus(context.Background(), aaqjqc, metav1.UpdateOptions{})
-			if err != nil {
-				return err, Immediate
-			}
 		}
 	}
 	return nil, Forget
