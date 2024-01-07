@@ -21,7 +21,7 @@ const (
 	allowPodRequest               = "Pod has successfully gated"
 	allowArqRequest               = "ApplicationsResourceQuota request is valid"
 	allowCarqRequest              = "ClusterAppsResourceQuota request is valid"
-	validatingResourceQuotaPrefix = "arq-validating-rq-"
+	validatingResourceQuotaPrefix = "aaq-validating-rq-"
 	validPodUpdate                = "Pod update did not remove AAQGate"
 	aaqControllerPodUpdate        = "AAQ controller has permission to remove gate from pods"
 	invalidPodUpdate              = "Only AAQ controller has permission to remove " + util.AAQGate + " gate from pods"
