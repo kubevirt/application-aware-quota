@@ -47,7 +47,7 @@ var _ = Describe("Test aaq-gate-controller", func() {
 			cli.EXPECT().CoreV1().Times(1).Return(fakek8sCli.CoreV1())
 
 			qc := setupAAQGateController(cli, nil, nil, aaqjcInformer)
-			err, es := qc.execute(testNs + "/fakeArq")
+			err, es := qc.execute(testNs)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(es).To(Equal(Forget))
 		})
@@ -65,7 +65,7 @@ var _ = Describe("Test aaq-gate-controller", func() {
 			cli.EXPECT().CoreV1().Times(1).Return(fakek8sCli.CoreV1())
 		}
 		qc := setupAAQGateController(cli, podInformer, arqInformer, aaqjqcInformer)
-		err, es := qc.execute(testNs + "/fakeArq")
+		err, es := qc.execute(testNs)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(es).To(Equal(Immediate))
 		actionSet := sets.NewString()
@@ -115,7 +115,7 @@ var _ = Describe("Test aaq-gate-controller", func() {
 			cli.EXPECT().AAQJobQueueConfigs(testNs).Return(aaqjqcInterfaceMock).Times(1)
 		}
 		qc := setupAAQGateController(cli, podInformer, arqInformer, aaqjqcInformer)
-		err, es := qc.execute(testNs + "/fakeArq")
+		err, es := qc.execute(testNs)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(es).To(Equal(Forget))
 		actionSet := sets.NewString()
@@ -364,7 +364,12 @@ func setupAAQGateController(clientSet client.AAQClient, podInformer cache.Shared
 		podInformer,
 		arqInformer,
 		aaqjcInformer,
+		nil,
 		aaq_evaluator.NewAaqCalculatorsRegistry(3, fakeClock),
+		nil,
+		nil,
+		nil,
+		false,
 		stop,
 		enqueueAllChan,
 	)
