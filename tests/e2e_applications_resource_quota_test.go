@@ -240,6 +240,7 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		_, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
 		verifyPodIsGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Delete(ctx, pod.Name, *metav1.NewDeleteOptions(0))
 
 		By("Not allowing a pod to be created that exceeds remaining quota(validation on extended resources)")
 		requests = v1.ResourceList{}
@@ -253,6 +254,7 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		_, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
 		verifyPodIsGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Delete(ctx, pod.Name, *metav1.NewDeleteOptions(0))
 
 		By("Ensuring a pod cannot update its resource requirements")
 		// a pod cannot dynamically update its resource requirements.
@@ -262,7 +264,7 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		requests[v1.ResourceEphemeralStorage] = resource.MustParse("10Gi")
 		podToUpdate.Spec.Containers[0].Resources.Requests = requests
 		_, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Update(ctx, podToUpdate, metav1.UpdateOptions{})
-		verifyPodIsGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		Expect(err).To(HaveOccurred())
 
 		By("Ensuring attempts to update pod resource requirements did not change quota usage")
 		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
@@ -782,17 +784,22 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		arq, err := createApplicationsResourceQuota(ctx, f.AaqClient, ns, arq)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Getting a ApplicationsResourceQuota")
-		resourceQuotaResult, err := f.AaqClient.AaqV1alpha1().ApplicationsResourceQuotas(ns).Get(ctx, quotaName, metav1.GetOptions{})
-		Expect(err).ToNot(HaveOccurred())
-		Expect(resourceQuotaResult.Spec.Hard).To(HaveKeyWithValue(v1.ResourceCPU, resource.MustParse("1")))
-		Expect(resourceQuotaResult.Spec.Hard).To(HaveKeyWithValue(v1.ResourceMemory, resource.MustParse("500Mi")))
+		var resourceQuotaResult *v1alpha1.ApplicationsResourceQuota
+		Eventually(func() error {
+			By("Getting a ApplicationsResourceQuota")
+			resourceQuotaResult, err = f.AaqClient.AaqV1alpha1().ApplicationsResourceQuotas(ns).Get(ctx, quotaName, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			Expect(resourceQuotaResult.Spec.Hard).To(HaveKeyWithValue(v1.ResourceCPU, resource.MustParse("1")))
+			Expect(resourceQuotaResult.Spec.Hard).To(HaveKeyWithValue(v1.ResourceMemory, resource.MustParse("500Mi")))
 
-		By("Updating a ApplicationsResourceQuota")
-		arq.Spec.Hard[v1.ResourceCPU] = resource.MustParse("2")
-		arq.Spec.Hard[v1.ResourceMemory] = resource.MustParse("1Gi")
-		resourceQuotaResult, err = f.AaqClient.AaqV1alpha1().ApplicationsResourceQuotas(ns).Update(ctx, arq, metav1.UpdateOptions{})
-		Expect(err).ToNot(HaveOccurred())
+			By("Updating a ApplicationsResourceQuota")
+			resourceQuotaResult.Spec.Hard[v1.ResourceCPU] = resource.MustParse("2")
+			resourceQuotaResult.Spec.Hard[v1.ResourceMemory] = resource.MustParse("1Gi")
+			resourceQuotaResult, err = f.AaqClient.AaqV1alpha1().ApplicationsResourceQuotas(ns).Update(ctx, resourceQuotaResult, metav1.UpdateOptions{})
+			return err
+		}, 2*time.Minute, 1*time.Second).Should(BeNil())
 		Expect(resourceQuotaResult.Spec.Hard).To(HaveKeyWithValue(v1.ResourceCPU, resource.MustParse("2")))
 		Expect(resourceQuotaResult.Spec.Hard).To(HaveKeyWithValue(v1.ResourceMemory, resource.MustParse("1Gi")))
 
