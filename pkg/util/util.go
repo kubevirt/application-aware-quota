@@ -4,17 +4,20 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	secv1 "github.com/openshift/api/security/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/util/certificate"
 	"k8s.io/klog/v2"
 	api "k8s.io/kubernetes/pkg/apis/core"
 	k8s_api_v1 "k8s.io/kubernetes/pkg/apis/core/v1"
 	"k8s.io/utils/pointer"
 	v1 "kubevirt.io/api/core/v1"
+	client2 "kubevirt.io/applications-aware-quota/pkg/client"
 	aaqv1alpha1 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	sdkapi "kubevirt.io/controller-lifecycle-operator-sdk/api"
 	utils "kubevirt.io/controller-lifecycle-operator-sdk/pkg/sdk/resources"
@@ -66,6 +69,8 @@ const (
 	InstallerPartOfLabel = "INSTALLER_PART_OF_LABEL"
 	// InstallerVersionLabel provides a constant to capture our env variable "INSTALLER_VERSION_LABEL"
 	InstallerVersionLabel = "INSTALLER_VERSION_LABEL"
+	// InstallerVersionLabel provides a constant to capture our env variable "INSTALLER_VERSION_LABEL"
+	IsOnOpenshift = "IS_ON_OPENSHIFT"
 	// TlsLabel provides a constant to capture our env variable "TLS"
 	TlsLabel = "TLS"
 	// ConfigMapName is the name of the aaq configmap that own aaq resources
@@ -332,4 +337,72 @@ func ToExternalPodOrError(obj k8sruntime.Object) (*corev1.Pod, error) {
 		return nil, fmt.Errorf("expect *api.Pod or *v1.Pod, got %v", t)
 	}
 	return pod, nil
+}
+
+func OnOpenshift() bool {
+	clientset, err := client2.GetAAQClient()
+	if err != nil {
+		klog.Error(err.Error())
+		os.Exit(1)
+	}
+	_, apis, err := clientset.DiscoveryClient().ServerGroupsAndResources()
+	if err != nil && !discovery.IsGroupDiscoveryFailedError(err) {
+		klog.Error(err.Error())
+		os.Exit(1)
+	}
+
+	// In case of an error, check if security.openshift.io is the reason (unlikely).
+	// If it is, we are obviously on an openshift cluster.
+	// Otherwise we can do a positive check.
+	if discovery.IsGroupDiscoveryFailedError(err) {
+		e := err.(*discovery.ErrGroupDiscoveryFailed)
+		if _, exists := e.Groups[secv1.GroupVersion]; exists {
+			return true
+		}
+	}
+
+	for _, api := range apis {
+		if api.GroupVersion == secv1.GroupVersion.String() {
+			for _, resource := range api.APIResources {
+				if resource.Name == "securitycontextconstraints" {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
+}
+
+func FilterNonScheduableResources(resourceList corev1.ResourceList) corev1.ResourceList {
+	rlCopy := resourceList.DeepCopy()
+	for resourceName := range resourceList {
+		if isSchedulableResource(resourceName) {
+			delete(rlCopy, resourceName)
+		}
+	}
+	return rlCopy
+}
+
+func isSchedulableResource(resourceName corev1.ResourceName) bool {
+	schedulableResourcesWithoutPrefix := map[corev1.ResourceName]bool{
+		corev1.ResourcePods:             true,
+		corev1.ResourceCPU:              true,
+		corev1.ResourceMemory:           true,
+		corev1.ResourceEphemeralStorage: true,
+	}
+
+	if schedulableResourcesWithoutPrefix[resourceName] {
+		return true
+	}
+
+	if resourceName == corev1.ResourceRequestsStorage {
+		return false
+	}
+	// Check if the resource name contains the "requests." or "limits." prefix
+	if strings.HasPrefix(string(resourceName), "requests.") || strings.HasPrefix(string(resourceName), "limits.") {
+		return true
+	}
+
+	return false
 }

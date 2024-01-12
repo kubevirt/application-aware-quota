@@ -11,9 +11,10 @@ import (
 
 // FactoryArgs contains the required parameters to generate all cluster-scoped resources
 type FactoryArgs struct {
-	Namespace string
-	Client    client.Client
-	Logger    logr.Logger
+	Namespace   string
+	Client      client.Client
+	Logger      logr.Logger
+	OnOpenshift bool
 }
 
 type factoryFunc func(*FactoryArgs) []client.Object
@@ -65,10 +66,14 @@ func createResourceGroup(funcMap factoryFuncMap, group string, args *FactoryArgs
 }
 
 func createCRDResources(args *FactoryArgs) []client.Object {
-	return []client.Object{
+	objs := []client.Object{
 		createApplicationsResourceQuotaCRD(),
 		createAaqJobQueueConfigsCRD(),
 	}
+	if args.OnOpenshift {
+		objs = append(objs, createClusterAppsResourceQuotaCRD())
+	}
+	return objs
 }
 
 // GetClusterRolePolicyRules returns all cluster PolicyRules

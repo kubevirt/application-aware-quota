@@ -21,6 +21,7 @@ type FactoryArgs struct {
 	PriorityClassName      string
 	Namespace              string
 	InfraNodePlacement     *sdkapi.NodePlacement
+	OnOpenshift            bool
 }
 
 type factoryFunc func(*FactoryArgs) []client.Object

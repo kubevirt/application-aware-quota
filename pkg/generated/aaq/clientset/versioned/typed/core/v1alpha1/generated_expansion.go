@@ -23,3 +23,5 @@ type AAQExpansion interface{}
 type AAQJobQueueConfigExpansion interface{}
 
 type ApplicationsResourceQuotaExpansion interface{}
+
+type ClusterAppsResourceQuotaExpansion interface{}

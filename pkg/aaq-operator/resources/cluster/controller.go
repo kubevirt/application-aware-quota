@@ -50,6 +50,18 @@ func getControllerClusterPolicyRules() []rbacv1.PolicyRule {
 				"",
 			},
 			Resources: []string{
+				"namespaces",
+			},
+			Verbs: []string{
+				"list",
+				"watch",
+			},
+		},
+		{
+			APIGroups: []string{
+				"",
+			},
+			Resources: []string{
 				"persistentvolumeclaims",
 			},
 			Verbs: []string{
@@ -88,6 +100,21 @@ func getControllerClusterPolicyRules() []rbacv1.PolicyRule {
 		},
 		{
 			APIGroups: []string{
+				"quota.openshift.io",
+			},
+			Resources: []string{
+				"clusterresourcequotas",
+			},
+			Verbs: []string{
+				"list",
+				"watch",
+				"create",
+				"delete",
+				"update",
+			},
+		},
+		{
+			APIGroups: []string{
 				"aaq.kubevirt.io",
 			},
 			Resources: []string{
@@ -95,7 +122,6 @@ func getControllerClusterPolicyRules() []rbacv1.PolicyRule {
 			},
 			Verbs: []string{
 				"get",
-				"update",
 				"watch",
 				"list",
 				"create",
@@ -131,7 +157,55 @@ func getControllerClusterPolicyRules() []rbacv1.PolicyRule {
 				"aaq.kubevirt.io",
 			},
 			Resources: []string{
+				"clusterappsresourcequotas",
+			},
+			Verbs: []string{
+				"get",
+				"watch",
+				"list",
+			},
+		},
+		{
+			APIGroups: []string{
+				"aaq.kubevirt.io",
+			},
+			Resources: []string{
+				"clusterappsresourcequotas/finalizers",
+			},
+			Verbs: []string{
+				"create",
+				"update",
+			},
+		},
+		{
+			APIGroups: []string{
+				"aaq.kubevirt.io",
+			},
+			Resources: []string{
+				"applicationsresourcequotas/finalizers",
+			},
+			Verbs: []string{
+				"create",
+				"update",
+			},
+		},
+		{
+			APIGroups: []string{
+				"aaq.kubevirt.io",
+			},
+			Resources: []string{
 				"applicationsresourcequotas/status",
+			},
+			Verbs: []string{
+				"update",
+			},
+		},
+		{
+			APIGroups: []string{
+				"aaq.kubevirt.io",
+			},
+			Resources: []string{
+				"clusterappsresourcequotas/status",
 			},
 			Verbs: []string{
 				"update",

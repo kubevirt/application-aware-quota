@@ -61,7 +61,7 @@ func (r *ReconcileAAQ) checkSanity(cr client.Object, reqLogger logr.Logger) (*re
 	return nil, nil
 }
 
-// sync syncs certificates used by CDU
+// sync syncs certificates used by AAQ
 func (r *ReconcileAAQ) sync(cr client.Object, logger logr.Logger) error {
 	aaq := cr.(*v1alpha1.AAQ)
 	if aaq.DeletionTimestamp != nil {

@@ -20,13 +20,16 @@ package aaq_controller
 
 import (
 	"context"
+	goflag "flag"
 	"fmt"
 	"github.com/emicklei/go-restful/v3"
+	flag "github.com/spf13/pflag"
 	"io/ioutil"
 	k8sv1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	v14 "k8s.io/client-go/kubernetes/typed/core/v1"
+	v12 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
@@ -35,6 +38,9 @@ import (
 	"k8s.io/utils/clock"
 	aaq_evaluator "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-evaluator"
 	arq_controller2 "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-gate-controller"
+	carq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/additional-openshift-controllers/carq-controller"
+	"kubevirt.io/applications-aware-quota/pkg/aaq-controller/additional-openshift-controllers/clusterquotamapping"
+	crq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/additional-openshift-controllers/crq-controller"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-controller/arq-controller"
 	built_in_usage_calculators "kubevirt.io/applications-aware-quota/pkg/aaq-controller/built-in-usage-calculators"
 	configuration_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/configuration-controller"
@@ -42,6 +48,7 @@ import (
 	rq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/rq-controller"
 	"kubevirt.io/applications-aware-quota/pkg/certificates/bootstrap"
 	"kubevirt.io/applications-aware-quota/pkg/client"
+	"kubevirt.io/applications-aware-quota/pkg/generated/aaq/listers/core/v1alpha1"
 	"kubevirt.io/applications-aware-quota/pkg/informers"
 	"kubevirt.io/applications-aware-quota/pkg/util"
 	golog "log"
@@ -51,35 +58,48 @@ import (
 )
 
 type AaqControllerApp struct {
-	ctx                          context.Context
-	aaqNs                        string
-	host                         string
-	LeaderElection               leaderelectionconfig.Configuration
-	aaqCli                       client.AAQClient
-	arqController                *arq_controller.ArqController
-	aaqGateController            *arq_controller2.AaqGateController
-	rqController                 *rq_controller.RQController
-	configController             *configuration_controller.AaqConfigurationController
-	podInformer                  cache.SharedIndexInformer
-	arqInformer                  cache.SharedIndexInformer
-	aaqInformer                  cache.SharedIndexInformer
-	rqInformer                   cache.SharedIndexInformer
-	aaqjqcInformer               cache.SharedIndexInformer
-	calcRegistry                 *aaq_evaluator.AaqCalculatorsRegistry
-	readyChan                    chan bool
-	enqueueAllArgControllerChan  chan struct{}
-	enqueueAllGateControllerChan chan struct{}
-	leaderElector                *leaderelection.LeaderElector
+	ctx                           context.Context
+	onOpenshift                   bool
+	aaqNs                         string
+	host                          string
+	LeaderElection                leaderelectionconfig.Configuration
+	aaqCli                        client.AAQClient
+	arqController                 *arq_controller.ArqController
+	carqController                *carq_controller.CarqController
+	clusterQuotaMappingController *clusterquotamapping.ClusterQuotaMappingController
+	aaqGateController             *arq_controller2.AaqGateController
+	rqController                  *rq_controller.RQController
+	crqController                 *crq_controller.CRQController
+	configController              *configuration_controller.AaqConfigurationController
+	podInformer                   cache.SharedIndexInformer
+	arqInformer                   cache.SharedIndexInformer
+	aaqInformer                   cache.SharedIndexInformer
+	rqInformer                    cache.SharedIndexInformer
+	aaqjqcInformer                cache.SharedIndexInformer
+	crqInformer                   cache.SharedIndexInformer
+	carqInformer                  cache.SharedIndexInformer
+	nsInformer                    cache.SharedIndexInformer
+	calcRegistry                  *aaq_evaluator.AaqCalculatorsRegistry
+	readyChan                     chan bool
+	enqueueAllCargControllerChan  chan struct{}
+	enqueueAllArgControllerChan   chan struct{}
+	enqueueAllGateControllerChan  chan struct{}
+	leaderElector                 *leaderelection.LeaderElector
 }
 
 func Execute() {
+	flag.CommandLine.AddGoFlag(goflag.CommandLine.Lookup("v"))
+	isOnOpenshift := flag.Bool(util.IsOnOpenshift, false, "number of requested evaluators sidecars")
+	flag.Parse()
 	var err error
 	var app = AaqControllerApp{}
 
 	app.LeaderElection = leaderelectionconfig.DefaultLeaderElectionConfiguration()
 	app.readyChan = make(chan bool, 1)
+	app.enqueueAllCargControllerChan = make(chan struct{})
 	app.enqueueAllArgControllerChan = make(chan struct{})
 	app.enqueueAllGateControllerChan = make(chan struct{})
+	app.onOpenshift = *isOnOpenshift
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	app.ctx = ctx
@@ -102,6 +122,9 @@ func Execute() {
 	app.host = host
 
 	app.aaqCli, err = client.GetAAQClient()
+	if err != nil {
+		golog.Fatalf("AAQClient: %v", err)
+	}
 	app.arqInformer = informers.GetApplicationsResourceQuotaInformer(app.aaqCli)
 	app.rqInformer = informers.GetResourceQuotaInformer(app.aaqCli)
 	app.aaqjqcInformer = informers.GetAAQJobQueueConfig(app.aaqCli)
@@ -110,9 +133,24 @@ func Execute() {
 
 	stop := ctx.Done()
 	app.calcRegistry = aaq_evaluator.NewAaqCalculatorsRegistry(10, clock.RealClock{}).AddBuiltInCalculator(util.LauncherConfig, built_in_usage_calculators.NewVirtLauncherCalculator(stop))
+	var clusterQuotaLister v1alpha1.ClusterAppsResourceQuotaLister
+	var namespaceLister v12.NamespaceLister
+	var clusterQuotaMapper clusterquotamapping.ClusterQuotaMapper
+
+	if app.onOpenshift {
+		app.carqInformer = informers.GetClusterAppsResourceQuotaInformer(app.aaqCli)
+		app.crqInformer = informers.GetClusterResourceQuotaInformer(app.aaqCli)
+		app.nsInformer = informers.GetNamespaceInformer(app.aaqCli)
+		app.initCRQController(stop)
+		app.initClusterQuotaMappingController(stop)
+		app.initCarqController(stop, app.clusterQuotaMappingController.GetClusterQuotaMapper())
+		clusterQuotaLister = v1alpha1.NewClusterAppsResourceQuotaLister(app.carqInformer.GetIndexer())
+		namespaceLister = v12.NewNamespaceLister(app.nsInformer.GetIndexer())
+		clusterQuotaMapper = app.clusterQuotaMappingController.GetClusterQuotaMapper()
+	}
 
 	app.initArqController(stop)
-	app.initAaqGateController(stop)
+	app.initAaqGateController(stop, clusterQuotaLister, namespaceLister, clusterQuotaMapper)
 	app.initRQController(stop)
 	app.initAaqConfigurationController(stop)
 
@@ -153,12 +191,42 @@ func (mca *AaqControllerApp) initArqController(stop <-chan struct{}) {
 	)
 }
 
-func (mca *AaqControllerApp) initAaqGateController(stop <-chan struct{}) {
+func (mca *AaqControllerApp) initCarqController(stop <-chan struct{}, clusterQuotaMapper clusterquotamapping.ClusterQuotaMapper) {
+	mca.carqController = carq_controller.NewCarqController(mca.aaqCli,
+		clusterQuotaMapper,
+		mca.carqInformer,
+		mca.crqInformer,
+		mca.podInformer,
+		mca.aaqjqcInformer,
+		mca.calcRegistry,
+		stop,
+		mca.enqueueAllCargControllerChan,
+	)
+}
+
+func (mca *AaqControllerApp) initClusterQuotaMappingController(stop <-chan struct{}) {
+	mca.clusterQuotaMappingController = clusterquotamapping.NewClusterQuotaMappingController(
+		mca.nsInformer,
+		mca.carqInformer,
+		stop,
+	)
+}
+
+func (mca *AaqControllerApp) initAaqGateController(stop <-chan struct{},
+	clusterQuotaLister v1alpha1.ClusterAppsResourceQuotaLister,
+	namespaceLister v12.NamespaceLister,
+	clusterQuotaMapper clusterquotamapping.ClusterQuotaMapper,
+) {
 	mca.aaqGateController = arq_controller2.NewAaqGateController(mca.aaqCli,
 		mca.podInformer,
 		mca.arqInformer,
 		mca.aaqjqcInformer,
+		mca.carqInformer,
 		mca.calcRegistry,
+		clusterQuotaLister,
+		namespaceLister,
+		clusterQuotaMapper,
+		mca.onOpenshift,
 		stop,
 		mca.enqueueAllGateControllerChan,
 	)
@@ -172,13 +240,23 @@ func (mca *AaqControllerApp) initRQController(stop <-chan struct{}) {
 	)
 }
 
+func (mca *AaqControllerApp) initCRQController(stop <-chan struct{}) {
+	mca.crqController = crq_controller.NewCRQController(mca.aaqCli,
+		mca.crqInformer,
+		mca.carqInformer,
+		stop,
+	)
+}
+
 func (mca *AaqControllerApp) initAaqConfigurationController(stop <-chan struct{}) {
 	mca.configController = configuration_controller.NewAaqConfigurationController(mca.aaqCli,
 		mca.aaqInformer,
 		mca.calcRegistry,
 		stop,
+		mca.enqueueAllCargControllerChan,
 		mca.enqueueAllArgControllerChan,
 		mca.enqueueAllGateControllerChan,
+		mca.onOpenshift,
 	)
 }
 
@@ -256,7 +334,6 @@ func (mca *AaqControllerApp) setupLeaderElector() (err error) {
 func (mca *AaqControllerApp) onStartedLeading() func(ctx context.Context) {
 	return func(ctx context.Context) {
 		stop := ctx.Done()
-
 		go mca.podInformer.Run(stop)
 		go mca.arqInformer.Run(stop)
 		go mca.rqInformer.Run(stop)
@@ -271,6 +348,27 @@ func (mca *AaqControllerApp) onStartedLeading() func(ctx context.Context) {
 			mca.aaqInformer.HasSynced,
 		) {
 			klog.Warningf("failed to wait for caches to sync")
+		}
+		if mca.onOpenshift {
+			go mca.crqInformer.Run(stop)
+			go mca.carqInformer.Run(stop)
+			go mca.nsInformer.Run(stop)
+			if !cache.WaitForCacheSync(stop,
+				mca.crqInformer.HasSynced,
+				mca.carqInformer.HasSynced,
+				mca.nsInformer.HasSynced,
+			) {
+				klog.Warningf("failed to wait for caches to sync")
+			}
+			go func() {
+				mca.clusterQuotaMappingController.Run(3)
+			}()
+			go func() {
+				mca.carqController.Run(context.Background(), 3)
+			}()
+			go func() {
+				mca.crqController.Run(3)
+			}()
 		}
 
 		go func() {

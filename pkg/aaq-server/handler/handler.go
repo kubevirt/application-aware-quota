@@ -5,11 +5,12 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	v12 "github.com/openshift/api/quota/v1"
 	admissionv1 "k8s.io/api/admission/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
+	"kubevirt.io/applications-aware-quota/pkg/client"
 	"kubevirt.io/applications-aware-quota/pkg/util"
 	"kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	"net/http"
@@ -18,8 +19,9 @@ import (
 
 const (
 	allowPodRequest               = "Pod has successfully gated"
-	allowArqRequest               = "ApplicationResourceQuota request is valid"
-	validatingResourceQuotaPrefix = "arq-validating-rq-"
+	allowArqRequest               = "ApplicationsResourceQuota request is valid"
+	allowCarqRequest              = "ClusterAppsResourceQuota request is valid"
+	validatingResourceQuotaPrefix = "aaq-validating-rq-"
 	validPodUpdate                = "Pod update did not remove AAQGate"
 	aaqControllerPodUpdate        = "AAQ controller has permission to remove gate from pods"
 	invalidPodUpdate              = "Only AAQ controller has permission to remove " + util.AAQGate + " gate from pods"
@@ -27,11 +29,11 @@ const (
 
 type Handler struct {
 	request *admissionv1.AdmissionRequest
-	aaqCli  kubernetes.Interface
+	aaqCli  client.AAQClient
 	aaqNS   string
 }
 
-func NewHandler(Request *admissionv1.AdmissionRequest, aaqCli kubernetes.Interface, aaqNS string) *Handler {
+func NewHandler(Request *admissionv1.AdmissionRequest, aaqCli client.AAQClient, aaqNS string) *Handler {
 	return &Handler{
 		request: Request,
 		aaqCli:  aaqCli,
@@ -49,6 +51,8 @@ func (v Handler) Handle() (*admissionv1.AdmissionReview, error) {
 		return v.validatePodUpdate()
 	case "ApplicationsResourceQuota":
 		return v.validateApplicationsResourceQuota()
+	case "ClusterAppsResourceQuota":
+		return v.validateClusterAppsResourceQuota()
 	}
 	return nil, fmt.Errorf("AAQ webhook doesn't recongnize request: %+v", v.request)
 }
@@ -119,6 +123,22 @@ func (v Handler) validateApplicationsResourceQuota() (*admissionv1.AdmissionRevi
 	}
 	return reviewResponse(v.request.UID, true, http.StatusAccepted, allowArqRequest), nil
 
+}
+
+func (v Handler) validateClusterAppsResourceQuota() (*admissionv1.AdmissionReview, error) {
+	carq := v1alpha1.ClusterAppsResourceQuota{}
+	if err := json.Unmarshal(v.request.Object.Raw, &carq); err != nil {
+		return nil, err
+	}
+	crq := &v12.ClusterResourceQuota{}
+	crq.Name = createRQName()
+	crq.Spec.Quota = carq.Spec.Quota
+	crq.Spec.Selector = carq.Spec.Selector
+	_, err := v.aaqCli.CRQClient().QuotaV1().ClusterResourceQuotas().Create(context.Background(), crq, metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}})
+	if err != nil {
+		return reviewResponse(v.request.UID, false, http.StatusForbidden, ignoreRqErr(err.Error())), nil
+	}
+	return reviewResponse(v.request.UID, true, http.StatusAccepted, allowCarqRequest), nil
 }
 
 func (v Handler) validatePodUpdate() (*admissionv1.AdmissionReview, error) {

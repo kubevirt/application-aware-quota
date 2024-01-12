@@ -31,6 +31,7 @@ type AaqV1alpha1Interface interface {
 	AAQsGetter
 	AAQJobQueueConfigsGetter
 	ApplicationsResourceQuotasGetter
+	ClusterAppsResourceQuotasGetter
 }
 
 // AaqV1alpha1Client is used to interact with features provided by the aaq.kubevirt.io group.
@@ -48,6 +49,10 @@ func (c *AaqV1alpha1Client) AAQJobQueueConfigs(namespace string) AAQJobQueueConf
 
 func (c *AaqV1alpha1Client) ApplicationsResourceQuotas(namespace string) ApplicationsResourceQuotaInterface {
 	return newApplicationsResourceQuotas(c, namespace)
+}
+
+func (c *AaqV1alpha1Client) ClusterAppsResourceQuotas() ClusterAppsResourceQuotaInterface {
+	return newClusterAppsResourceQuotas(c)
 }
 
 // NewForConfig creates a new AaqV1alpha1Client for the given config.

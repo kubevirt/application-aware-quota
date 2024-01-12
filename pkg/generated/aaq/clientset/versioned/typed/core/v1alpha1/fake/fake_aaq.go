@@ -23,7 +23,6 @@ import (
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -35,9 +34,9 @@ type FakeAAQs struct {
 	Fake *FakeAaqV1alpha1
 }
 
-var aaqsResource = schema.GroupVersionResource{Group: "aaq.kubevirt.io", Version: "v1alpha1", Resource: "aaqs"}
+var aaqsResource = v1alpha1.SchemeGroupVersion.WithResource("aaqs")
 
-var aaqsKind = schema.GroupVersionKind{Group: "aaq.kubevirt.io", Version: "v1alpha1", Kind: "AAQ"}
+var aaqsKind = v1alpha1.SchemeGroupVersion.WithKind("AAQ")
 
 // Get takes name of the aAQ, and returns the corresponding aAQ object, and an error if there is any.
 func (c *FakeAAQs) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.AAQ, err error) {
