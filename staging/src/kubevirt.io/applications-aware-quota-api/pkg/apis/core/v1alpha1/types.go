@@ -155,6 +155,9 @@ type AAQSpec struct {
 type AAQConfiguration struct {
 	// VmiCalculatorConfiguration Default is VmiPodUsage please look for VmiCalculatorConfiguration type for more information.
 	VmiCalculatorConfiguration VmiCalculatorConfiguration `json:"vmiCalculatorConfiguration,omitempty"`
+	// EnableClusterAppsResourceQuota can be set to true to allow creation and management
+	// of ClusterAppsResourceQuota. Defaults to false
+	EnableClusterAppsResourceQuota bool `json:"enableClusterAppsResourceQuota,omitempty"`
 }
 
 type VmiCalcConfigName string
