@@ -82,6 +82,11 @@ spec:
               configuration:
                 description: holds aaq configurations.
                 properties:
+                  enableClusterAppsResourceQuota:
+                    description: EnableClusterAppsResourceQuota can be set to true
+                      to allow creation and management of ClusterAppsResourceQuota.
+                      Defaults to false
+                    type: boolean
                   vmiCalculatorConfiguration:
                     description: VmiCalculatorConfiguration Default is VmiPodUsage
                       please look for VmiCalculatorConfiguration type for more information.
