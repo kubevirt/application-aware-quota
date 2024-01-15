@@ -315,6 +315,19 @@ func (ctrl *CarqController) syncQuotaForNamespaces(originalQuota *v1alpha1.Clust
 			retryItems = append(retryItems, item)
 			continue
 		}
+		if ctrl.collectCrqsData {
+			var crq *quotav1.ClusterResourceQuota
+			crqObj, exists, err := ctrl.crqInformer.GetIndexer().GetByKey(quota.Name + crq_controller.CRQSuffix)
+			if err != nil {
+				reconcilationErrors = append(reconcilationErrors, err)
+			} else if exists {
+				crq = crqObj.(*quotav1.ClusterResourceQuota).DeepCopy()
+			}
+			if exists && crq.Status.Total.Hard != nil && quota.Status.Total.Hard != nil {
+				actualUsage = includeUsageFromClusterResourceQuota(actualUsage, crq, namespaceName)
+			}
+		}
+
 		recalculatedStatus := corev1.ResourceQuotaStatus{
 			Used: actualUsage,
 			Hard: quota.Spec.Quota.Hard,
@@ -327,18 +340,6 @@ func (ctrl *CarqController) syncQuotaForNamespaces(originalQuota *v1alpha1.Clust
 			Namespace: namespaceName,
 			Status:    recalculatedStatus,
 		})
-	}
-
-	var crq *quotav1.ClusterResourceQuota
-	crqObj, exists, err := ctrl.crqInformer.GetIndexer().GetByKey(quota.Name + crq_controller.CRQSuffix)
-	if err != nil {
-		reconcilationErrors = append(reconcilationErrors, err)
-	} else if exists {
-		crq = crqObj.(*quotav1.ClusterResourceQuota).DeepCopy()
-	}
-
-	if exists && crq.Status.Total.Hard != nil && quota.Status.Total.Hard != nil {
-		updateUsageFromClusterResourceQuota(quota, crq)
 	}
 
 	// Remove any namespaces from quota.status that no longer match.
@@ -382,8 +383,8 @@ func (ctrl *CarqController) updateCRQ(old, curr interface{}) {
 	carq := &v1alpha1.ClusterAppsResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: strings.TrimSuffix(crq.Name, crq_controller.CRQSuffix), Namespace: crq.Namespace},
 	}
-	ctrl.enqueueClusterQuota(carq)
-	return
+	namespaces, _ := ctrl.clusterQuotaMapper.GetNamespacesFor(carq.Name)
+	ctrl.forceCalculation(carq.Name, namespaces...)
 }
 
 func (ctrl *CarqController) deleteCRQ(obj interface{}) {
@@ -391,8 +392,8 @@ func (ctrl *CarqController) deleteCRQ(obj interface{}) {
 	carq := &v1alpha1.ClusterAppsResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: strings.TrimSuffix(crq.Name, crq_controller.CRQSuffix), Namespace: crq.Namespace},
 	}
-	ctrl.enqueueClusterQuota(carq)
-	return
+	namespaces, _ := ctrl.clusterQuotaMapper.GetNamespacesFor(carq.Name)
+	ctrl.forceCalculation(carq.Name, namespaces...)
 }
 
 func (ctrl *CarqController) addCRQ(obj interface{}) {
@@ -400,8 +401,8 @@ func (ctrl *CarqController) addCRQ(obj interface{}) {
 	carq := &v1alpha1.ClusterAppsResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: strings.TrimSuffix(crq.Name, crq_controller.CRQSuffix), Namespace: crq.Namespace},
 	}
-	ctrl.enqueueClusterQuota(carq)
-	return
+	namespaces, _ := ctrl.clusterQuotaMapper.GetNamespacesFor(carq.Name)
+	ctrl.forceCalculation(carq.Name, namespaces...)
 }
 
 // When a ApplicationsResourceQuotaaqjqc.Status.PodsInJobQueuea is updated, enqueue all gated pods for revaluation
@@ -471,29 +472,20 @@ func (c *CarqController) RemoveMapping(quotaName, namespaceName string) {
 // NEVER CHANGE THIS OUTSIDE A TEST
 var quotaUsageCalculationFunc = utilquota.CalculateUsage
 
-func updateUsageFromClusterResourceQuota(carq *v1alpha1.ClusterAppsResourceQuota, crq *quotav1.ClusterResourceQuota) {
-	nonSchedulableResourcesHard := util.FilterNonScheduableResources(carq.Status.Total.Hard)
-	if quota.Equals(crq.Spec.Quota.Hard, nonSchedulableResourcesHard) && crq.Status.Total.Used != nil {
-		for key, value := range crq.Status.Total.Used {
-			carq.Status.Total.Used[key] = value
-		}
-		for _, crqns := range crq.Status.Namespaces {
-			found := false
-			for _, carqns := range carq.Status.Namespaces {
-				if carqns.Namespace == crqns.Namespace {
-					for key, value := range carqns.Status.Used {
-						carqns.Status.Used[key] = value
-					}
-					found = true
-					break
-				}
+func includeUsageFromClusterResourceQuota(rl corev1.ResourceList, crq *quotav1.ClusterResourceQuota, namespace string) corev1.ResourceList {
+	result := corev1.ResourceList{}
+	for key, val := range rl {
+		result[key] = val
+	}
+	for _, crqns := range crq.Status.Namespaces {
+		if crqns.Namespace == namespace {
+			for key, value := range crqns.Status.Used {
+				result[key] = value
 			}
-			if !found {
-				// Append the namespace only if not found in carq.Status.Namespaces
-				carq.Status.Namespaces = append(carq.Status.Namespaces, crqns)
-			}
+			break
 		}
 	}
+	return result
 }
 
 func (ctrl *CarqController) runGateWatcherWorker() {
