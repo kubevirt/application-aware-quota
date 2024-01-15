@@ -5,6 +5,7 @@ import (
 	"github.com/go-logr/logr"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"kubevirt.io/applications-aware-quota/pkg/util"
 	utils "kubevirt.io/controller-lifecycle-operator-sdk/pkg/sdk/resources"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -66,11 +67,15 @@ func createResourceGroup(funcMap factoryFuncMap, group string, args *FactoryArgs
 }
 
 func createCRDResources(args *FactoryArgs) []client.Object {
+	cr, _ := util.GetActiveAAQ(args.Client)
+	if cr == nil {
+		return nil
+	}
 	objs := []client.Object{
 		createApplicationsResourceQuotaCRD(),
 		createAaqJobQueueConfigsCRD(),
 	}
-	if args.OnOpenshift {
+	if cr.Spec.Configuration.EnableClusterAppsResourceQuota {
 		objs = append(objs, createClusterAppsResourceQuotaCRD())
 	}
 	return objs

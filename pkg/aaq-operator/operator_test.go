@@ -1307,6 +1307,7 @@ func createReconciler(client client.Client) *ReconcileAAQ {
 		Verbosity:              "1",
 		PullPolicy:             "Always",
 		Namespace:              namespace,
+		Client:                 client,
 	}
 
 	recorder := record.NewFakeRecorder(250)

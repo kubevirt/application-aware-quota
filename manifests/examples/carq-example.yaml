@@ -7,7 +7,10 @@ spec:
     hard:
       services: "5"
       pods: "10"
-      secrets: "20"
+      limits.cpu: "1"
+      limits.memory: 1Gi
+      requests.cpu: "1"
+      requests.memory: 1Gi
       requests.cpu/vmi: "1"
       requests.memory/vmi: 1Gi
       requests.instances/vmi: "10"
@@ -15,4 +18,4 @@ spec:
     annotations: null
     labels:
       matchLabels:
-        name: example
+        kubernetes.io/metadata.name: default

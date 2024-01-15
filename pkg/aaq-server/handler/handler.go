@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
-	v12 "github.com/openshift/api/quota/v1"
 	admissionv1 "k8s.io/api/admission/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,16 +27,18 @@ const (
 )
 
 type Handler struct {
-	request *admissionv1.AdmissionRequest
-	aaqCli  client.AAQClient
-	aaqNS   string
+	request       *admissionv1.AdmissionRequest
+	aaqCli        client.AAQClient
+	aaqNS         string
+	isOnOpenshift bool
 }
 
-func NewHandler(Request *admissionv1.AdmissionRequest, aaqCli client.AAQClient, aaqNS string) *Handler {
+func NewHandler(Request *admissionv1.AdmissionRequest, aaqCli client.AAQClient, aaqNS string, isOnOpenshift bool) *Handler {
 	return &Handler{
-		request: Request,
-		aaqCli:  aaqCli,
-		aaqNS:   aaqNS,
+		request:       Request,
+		aaqCli:        aaqCli,
+		aaqNS:         aaqNS,
+		isOnOpenshift: isOnOpenshift,
 	}
 }
 
@@ -117,6 +118,8 @@ func (v Handler) validateApplicationsResourceQuota() (*admissionv1.AdmissionRevi
 	rq.Namespace = arq.Namespace
 	rq.Name = createRQName()
 	rq.Spec.Hard = arq.Spec.Hard
+	rq.Spec.ScopeSelector = arq.Spec.ScopeSelector
+	rq.Spec.Scopes = arq.Spec.Scopes
 	_, err := v.aaqCli.CoreV1().ResourceQuotas(arq.Namespace).Create(context.Background(), rq, metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}})
 	if err != nil {
 		return reviewResponse(v.request.UID, false, http.StatusForbidden, ignoreRqErr(err.Error())), nil
@@ -130,13 +133,19 @@ func (v Handler) validateClusterAppsResourceQuota() (*admissionv1.AdmissionRevie
 	if err := json.Unmarshal(v.request.Object.Raw, &carq); err != nil {
 		return nil, err
 	}
-	crq := &v12.ClusterResourceQuota{}
-	crq.Name = createRQName()
-	crq.Spec.Quota = carq.Spec.Quota
-	crq.Spec.Selector = carq.Spec.Selector
-	_, err := v.aaqCli.CRQClient().QuotaV1().ClusterResourceQuotas().Create(context.Background(), crq, metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}})
+	rq := &v1.ResourceQuota{}
+	rq.Name = createRQName()
+	rq.Spec.Hard = carq.Spec.Quota.Hard
+	rq.Spec.ScopeSelector = carq.Spec.Quota.ScopeSelector
+	rq.Spec.Scopes = carq.Spec.Quota.Scopes
+	_, err := v.aaqCli.CoreV1().ResourceQuotas(v1.NamespaceDefault).Create(context.Background(), rq, metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}})
 	if err != nil {
 		return reviewResponse(v.request.UID, false, http.StatusForbidden, ignoreRqErr(err.Error())), nil
+	}
+	nonSchedulableResourcesHard := util.FilterNonScheduableResources(carq.Spec.Quota.Hard)
+	if !v.isOnOpenshift && len(nonSchedulableResourcesHard) > 0 {
+		errMsg := fmt.Sprintf("ClusterAppsResourceQuota without clusterResourceQuota support, operator cannot handle non scheduable resources :%v", getResourcesNames(nonSchedulableResourcesHard))
+		return reviewResponse(v.request.UID, false, http.StatusForbidden, errMsg), nil
 	}
 	return reviewResponse(v.request.UID, true, http.StatusAccepted, allowCarqRequest), nil
 }
@@ -193,4 +202,12 @@ func ignoreRqErr(err string) string {
 func isAAQControllerServiceAccount(serviceAccount string, aaqNS string) bool {
 	prefix := fmt.Sprintf("system:serviceaccount:%s", aaqNS)
 	return serviceAccount == fmt.Sprintf("%s:%s", prefix, util.ControllerResourceName)
+}
+
+func getResourcesNames(resourceList v1.ResourceList) []v1.ResourceName {
+	keys := make([]v1.ResourceName, 0, len(resourceList))
+	for key := range resourceList {
+		keys = append(keys, key)
+	}
+	return keys
 }

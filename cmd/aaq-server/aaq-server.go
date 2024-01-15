@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	goflag "flag"
 	"github.com/pkg/errors"
+	flag "github.com/spf13/pflag"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-server"
@@ -15,6 +17,9 @@ import (
 )
 
 func main() {
+	flag.CommandLine.AddGoFlag(goflag.CommandLine.Lookup("v"))
+	isOnOpenshift := flag.Bool(util.IsOnOpenshift, false, "flag that suggest that we are on Openshift cluster")
+	flag.Parse()
 	defer klog.Flush()
 	aaqNS := util.GetNamespace()
 
@@ -50,6 +55,7 @@ func main() {
 		util.DefaultPort,
 		secretCertManager,
 		aaqCli,
+		*isOnOpenshift,
 	)
 	if err != nil {
 		klog.Fatalf("UploadProxy failed to initialize: %v\n", errors.WithStack(err))

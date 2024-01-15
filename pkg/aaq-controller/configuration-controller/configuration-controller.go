@@ -34,7 +34,7 @@ type AaqConfigurationController struct {
 	enqueueAllCargControllerChan chan<- struct{}
 	enqueueAllArgControllerChan  chan<- struct{}
 	enqueueAllGateControllerChan chan<- struct{}
-	onOpenshift                  bool
+	clusterQuotaEnabled          bool
 }
 
 func NewAaqConfigurationController(aaqCli client.AAQClient,
@@ -44,7 +44,7 @@ func NewAaqConfigurationController(aaqCli client.AAQClient,
 	enqueueAllCargControllerChan chan<- struct{},
 	enqueueAllArgControllerChan chan<- struct{},
 	enqueueAllGateControllerChan chan<- struct{},
-	onOpenshift bool,
+	clusterQuotaEnabled bool,
 ) *AaqConfigurationController {
 	ctrl := AaqConfigurationController{
 		aaqCli:                       aaqCli,
@@ -55,7 +55,7 @@ func NewAaqConfigurationController(aaqCli client.AAQClient,
 		enqueueAllCargControllerChan: enqueueAllCargControllerChan,
 		enqueueAllArgControllerChan:  enqueueAllArgControllerChan,
 		enqueueAllGateControllerChan: enqueueAllGateControllerChan,
-		onOpenshift:                  onOpenshift,
+		clusterQuotaEnabled:          clusterQuotaEnabled,
 	}
 
 	_, err := ctrl.aaqInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -133,7 +133,7 @@ func (ctrl *AaqConfigurationController) execute(_ string) (error, enqueueState) 
 
 	ctrl.enqueueAllArgControllerChan <- struct{}{}
 	ctrl.enqueueAllGateControllerChan <- struct{}{}
-	if ctrl.onOpenshift {
+	if ctrl.clusterQuotaEnabled {
 		ctrl.enqueueAllCargControllerChan <- struct{}{}
 	}
 

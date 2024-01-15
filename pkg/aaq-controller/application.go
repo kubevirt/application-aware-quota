@@ -59,6 +59,7 @@ import (
 
 type AaqControllerApp struct {
 	ctx                           context.Context
+	enableClusterQuota            bool
 	onOpenshift                   bool
 	aaqNs                         string
 	host                          string
@@ -89,7 +90,9 @@ type AaqControllerApp struct {
 
 func Execute() {
 	flag.CommandLine.AddGoFlag(goflag.CommandLine.Lookup("v"))
-	isOnOpenshift := flag.Bool(util.IsOnOpenshift, false, "number of requested evaluators sidecars")
+	isOnOpenshift := flag.Bool(util.IsOnOpenshift, false, "flag that suggest that we are on Openshift cluster")
+	clusterQuotaEnabled := flag.Bool(util.EnableClusterQuota, false, "flag that to let us know if we should enable clusterQuota controllers")
+
 	flag.Parse()
 	var err error
 	var app = AaqControllerApp{}
@@ -100,6 +103,7 @@ func Execute() {
 	app.enqueueAllArgControllerChan = make(chan struct{})
 	app.enqueueAllGateControllerChan = make(chan struct{})
 	app.onOpenshift = *isOnOpenshift
+	app.enableClusterQuota = *clusterQuotaEnabled
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	app.ctx = ctx
@@ -137,11 +141,13 @@ func Execute() {
 	var namespaceLister v12.NamespaceLister
 	var clusterQuotaMapper clusterquotamapping.ClusterQuotaMapper
 
-	if app.onOpenshift {
+	if app.enableClusterQuota {
 		app.carqInformer = informers.GetClusterAppsResourceQuotaInformer(app.aaqCli)
-		app.crqInformer = informers.GetClusterResourceQuotaInformer(app.aaqCli)
 		app.nsInformer = informers.GetNamespaceInformer(app.aaqCli)
-		app.initCRQController(stop)
+		if app.onOpenshift {
+			app.crqInformer = informers.GetClusterResourceQuotaInformer(app.aaqCli)
+			app.initCRQController(stop)
+		}
 		app.initClusterQuotaMappingController(stop)
 		app.initCarqController(stop, app.clusterQuotaMappingController.GetClusterQuotaMapper())
 		clusterQuotaLister = v1alpha1.NewClusterAppsResourceQuotaLister(app.carqInformer.GetIndexer())
@@ -201,6 +207,7 @@ func (mca *AaqControllerApp) initCarqController(stop <-chan struct{}, clusterQuo
 		mca.calcRegistry,
 		stop,
 		mca.enqueueAllCargControllerChan,
+		mca.onOpenshift,
 	)
 }
 
@@ -226,7 +233,7 @@ func (mca *AaqControllerApp) initAaqGateController(stop <-chan struct{},
 		clusterQuotaLister,
 		namespaceLister,
 		clusterQuotaMapper,
-		mca.onOpenshift,
+		mca.enableClusterQuota,
 		stop,
 		mca.enqueueAllGateControllerChan,
 	)
@@ -256,7 +263,7 @@ func (mca *AaqControllerApp) initAaqConfigurationController(stop <-chan struct{}
 		mca.enqueueAllCargControllerChan,
 		mca.enqueueAllArgControllerChan,
 		mca.enqueueAllGateControllerChan,
-		mca.onOpenshift,
+		mca.enableClusterQuota,
 	)
 }
 
@@ -349,25 +356,31 @@ func (mca *AaqControllerApp) onStartedLeading() func(ctx context.Context) {
 		) {
 			klog.Warningf("failed to wait for caches to sync")
 		}
-		if mca.onOpenshift {
-			go mca.crqInformer.Run(stop)
+		if mca.enableClusterQuota {
 			go mca.carqInformer.Run(stop)
 			go mca.nsInformer.Run(stop)
 			if !cache.WaitForCacheSync(stop,
-				mca.crqInformer.HasSynced,
 				mca.carqInformer.HasSynced,
 				mca.nsInformer.HasSynced,
 			) {
 				klog.Warningf("failed to wait for caches to sync")
+			}
+			if mca.onOpenshift {
+				go mca.crqInformer.Run(stop)
+				if !cache.WaitForCacheSync(stop,
+					mca.crqInformer.HasSynced,
+				) {
+					klog.Warningf("failed to wait for caches to sync")
+				}
+				go func() {
+					mca.crqController.Run(3)
+				}()
 			}
 			go func() {
 				mca.clusterQuotaMappingController.Run(3)
 			}()
 			go func() {
 				mca.carqController.Run(context.Background(), 3)
-			}()
-			go func() {
-				mca.crqController.Run(3)
 			}()
 		}
 
