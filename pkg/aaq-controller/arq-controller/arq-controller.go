@@ -321,6 +321,8 @@ func (ctrl *ArqController) Run(ctx context.Context, workers int) {
 	defer ctrl.arqQueue.ShutDown()
 	defer ctrl.missingUsageQueue.ShutDown()
 	logger := klog.FromContext(ctx)
+	klog.Info("Starting ARQ controller")
+	defer klog.Info("Shutting ARQ Controller")
 
 	// Start a goroutine to listen for enqueue signals and call enqueueAll in case the configuration is changed.
 	go func() {

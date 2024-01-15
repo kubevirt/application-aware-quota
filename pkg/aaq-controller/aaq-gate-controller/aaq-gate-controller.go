@@ -54,7 +54,7 @@ type AaqGateController struct {
 	nsQueue                      workqueue.RateLimitingInterface
 	aaqCli                       client.AAQClient
 	aaqEvaluator                 *aaq_evaluator.AaqEvaluator
-	onOpenshift                  bool
+	clusterQuotaEnabled          bool
 	clusterQuotaLister           v1alpha1.ClusterAppsResourceQuotaLister
 	namespaceLister              v12.NamespaceLister
 	clusterQuotaMapper           clusterquotamapping.ClusterQuotaMapper
@@ -71,7 +71,7 @@ func NewAaqGateController(aaqCli client.AAQClient,
 	clusterQuotaLister v1alpha1.ClusterAppsResourceQuotaLister,
 	namespaceLister v12.NamespaceLister,
 	clusterQuotaMapper clusterquotamapping.ClusterQuotaMapper,
-	onOpenshift bool,
+	clusterQuotaEnabled bool,
 	stop <-chan struct{},
 	enqueueAllGateControllerChan <-chan struct{},
 ) *AaqGateController {
@@ -86,7 +86,7 @@ func NewAaqGateController(aaqCli client.AAQClient,
 		clusterQuotaLister:           clusterQuotaLister,
 		namespaceLister:              namespaceLister,
 		clusterQuotaMapper:           clusterQuotaMapper,
-		onOpenshift:                  onOpenshift,
+		clusterQuotaEnabled:          clusterQuotaEnabled,
 		stop:                         stop,
 		enqueueAllGateControllerChan: enqueueAllGateControllerChan,
 	}
@@ -107,7 +107,7 @@ func NewAaqGateController(aaqCli client.AAQClient,
 	if err != nil {
 		panic("something is wrong")
 	}
-	if onOpenshift {
+	if clusterQuotaEnabled {
 		_, err = ctrl.carqInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 			DeleteFunc: ctrl.deleteCarq,
 			UpdateFunc: ctrl.updateCarq,
@@ -135,7 +135,7 @@ func (ctrl *AaqGateController) enqueueAll() {
 		arq := arqObj.(*v1alpha12.ApplicationsResourceQuota)
 		ctrl.nsQueue.Add(arq.Namespace)
 	}
-	if ctrl.onOpenshift {
+	if ctrl.clusterQuotaEnabled {
 		carqObjs := ctrl.carqInformer.GetIndexer().List()
 		for _, carqObj := range carqObjs {
 			carq := carqObj.(*v1alpha12.ClusterAppsResourceQuota)
@@ -307,7 +307,7 @@ func (ctrl *AaqGateController) execute(ns string) (error, enqueueState) {
 	if len(aaqjqc.Status.PodsInJobQueue) > 0 {
 		aaqjqc.Status.ControllerLock = map[string]bool{}
 		for _, lockName := range locksNames {
-			if lockName == ClusterAppsResourceQuotaLockName && !ctrl.onOpenshift {
+			if lockName == ClusterAppsResourceQuotaLockName && !ctrl.clusterQuotaEnabled {
 				continue
 			}
 			aaqjqc.Status.ControllerLock[lockName] = true // after releasing we should wait for controllers to process and unlock
@@ -381,7 +381,7 @@ func (ctrl *AaqGateController) getArtificialRqsForGateController(ns string) ([]v
 		}
 		rqs = append(rqs, rq)
 	}
-	if !ctrl.onOpenshift {
+	if !ctrl.clusterQuotaEnabled {
 		return rqs, nil
 	}
 
@@ -437,8 +437,8 @@ func (ctrl *AaqGateController) waitForReadyClusterQuotaNames(namespaceName strin
 
 func (ctrl *AaqGateController) Run(ctx context.Context, threadiness int) {
 	defer utilruntime.HandleCrash()
-	klog.Info("Starting Arq controller")
-	defer klog.Info("Shutting down Arq controller")
+	klog.Info("Starting Aaq Gate controller")
+	defer klog.Info("Shutting down Aaq Gate controller")
 	defer ctrl.nsQueue.ShutDown()
 
 	// Start a goroutine to listen for enqueue signals and call enqueueAll in case the configuration is changed.
@@ -478,7 +478,7 @@ func getCurrLimitedResource(podEvaluator *aaq_evaluator.AaqEvaluator, podToCreat
 
 func (ctrl *AaqGateController) aaqjqcProcessed(aaqjqc *v1alpha12.AAQJobQueueConfig) bool {
 	for rqName, locked := range aaqjqc.Status.ControllerLock {
-		if rqName == ClusterAppsResourceQuotaLockName && !ctrl.onOpenshift {
+		if rqName == ClusterAppsResourceQuotaLockName && !ctrl.clusterQuotaEnabled {
 			continue
 		}
 		if locked {

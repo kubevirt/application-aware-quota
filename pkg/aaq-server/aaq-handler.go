@@ -12,12 +12,13 @@ import (
 )
 
 type AaqServerHandler struct {
-	aaqCli client.AAQClient
-	aaqNS  string
+	aaqCli        client.AAQClient
+	aaqNS         string
+	isOnOpenshift bool
 }
 
-func NewAaqServerHandler(aaqNS string, aaqCli client.AAQClient) *AaqServerHandler {
-	return &AaqServerHandler{aaqCli, aaqNS}
+func NewAaqServerHandler(aaqNS string, aaqCli client.AAQClient, isOnOpenshift bool) *AaqServerHandler {
+	return &AaqServerHandler{aaqCli, aaqNS, isOnOpenshift}
 }
 
 func (ash *AaqServerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -27,7 +28,7 @@ func (ash *AaqServerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	handler := handlerv1.NewHandler(in.Request, ash.aaqCli, ash.aaqNS)
+	handler := handlerv1.NewHandler(in.Request, ash.aaqCli, ash.aaqNS, ash.isOnOpenshift)
 
 	out, err := handler.Handle()
 	if err != nil {

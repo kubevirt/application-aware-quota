@@ -28,6 +28,7 @@ type AAQServer struct {
 	secretCertManager certificate.Manager
 	handler           http.Handler
 	aaqNS             string
+	isOnOpenshift     bool
 }
 
 // AaqServer returns an initialized uploadProxyApp
@@ -36,12 +37,14 @@ func AaqServer(aaqNS string,
 	bindPort uint,
 	secretCertManager certificate.Manager,
 	aaqCli client.AAQClient,
+	isOnOpenshift bool,
 ) (Server, error) {
 	app := &AAQServer{
 		secretCertManager: secretCertManager,
 		bindAddress:       bindAddress,
 		bindPort:          bindPort,
 		aaqNS:             aaqNS,
+		isOnOpenshift:     isOnOpenshift,
 	}
 	app.initHandler(aaqCli)
 
@@ -55,7 +58,7 @@ func (app *AAQServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (app *AAQServer) initHandler(aaqCli client.AAQClient) {
 	mux := http.NewServeMux()
 	mux.HandleFunc(healthzPath, app.handleHealthzRequest)
-	mux.Handle(ServePath, NewAaqServerHandler(app.aaqNS, aaqCli))
+	mux.Handle(ServePath, NewAaqServerHandler(app.aaqNS, aaqCli, app.isOnOpenshift))
 	app.handler = cors.AllowAll().Handler(mux)
 
 }
