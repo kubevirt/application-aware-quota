@@ -65,9 +65,10 @@ type CarqController struct {
 	// controls the workers that process quotas
 	// this lock is acquired to control write access to the monitors and ensures that all
 	// monitors are synced before the controller can process quotas.
-	workerLock     sync.RWMutex
-	stop           <-chan struct{}
-	enqueueAllChan <-chan struct{}
+	workerLock      sync.RWMutex
+	stop            <-chan struct{}
+	enqueueAllChan  <-chan struct{}
+	collectCrqsData bool
 }
 
 type workItem struct {
@@ -84,7 +85,7 @@ func NewCarqController(aaqCli client.AAQClient,
 	calcRegistry *aaq_evaluator.AaqCalculatorsRegistry,
 	stop <-chan struct{},
 	enqueueAllChan <-chan struct{},
-
+	collectCrqsData bool,
 ) *CarqController {
 	ctrl := &CarqController{
 		carqInformer:       carqInformer,
@@ -99,6 +100,7 @@ func NewCarqController(aaqCli client.AAQClient,
 		nsQueue:            workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "ns_queue"),
 		enqueueAllChan:     enqueueAllChan,
 		stop:               stop,
+		collectCrqsData:    collectCrqsData,
 	}
 
 	carqInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -121,13 +123,15 @@ func NewCarqController(aaqCli client.AAQClient,
 	if err != nil {
 		panic("something is wrong")
 	}
-	_, err = ctrl.crqInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: ctrl.updateCRQ,
-		AddFunc:    ctrl.addCRQ,
-		DeleteFunc: ctrl.deleteCRQ,
-	})
-	if err != nil {
-		panic("something is wrong")
+	if collectCrqsData {
+		_, err = ctrl.crqInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+			UpdateFunc: ctrl.updateCRQ,
+			AddFunc:    ctrl.addCRQ,
+			DeleteFunc: ctrl.deleteCRQ,
+		})
+		if err != nil {
+			panic("something is wrong")
+		}
 	}
 	return ctrl
 }
@@ -135,6 +139,8 @@ func NewCarqController(aaqCli client.AAQClient,
 // Run begins quota controller using the specified number of workers
 func (c *CarqController) Run(ctx context.Context, workers int) {
 	defer utilruntime.HandleCrash()
+	klog.Info("Starting Carq controller")
+	defer klog.Info("Shutting Carq Controller")
 	// Start a goroutine to listen for enqueue signals and call enqueueAll in case the configuration is changed.
 	go func() {
 		for {

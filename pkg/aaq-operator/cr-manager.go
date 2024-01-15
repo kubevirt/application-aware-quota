@@ -72,6 +72,7 @@ func (r *ReconcileAAQ) getNamespacedArgs(cr *aaqv1.AAQ) *aaqnamespaced.FactoryAr
 			result.PriorityClassName = ""
 		}
 		result.InfraNodePlacement = &cr.Spec.Infra
+		result.Client = r.client
 	}
 
 	return &result

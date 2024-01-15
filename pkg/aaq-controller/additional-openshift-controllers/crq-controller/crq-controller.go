@@ -266,8 +266,8 @@ func (ctrl *CRQController) execute(key string) (error, enqueueState) {
 
 func (ctrl *CRQController) Run(threadiness int) {
 	defer utilruntime.HandleCrash()
-	klog.Info("Starting Carq controller")
-	defer klog.Info("Shutting down Carq controller")
+	klog.Info("Starting CRQ controller")
+	defer klog.Info("Shutting down CRQ controller")
 	defer ctrl.carqQueue.ShutDown()
 
 	for i := 0; i < threadiness; i++ {

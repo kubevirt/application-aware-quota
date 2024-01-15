@@ -31,7 +31,7 @@ func createDynamicMutatingGatingServerResources(args *FactoryArgs) []client.Obje
 	if gatingMutatingWebhook != nil {
 		objectsToAdd = append(objectsToAdd, gatingMutatingWebhook)
 	}
-	objectsToAdd = append(objectsToAdd, createGatingValidatingWebhook(args.Namespace, args.Client, args.Logger, args.OnOpenshift))
+	objectsToAdd = append(objectsToAdd, createGatingValidatingWebhook(args.Namespace, args.Client, args.Logger))
 	return objectsToAdd
 }
 
@@ -151,7 +151,7 @@ func createGatingMutatingWebhook(namespace string, c client.Client, l logr.Logge
 	return mhc
 }
 
-func createGatingValidatingWebhook(namespace string, c client.Client, l logr.Logger, onOpenshift bool) *admissionregistrationv1.ValidatingWebhookConfiguration {
+func createGatingValidatingWebhook(namespace string, c client.Client, l logr.Logger) *admissionregistrationv1.ValidatingWebhookConfiguration {
 	cr, _ := util.GetActiveAAQ(c)
 	if cr == nil {
 		return nil
@@ -254,7 +254,7 @@ func createGatingValidatingWebhook(namespace string, c client.Client, l logr.Log
 		},
 	})
 
-	if !onOpenshift {
+	if !cr.Spec.Configuration.EnableClusterAppsResourceQuota {
 		return mhc
 	}
 

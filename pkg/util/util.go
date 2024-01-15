@@ -69,8 +69,10 @@ const (
 	InstallerPartOfLabel = "INSTALLER_PART_OF_LABEL"
 	// InstallerVersionLabel provides a constant to capture our env variable "INSTALLER_VERSION_LABEL"
 	InstallerVersionLabel = "INSTALLER_VERSION_LABEL"
-	// InstallerVersionLabel provides a constant to capture our env variable "INSTALLER_VERSION_LABEL"
+	// IsOnOpenshift provides a constant to capture our env variable "IS_ON_OPENSHIFT"
 	IsOnOpenshift = "IS_ON_OPENSHIFT"
+	// EnableClusterQuota provides a constant to capture our env variable "ENABLE_CLUSTER_QUOTA"
+	EnableClusterQuota = "ENABLE_CLUSTER_QUOTA"
 	// TlsLabel provides a constant to capture our env variable "TLS"
 	TlsLabel = "TLS"
 	// ConfigMapName is the name of the aaq configmap that own aaq resources

@@ -257,8 +257,8 @@ func (ctrl *RQController) execute(key string) (error, enqueueState) {
 
 func (ctrl *RQController) Run(threadiness int) {
 	defer utilruntime.HandleCrash()
-	klog.Info("Starting Arq controller")
-	defer klog.Info("Shutting down Arq controller")
+	klog.Info("Starting RQ Controller")
+	defer klog.Info("Shutting down RQ Controller")
 	defer ctrl.arqQueue.ShutDown()
 
 	for i := 0; i < threadiness; i++ {
