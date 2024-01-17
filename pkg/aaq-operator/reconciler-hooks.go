@@ -24,7 +24,9 @@ func (r *ReconcileAAQ) watch() error {
 	if err := r.watchAAQCRD(); err != nil {
 		return err
 	}
-
+	if err := r.watchSecurityContextConstraints(); err != nil {
+		return err
+	}
 	return nil
 }
 
