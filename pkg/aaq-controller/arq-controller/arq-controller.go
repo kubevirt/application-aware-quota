@@ -268,7 +268,7 @@ func (ctrl *ArqController) execute(ns string) (error, enqueueState) {
 	}
 
 	if aaqjqc != nil && aaqjqc.Status.ControllerLock != nil && aaqjqc.Status.ControllerLock[arq_controller.ApplicationsResourceQuotaLockName] {
-		if res, err := ctrl.verifyPodsWithOutSchedulingGates(ns, aaqjqc.Status.PodsInJobQueue); err != nil || !res {
+		if res, err := util.VerifyPodsWithOutSchedulingGates(ctrl.aaqCli, ctrl.podInformer, ns, aaqjqc.Status.PodsInJobQueue); err != nil || !res {
 			return err, Immediate //wait until gate controller remove the scheduling gates
 		}
 	}
@@ -294,26 +294,6 @@ func (ctrl *ArqController) execute(ns string) (error, enqueueState) {
 		}
 	}
 	return nil, Forget
-}
-
-// CheckPodsForSchedulingGates checks that all pods in the specified namespace
-// with the specified names do not have scheduling gates.
-func (ctrl *ArqController) verifyPodsWithOutSchedulingGates(namespace string, podNames []string) (bool, error) {
-	podList, err := ctrl.aaqCli.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return false, err
-	}
-
-	// Iterate through all pods and check for scheduling gates.
-	for _, pod := range podList.Items {
-		for _, name := range podNames {
-			if pod.Name == name && len(pod.Spec.SchedulingGates) > 0 {
-				return false, nil
-			}
-		}
-	}
-
-	return true, nil
 }
 
 func (ctrl *ArqController) Run(ctx context.Context, workers int) {
