@@ -23,8 +23,8 @@ import (
 	"k8s.io/utils/clock"
 	aaq_evaluator "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-evaluator"
 	arq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-gate-controller"
-	"kubevirt.io/applications-aware-quota/pkg/aaq-controller/additional-openshift-controllers/clusterquotamapping"
-	crq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/additional-openshift-controllers/crq-controller"
+	"kubevirt.io/applications-aware-quota/pkg/aaq-controller/additional-cluster-quota-controllers/clusterquotamapping"
+	crq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/additional-cluster-quota-controllers/crq-controller"
 	"kubevirt.io/applications-aware-quota/pkg/client"
 	"kubevirt.io/applications-aware-quota/pkg/log"
 	"kubevirt.io/applications-aware-quota/pkg/util"
@@ -526,9 +526,10 @@ func (ctrl *CarqController) execute(ns string) (error, enqueueState) {
 	}
 
 	if aaqjqc != nil && aaqjqc.Status.ControllerLock != nil && aaqjqc.Status.ControllerLock[arq_controller.ClusterAppsResourceQuotaLockName] {
-		if res, err := ctrl.verifyPodsWithOutSchedulingGates(ns, aaqjqc.Status.PodsInJobQueue); err != nil || !res {
+		if res, err := util.VerifyPodsWithOutSchedulingGates(ctrl.aaqCli, ctrl.podInformer, ns, aaqjqc.Status.PodsInJobQueue); err != nil || !res {
 			return err, Immediate //wait until gate controller remove the scheduling gates
 		}
+
 	}
 
 	carqs, _ := ctrl.clusterQuotaMapper.GetClusterQuotasFor(ns)
@@ -551,24 +552,4 @@ func (ctrl *CarqController) execute(ns string) (error, enqueueState) {
 		}
 	}
 	return nil, Forget
-}
-
-// CheckPodsForSchedulingGates checks that all pods in the specified namespace
-// with the specified names do not have scheduling gates.
-func (ctrl *CarqController) verifyPodsWithOutSchedulingGates(namespace string, podNames []string) (bool, error) {
-	podList, err := ctrl.aaqCli.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return false, err
-	}
-
-	// Iterate through all pods and check for scheduling gates.
-	for _, pod := range podList.Items {
-		for _, name := range podNames {
-			if pod.Name == name && len(pod.Spec.SchedulingGates) > 0 {
-				return false, nil
-			}
-		}
-	}
-
-	return true, nil
 }

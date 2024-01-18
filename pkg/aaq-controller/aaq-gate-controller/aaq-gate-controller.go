@@ -21,7 +21,7 @@ import (
 	"k8s.io/utils/clock"
 	_ "kubevirt.io/api/core/v1"
 	aaq_evaluator "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-evaluator"
-	"kubevirt.io/applications-aware-quota/pkg/aaq-controller/additional-openshift-controllers/clusterquotamapping"
+	"kubevirt.io/applications-aware-quota/pkg/aaq-controller/additional-cluster-quota-controllers/clusterquotamapping"
 	"kubevirt.io/applications-aware-quota/pkg/client"
 	"kubevirt.io/applications-aware-quota/pkg/generated/aaq/listers/core/v1alpha1"
 	"kubevirt.io/applications-aware-quota/pkg/log"
@@ -275,11 +275,12 @@ func (ctrl *AaqGateController) execute(ns string) (error, enqueueState) {
 	if err != nil {
 		return err, Immediate
 	}
-	podsList, err := ctrl.aaqCli.CoreV1().Pods(ns).List(context.Background(), metav1.ListOptions{})
+	podObjs, err := ctrl.podInformer.GetIndexer().ByIndex(cache.NamespaceIndex, ns)
 	if err != nil {
 		return err, Immediate
 	}
-	for _, pod := range podsList.Items {
+	for _, podObj := range podObjs {
+		pod := podObj.(*v1.Pod)
 		if pod.Spec.SchedulingGates != nil &&
 			len(pod.Spec.SchedulingGates) == 1 &&
 			pod.Spec.SchedulingGates[0].Name == "ApplicationsAwareQuotaGate" {

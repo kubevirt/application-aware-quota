@@ -73,12 +73,12 @@ func (aaqe *AaqEvaluator) Usage(item runtime.Object) (corev1.ResourceList, error
 		len(pod.Spec.SchedulingGates) > 0 {
 		return corev1.ResourceList{}, nil
 	}
-	arqObjs, err := aaqe.podInformer.GetIndexer().ByIndex(cache.NamespaceIndex, pod.Namespace)
+	podObjs, err := aaqe.podInformer.GetIndexer().ByIndex(cache.NamespaceIndex, pod.Namespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list content: %v", err)
 	}
 	var runtimeObjects []runtime.Object
-	for _, obj := range arqObjs {
+	for _, obj := range podObjs {
 		pod, ok := obj.(*corev1.Pod)
 		if !ok {
 			log.Log.Infof("Failed to type assert to *v1.Pod")
