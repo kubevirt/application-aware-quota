@@ -43,8 +43,6 @@ var _ = Describe("Test aaq-gate-controller", func() {
 			aaqjcInterfaceMock := client.NewMockAAQJobQueueConfigInterface(ctrl)
 			aaqjcInterfaceMock.EXPECT().Create(context.Background(), aaqjqc, metav1.CreateOptions{}).Return(aaqjqc, nil).Times(1)
 			cli.EXPECT().AAQJobQueueConfigs(testNs).Return(aaqjcInterfaceMock).Times(1)
-			fakek8sCli := k8sfake.NewSimpleClientset()
-			cli.EXPECT().CoreV1().Times(1).Return(fakek8sCli.CoreV1())
 
 			qc := setupAAQGateController(cli, nil, nil, aaqjcInformer)
 			err, es := qc.execute(testNs)
@@ -108,8 +106,8 @@ var _ = Describe("Test aaq-gate-controller", func() {
 		arqInformer := testsutils.NewFakeSharedIndexInformer(arqsState)
 		aaqjqcInformer := testsutils.NewFakeSharedIndexInformer([]metav1.Object{&v1alpha1.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: AaqjqcName, Namespace: testNs}, Status: v1alpha1.AAQJobQueueConfigStatus{}}})
 		fakek8sCli := k8sfake.NewSimpleClientset(metav1ToRuntimePodsObjs(podsState)...)
-		cli.EXPECT().CoreV1().MinTimes(1).Return(fakek8sCli.CoreV1())
 		if expectedAaqjqc != nil {
+			cli.EXPECT().CoreV1().MinTimes(1).Return(fakek8sCli.CoreV1())
 			aaqjqcInterfaceMock := client.NewMockAAQJobQueueConfigInterface(ctrl)
 			aaqjqcInterfaceMock.EXPECT().UpdateStatus(context.Background(), expectedAaqjqc, metav1.UpdateOptions{}).Times(1).Return(expectedAaqjqc, nil)
 			cli.EXPECT().AAQJobQueueConfigs(testNs).Return(aaqjqcInterfaceMock).Times(1)
@@ -126,9 +124,7 @@ var _ = Describe("Test aaq-gate-controller", func() {
 	}, Entry(" there aren't any pod in the test ns",
 		nil,
 		[]metav1.Object{}, []metav1.Object{},
-		sets.NewString(
-			strings.Join([]string{"list", "pods"}, "-"),
-		),
+		sets.NewString(),
 	), Entry(" there is a pod without gate",
 		nil,
 		[]metav1.Object{
@@ -140,9 +136,7 @@ var _ = Describe("Test aaq-gate-controller", func() {
 				},
 			},
 		}, []metav1.Object{},
-		sets.NewString(
-			strings.Join([]string{"list", "pods"}, "-"),
-		),
+		sets.NewString(),
 	), Entry(" there is a pod with another gate",
 		nil,
 		[]metav1.Object{
@@ -155,9 +149,7 @@ var _ = Describe("Test aaq-gate-controller", func() {
 				},
 			},
 		}, []metav1.Object{},
-		sets.NewString(
-			strings.Join([]string{"list", "pods"}, "-"),
-		),
+		sets.NewString(),
 	), Entry(" there is a pod with several gates",
 		nil,
 		[]metav1.Object{
@@ -170,9 +162,7 @@ var _ = Describe("Test aaq-gate-controller", func() {
 				},
 			},
 		}, []metav1.Object{},
-		sets.NewString(
-			strings.Join([]string{"list", "pods"}, "-"),
-		),
+		sets.NewString(),
 	), Entry(" there is a pod with gate that should be ungated without arqs",
 		&v1alpha1.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: AaqjqcName, Namespace: testNs}, Status: v1alpha1.AAQJobQueueConfigStatus{PodsInJobQueue: []string{"pod-test"}, ControllerLock: map[string]bool{ApplicationsResourceQuotaLockName: true}}},
 		[]metav1.Object{
@@ -186,7 +176,6 @@ var _ = Describe("Test aaq-gate-controller", func() {
 			},
 		}, []metav1.Object{}, sets.NewString(
 			strings.Join([]string{"update", "pods"}, "-"),
-			strings.Join([]string{"list", "pods"}, "-"),
 		),
 	), Entry(" there is a pod with gate that should be ungated with non-blocking-arqs",
 		&v1alpha1.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: AaqjqcName, Namespace: testNs}, Status: v1alpha1.AAQJobQueueConfigStatus{PodsInJobQueue: []string{"pod-test"}, ControllerLock: map[string]bool{ApplicationsResourceQuotaLockName: true}}},
@@ -204,7 +193,6 @@ var _ = Describe("Test aaq-gate-controller", func() {
 		},
 		sets.NewString(
 			strings.Join([]string{"update", "pods"}, "-"),
-			strings.Join([]string{"list", "pods"}, "-"),
 		),
 	), Entry(" there is a pod with gate that should be ungated with blocking-arqs",
 		nil,
@@ -220,9 +208,7 @@ var _ = Describe("Test aaq-gate-controller", func() {
 		}, []metav1.Object{
 			tests.NewArqBuilder().WithNamespace(testNs).WithName("testarq").WithResource(corev1.ResourceRequestsMemory, resource.MustParse("2Mi")).WithSyncStatusHardEmptyStatusUsed().Build(),
 		},
-		sets.NewString(
-			strings.Join([]string{"list", "pods"}, "-"),
-		),
+		sets.NewString(),
 	), Entry(" there is a pod with gate that should not be ungated with two arqs one of them is blocking",
 		nil,
 		[]metav1.Object{
@@ -238,9 +224,7 @@ var _ = Describe("Test aaq-gate-controller", func() {
 			tests.NewArqBuilder().WithNamespace(testNs).WithName("testarq").WithResource(corev1.ResourceRequestsMemory, resource.MustParse("2Gi")).WithSyncStatusHardEmptyStatusUsed().Build(),
 			tests.NewArqBuilder().WithNamespace(testNs).WithName("testarq1").WithResource(corev1.ResourceRequestsMemory, resource.MustParse("2Mi")).WithSyncStatusHardEmptyStatusUsed().Build(),
 		},
-		sets.NewString(
-			strings.Join([]string{"list", "pods"}, "-"),
-		),
+		sets.NewString(),
 	), Entry(" there is a pod with gate that should be ungated with two non-blocking arqs",
 		&v1alpha1.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: AaqjqcName, Namespace: testNs}, Status: v1alpha1.AAQJobQueueConfigStatus{PodsInJobQueue: []string{"pod-test"}, ControllerLock: map[string]bool{ApplicationsResourceQuotaLockName: true}}},
 		[]metav1.Object{
@@ -258,34 +242,6 @@ var _ = Describe("Test aaq-gate-controller", func() {
 		},
 		sets.NewString(
 			strings.Join([]string{"update", "pods"}, "-"),
-			strings.Join([]string{"list", "pods"}, "-"),
-		),
-	), Entry(" there are two pods with gate that should be ungated with two non-blocking arqs",
-		&v1alpha1.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: AaqjqcName, Namespace: testNs}, Status: v1alpha1.AAQJobQueueConfigStatus{PodsInJobQueue: []string{"pod-test", "pod-test2"}, ControllerLock: map[string]bool{ApplicationsResourceQuotaLockName: true}}},
-		[]metav1.Object{
-			&corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{Name: "pod-test", Namespace: testNs},
-				Status:     corev1.PodStatus{Phase: corev1.PodRunning},
-				Spec: corev1.PodSpec{
-					SchedulingGates: []corev1.PodSchedulingGate{{util.AAQGate}},
-					Containers:      []corev1.Container{{Name: "ctr", Image: "image", Resources: testsutils.GetResourceRequirements(testsutils.GetResourceList("500m", "1Gi"), testsutils.GetResourceList("", ""))}},
-				},
-			},
-			&corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{Name: "pod-test2", Namespace: testNs},
-				Status:     corev1.PodStatus{Phase: corev1.PodRunning},
-				Spec: corev1.PodSpec{
-					SchedulingGates: []corev1.PodSchedulingGate{{util.AAQGate}},
-					Containers:      []corev1.Container{{Name: "ctr", Image: "image", Resources: testsutils.GetResourceRequirements(testsutils.GetResourceList("500m", "1Gi"), testsutils.GetResourceList("", ""))}},
-				},
-			},
-		}, []metav1.Object{
-			tests.NewArqBuilder().WithNamespace(testNs).WithName("testarq").WithResource(corev1.ResourceRequestsMemory, resource.MustParse("4Gi")).WithSyncStatusHardEmptyStatusUsed().Build(),
-			tests.NewArqBuilder().WithNamespace(testNs).WithName("testarq1").WithResource(corev1.ResourceRequestsMemory, resource.MustParse("2Gi")).WithSyncStatusHardEmptyStatusUsed().Build(),
-		},
-		sets.NewString(
-			strings.Join([]string{"update", "pods"}, "-"),
-			strings.Join([]string{"list", "pods"}, "-"),
 		),
 	), Entry(" there are two pods with gate with args with enough place just for one of them",
 		&v1alpha1.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: AaqjqcName, Namespace: testNs}, Status: v1alpha1.AAQJobQueueConfigStatus{PodsInJobQueue: []string{"pod-test2"}, ControllerLock: map[string]bool{ApplicationsResourceQuotaLockName: true}}},
@@ -312,7 +268,6 @@ var _ = Describe("Test aaq-gate-controller", func() {
 		},
 		sets.NewString(
 			strings.Join([]string{"update", "pods"}, "-"),
-			strings.Join([]string{"list", "pods"}, "-"),
 		),
 	), Entry(" there are two pods with gate with blocking arqs each arq block another pod",
 		nil,
@@ -337,9 +292,7 @@ var _ = Describe("Test aaq-gate-controller", func() {
 			tests.NewArqBuilder().WithNamespace(testNs).WithName("testarq").WithResource(corev1.ResourceRequestsCPU, resource.MustParse("400m")).WithSyncStatusHardEmptyStatusUsed().Build(),
 			tests.NewArqBuilder().WithNamespace(testNs).WithName("testarq1").WithResource(corev1.ResourceRequestsMemory, resource.MustParse("1Gi")).WithSyncStatusHardEmptyStatusUsed().Build(),
 		},
-		sets.NewString(
-			strings.Join([]string{"list", "pods"}, "-"),
-		),
+		sets.NewString(),
 	),
 	)
 
