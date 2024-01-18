@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/certificate"
 	"k8s.io/klog/v2"
 	api "k8s.io/kubernetes/pkg/apis/core"
@@ -407,4 +408,56 @@ func isSchedulableResource(resourceName corev1.ResourceName) bool {
 	}
 
 	return false
+}
+
+// VerifyPodsWithOutSchedulingGates checks that all pods in the specified namespace
+// with the specified names do not have scheduling gates.
+func VerifyPodsWithOutSchedulingGates(aaqCli client2.AAQClient, podInformer cache.SharedIndexInformer, namespace string, podNames []string) (bool, error) {
+	podObjs, err := podInformer.GetIndexer().ByIndex(cache.NamespaceIndex, namespace)
+	if err != nil {
+		return false, err
+	}
+
+	// Create a map to store pod names and their scheduling gate status
+	podStatusMap := make(map[string]bool)
+
+	// Iterate through all pods and check for scheduling gates.
+	for _, podObj := range podObjs {
+		pod := podObj.(*corev1.Pod)
+		podStatusMap[pod.Name] = len(pod.Spec.SchedulingGates) > 0
+	}
+
+	// Check if all specified pods are found and are not gated
+	for _, name := range podNames {
+		if gated, exists := podStatusMap[name]; exists {
+			if gated {
+				return false, nil
+			}
+		} else {
+			// If one of the pods is not found, make an API call
+			return verifyPodsWithOutSchedulingGatesWithApiCall(aaqCli, namespace, podNames)
+		}
+	}
+
+	return true, nil
+}
+
+// verifyPodsWithOutSchedulingGatesWithApiCall checks that all pods in the specified namespace
+// with the specified names do not have scheduling gates.
+func verifyPodsWithOutSchedulingGatesWithApiCall(aaqCli client2.AAQClient, namespace string, podNames []string) (bool, error) {
+	podList, err := aaqCli.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return false, err
+	}
+
+	// Iterate through all pods and check for scheduling gates.
+	for _, pod := range podList.Items {
+		for _, name := range podNames {
+			if pod.Name == name && len(pod.Spec.SchedulingGates) > 0 {
+				return false, nil
+			}
+		}
+	}
+
+	return true, nil
 }
