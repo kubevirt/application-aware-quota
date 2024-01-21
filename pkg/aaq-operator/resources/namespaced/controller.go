@@ -9,6 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	utils2 "kubevirt.io/applications-aware-quota/pkg/util"
+	"kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	sdkapi "kubevirt.io/controller-lifecycle-operator-sdk/api"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -22,7 +23,7 @@ func createAAQControllerResources(args *FactoryArgs) []client.Object {
 		createAAQControllerServiceAccount(),
 		createControllerRoleBinding(),
 		createControllerRole(),
-		createAAQControllerDeployment(args.ControllerImage, args.Verbosity, args.PullPolicy, args.ImagePullSecrets, args.PriorityClassName, args.InfraNodePlacement, cr.Spec.Configuration.EnableClusterAppsResourceQuota, args.OnOpenshift),
+		createAAQControllerDeployment(args.ControllerImage, args.Verbosity, args.PullPolicy, args.ImagePullSecrets, args.PriorityClassName, args.InfraNodePlacement, cr.Spec.Configuration.EnableClusterAppsResourceQuota, args.OnOpenshift, cr.Spec.Configuration.VmiCalculatorConfiguration.ConfigName),
 	}
 }
 func createControllerRoleBinding() *rbacv1.RoleBinding {
@@ -96,7 +97,7 @@ func createAAQControllerServiceAccount() *corev1.ServiceAccount {
 	return utils2.ResourceBuilder.CreateServiceAccount(utils2.ControllerResourceName)
 }
 
-func createAAQControllerDeployment(image, verbosity, pullPolicy string, imagePullSecrets []corev1.LocalObjectReference, priorityClassName string, infraNodePlacement *sdkapi.NodePlacement, enableClusterQuota bool, onOpenshift bool) *appsv1.Deployment {
+func createAAQControllerDeployment(image, verbosity, pullPolicy string, imagePullSecrets []corev1.LocalObjectReference, priorityClassName string, infraNodePlacement *sdkapi.NodePlacement, enableClusterQuota bool, onOpenshift bool, configName v1alpha1.VmiCalcConfigName) *appsv1.Deployment {
 	defaultMode := corev1.ConfigMapVolumeSourceDefaultMode
 	deployment := utils2.CreateDeployment(utils2.ControllerResourceName, utils2.AAQLabel, utils2.ControllerResourceName, utils2.ControllerResourceName, imagePullSecrets, 2, infraNodePlacement)
 	if priorityClassName != "" {
@@ -110,6 +111,9 @@ func createAAQControllerDeployment(image, verbosity, pullPolicy string, imagePul
 		},
 	}
 	container := utils2.CreateContainer(utils2.ControllerResourceName, image, verbosity, pullPolicy)
+	if configName != "" {
+		container.Args = append(container.Args, []string{"--" + utils2.VMICalculatorConfiguration, string(configName)}...)
+	}
 	if enableClusterQuota {
 		container.Args = append(container.Args, []string{"--" + utils2.EnableClusterQuota, "true"}...)
 		if onOpenshift {

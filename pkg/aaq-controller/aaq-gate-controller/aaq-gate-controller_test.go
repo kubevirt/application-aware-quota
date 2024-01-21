@@ -312,7 +312,6 @@ func setupAAQGateController(clientSet client.AAQClient, podInformer cache.Shared
 	}
 	fakeClock := testingclock.NewFakeClock(time.Now())
 	stop := make(chan struct{})
-	enqueueAllChan := make(chan struct{})
 	qc := NewAaqGateController(clientSet,
 		podInformer,
 		arqInformer,
@@ -324,7 +323,6 @@ func setupAAQGateController(clientSet client.AAQClient, podInformer cache.Shared
 		nil,
 		false,
 		stop,
-		enqueueAllChan,
 	)
 	informerFactory.Start(stop)
 	kubeInformerFactory.Start(stop)

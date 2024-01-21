@@ -12,7 +12,6 @@ import (
 
 // UsageCalculator knows how to evaluate quota usage for a particular app pods
 type UsageCalculator interface {
-	SetConfiguration(string)
 	// Usage returns the resource usage for the specified object
 	PodUsageFunc(item runtime.Object, items []runtime.Object, clock clock.Clock) (corev1.ResourceList, error, bool)
 }
@@ -37,17 +36,6 @@ func (aaqe *AaqCalculatorsRegistry) AddBuiltInCalculator(id string, usageCalcula
 	aaqe.mu.Lock()
 	defer aaqe.mu.Unlock()
 	aaqe.builtInCalculators[id] = usageCalculator
-	return aaqe
-}
-
-func (aaqe *AaqCalculatorsRegistry) ReplaceBuiltInCalculatorConfig(id string, config string) *AaqCalculatorsRegistry {
-	aaqe.mu.Lock()
-	defer aaqe.mu.Unlock()
-	_, ok := aaqe.builtInCalculators[id]
-	if ok {
-		aaqe.builtInCalculators[id].SetConfiguration(config)
-
-	}
 	return aaqe
 }
 
