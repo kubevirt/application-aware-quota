@@ -24,7 +24,6 @@ import (
 	"kubevirt.io/applications-aware-quota/pkg/aaq-controller/additional-cluster-quota-controllers/clusterquotamapping"
 	"kubevirt.io/applications-aware-quota/pkg/client"
 	"kubevirt.io/applications-aware-quota/pkg/generated/aaq/listers/core/v1alpha1"
-	"kubevirt.io/applications-aware-quota/pkg/log"
 	"kubevirt.io/applications-aware-quota/pkg/util"
 	v1alpha12 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	"time"
@@ -47,19 +46,18 @@ var locksNames = []string{
 }
 
 type AaqGateController struct {
-	podInformer                  cache.SharedIndexInformer
-	arqInformer                  cache.SharedIndexInformer
-	carqInformer                 cache.SharedIndexInformer
-	aaqjqcInformer               cache.SharedIndexInformer
-	nsQueue                      workqueue.RateLimitingInterface
-	aaqCli                       client.AAQClient
-	aaqEvaluator                 *aaq_evaluator.AaqEvaluator
-	clusterQuotaEnabled          bool
-	clusterQuotaLister           v1alpha1.ClusterAppsResourceQuotaLister
-	namespaceLister              v12.NamespaceLister
-	clusterQuotaMapper           clusterquotamapping.ClusterQuotaMapper
-	stop                         <-chan struct{}
-	enqueueAllGateControllerChan <-chan struct{}
+	podInformer         cache.SharedIndexInformer
+	arqInformer         cache.SharedIndexInformer
+	carqInformer        cache.SharedIndexInformer
+	aaqjqcInformer      cache.SharedIndexInformer
+	nsQueue             workqueue.RateLimitingInterface
+	aaqCli              client.AAQClient
+	aaqEvaluator        *aaq_evaluator.AaqEvaluator
+	clusterQuotaEnabled bool
+	clusterQuotaLister  v1alpha1.ClusterAppsResourceQuotaLister
+	namespaceLister     v12.NamespaceLister
+	clusterQuotaMapper  clusterquotamapping.ClusterQuotaMapper
+	stop                <-chan struct{}
 }
 
 func NewAaqGateController(aaqCli client.AAQClient,
@@ -73,22 +71,20 @@ func NewAaqGateController(aaqCli client.AAQClient,
 	clusterQuotaMapper clusterquotamapping.ClusterQuotaMapper,
 	clusterQuotaEnabled bool,
 	stop <-chan struct{},
-	enqueueAllGateControllerChan <-chan struct{},
 ) *AaqGateController {
 	ctrl := AaqGateController{
-		aaqCli:                       aaqCli,
-		aaqjqcInformer:               aaqjqcInformer,
-		podInformer:                  podInformer,
-		arqInformer:                  arqInformer,
-		carqInformer:                 carqInformer,
-		nsQueue:                      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "ns-queue"),
-		aaqEvaluator:                 aaq_evaluator.NewAaqEvaluator(podInformer, calcRegistry, clock.RealClock{}),
-		clusterQuotaLister:           clusterQuotaLister,
-		namespaceLister:              namespaceLister,
-		clusterQuotaMapper:           clusterQuotaMapper,
-		clusterQuotaEnabled:          clusterQuotaEnabled,
-		stop:                         stop,
-		enqueueAllGateControllerChan: enqueueAllGateControllerChan,
+		aaqCli:              aaqCli,
+		aaqjqcInformer:      aaqjqcInformer,
+		podInformer:         podInformer,
+		arqInformer:         arqInformer,
+		carqInformer:        carqInformer,
+		nsQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "ns-queue"),
+		aaqEvaluator:        aaq_evaluator.NewAaqEvaluator(podInformer, calcRegistry, clock.RealClock{}),
+		clusterQuotaLister:  clusterQuotaLister,
+		namespaceLister:     namespaceLister,
+		clusterQuotaMapper:  clusterQuotaMapper,
+		clusterQuotaEnabled: clusterQuotaEnabled,
+		stop:                stop,
 	}
 
 	_, err := ctrl.podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -442,18 +438,6 @@ func (ctrl *AaqGateController) Run(ctx context.Context, threadiness int) {
 	defer klog.Info("Shutting down Aaq Gate controller")
 	defer ctrl.nsQueue.ShutDown()
 
-	// Start a goroutine to listen for enqueue signals and call enqueueAll in case the configuration is changed.
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ctrl.enqueueAllGateControllerChan:
-				log.Log.Infof("AaqGateController: Signal processed enqueued All")
-				ctrl.enqueueAll()
-			}
-		}
-	}()
 	for i := 0; i < threadiness; i++ {
 		go wait.Until(ctrl.runWorker, time.Second, ctrl.stop)
 	}
