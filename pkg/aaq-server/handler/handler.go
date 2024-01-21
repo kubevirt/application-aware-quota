@@ -9,7 +9,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
+	"kubevirt.io/applications-aware-quota/pkg/client"
 	"kubevirt.io/applications-aware-quota/pkg/util"
 	"kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	"net/http"
@@ -18,24 +18,27 @@ import (
 
 const (
 	allowPodRequest               = "Pod has successfully gated"
-	allowArqRequest               = "ApplicationResourceQuota request is valid"
-	validatingResourceQuotaPrefix = "arq-validating-rq-"
+	allowArqRequest               = "ApplicationsResourceQuota request is valid"
+	allowCarqRequest              = "ClusterAppsResourceQuota request is valid"
+	validatingResourceQuotaPrefix = "aaq-validating-rq-"
 	validPodUpdate                = "Pod update did not remove AAQGate"
 	aaqControllerPodUpdate        = "AAQ controller has permission to remove gate from pods"
 	invalidPodUpdate              = "Only AAQ controller has permission to remove " + util.AAQGate + " gate from pods"
 )
 
 type Handler struct {
-	request *admissionv1.AdmissionRequest
-	aaqCli  kubernetes.Interface
-	aaqNS   string
+	request       *admissionv1.AdmissionRequest
+	aaqCli        client.AAQClient
+	aaqNS         string
+	isOnOpenshift bool
 }
 
-func NewHandler(Request *admissionv1.AdmissionRequest, aaqCli kubernetes.Interface, aaqNS string) *Handler {
+func NewHandler(Request *admissionv1.AdmissionRequest, aaqCli client.AAQClient, aaqNS string, isOnOpenshift bool) *Handler {
 	return &Handler{
-		request: Request,
-		aaqCli:  aaqCli,
-		aaqNS:   aaqNS,
+		request:       Request,
+		aaqCli:        aaqCli,
+		aaqNS:         aaqNS,
+		isOnOpenshift: isOnOpenshift,
 	}
 }
 
@@ -49,6 +52,8 @@ func (v Handler) Handle() (*admissionv1.AdmissionReview, error) {
 		return v.validatePodUpdate()
 	case "ApplicationsResourceQuota":
 		return v.validateApplicationsResourceQuota()
+	case "ClusterAppsResourceQuota":
+		return v.validateClusterAppsResourceQuota()
 	}
 	return nil, fmt.Errorf("AAQ webhook doesn't recongnize request: %+v", v.request)
 }
@@ -113,12 +118,36 @@ func (v Handler) validateApplicationsResourceQuota() (*admissionv1.AdmissionRevi
 	rq.Namespace = arq.Namespace
 	rq.Name = createRQName()
 	rq.Spec.Hard = arq.Spec.Hard
+	rq.Spec.ScopeSelector = arq.Spec.ScopeSelector
+	rq.Spec.Scopes = arq.Spec.Scopes
 	_, err := v.aaqCli.CoreV1().ResourceQuotas(arq.Namespace).Create(context.Background(), rq, metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}})
 	if err != nil {
 		return reviewResponse(v.request.UID, false, http.StatusForbidden, ignoreRqErr(err.Error())), nil
 	}
 	return reviewResponse(v.request.UID, true, http.StatusAccepted, allowArqRequest), nil
 
+}
+
+func (v Handler) validateClusterAppsResourceQuota() (*admissionv1.AdmissionReview, error) {
+	carq := v1alpha1.ClusterAppsResourceQuota{}
+	if err := json.Unmarshal(v.request.Object.Raw, &carq); err != nil {
+		return nil, err
+	}
+	rq := &v1.ResourceQuota{}
+	rq.Name = createRQName()
+	rq.Spec.Hard = carq.Spec.Quota.Hard
+	rq.Spec.ScopeSelector = carq.Spec.Quota.ScopeSelector
+	rq.Spec.Scopes = carq.Spec.Quota.Scopes
+	_, err := v.aaqCli.CoreV1().ResourceQuotas(v1.NamespaceDefault).Create(context.Background(), rq, metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}})
+	if err != nil {
+		return reviewResponse(v.request.UID, false, http.StatusForbidden, ignoreRqErr(err.Error())), nil
+	}
+	nonSchedulableResourcesHard := util.FilterNonScheduableResources(carq.Spec.Quota.Hard)
+	if !v.isOnOpenshift && len(nonSchedulableResourcesHard) > 0 {
+		errMsg := fmt.Sprintf("ClusterAppsResourceQuota without clusterResourceQuota support, operator cannot handle non scheduable resources :%v", getResourcesNames(nonSchedulableResourcesHard))
+		return reviewResponse(v.request.UID, false, http.StatusForbidden, errMsg), nil
+	}
+	return reviewResponse(v.request.UID, true, http.StatusAccepted, allowCarqRequest), nil
 }
 
 func (v Handler) validatePodUpdate() (*admissionv1.AdmissionReview, error) {
@@ -173,4 +202,12 @@ func ignoreRqErr(err string) string {
 func isAAQControllerServiceAccount(serviceAccount string, aaqNS string) bool {
 	prefix := fmt.Sprintf("system:serviceaccount:%s", aaqNS)
 	return serviceAccount == fmt.Sprintf("%s:%s", prefix, util.ControllerResourceName)
+}
+
+func getResourcesNames(resourceList v1.ResourceList) []v1.ResourceName {
+	keys := make([]v1.ResourceName, 0, len(resourceList))
+	for key := range resourceList {
+		keys = append(keys, key)
+	}
+	return keys
 }

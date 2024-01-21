@@ -5,19 +5,20 @@ import (
 	"encoding/json"
 	"fmt"
 	admissionv1 "k8s.io/api/admission/v1"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 	handlerv1 "kubevirt.io/applications-aware-quota/pkg/aaq-server/handler"
+	"kubevirt.io/applications-aware-quota/pkg/client"
 	"net/http"
 )
 
 type AaqServerHandler struct {
-	aaqCli kubernetes.Interface
-	aaqNS  string
+	aaqCli        client.AAQClient
+	aaqNS         string
+	isOnOpenshift bool
 }
 
-func NewAaqServerHandler(aaqNS string, aaqCli kubernetes.Interface) *AaqServerHandler {
-	return &AaqServerHandler{aaqCli, aaqNS}
+func NewAaqServerHandler(aaqNS string, aaqCli client.AAQClient, isOnOpenshift bool) *AaqServerHandler {
+	return &AaqServerHandler{aaqCli, aaqNS, isOnOpenshift}
 }
 
 func (ash *AaqServerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -27,7 +28,7 @@ func (ash *AaqServerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	handler := handlerv1.NewHandler(in.Request, ash.aaqCli, ash.aaqNS)
+	handler := handlerv1.NewHandler(in.Request, ash.aaqCli, ash.aaqNS, ash.isOnOpenshift)
 
 	out, err := handler.Handle()
 	if err != nil {

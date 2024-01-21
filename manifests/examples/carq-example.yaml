@@ -1,0 +1,21 @@
+apiVersion: aaq.kubevirt.io/v1alpha1
+kind: ClusterAppsResourceQuota
+metadata:
+  name: example-resource-quota
+spec:
+  quota:
+    hard:
+      services: "5"
+      pods: "10"
+      limits.cpu: "1"
+      limits.memory: 1Gi
+      requests.cpu: "1"
+      requests.memory: 1Gi
+      requests.cpu/vmi: "1"
+      requests.memory/vmi: 1Gi
+      requests.instances/vmi: "10"
+  selector:
+    annotations: null
+    labels:
+      matchLabels:
+        kubernetes.io/metadata.name: default

@@ -1307,6 +1307,7 @@ func createReconciler(client client.Client) *ReconcileAAQ {
 		Verbosity:              "1",
 		PullPolicy:             "Always",
 		Namespace:              namespace,
+		Client:                 client,
 	}
 
 	recorder := record.NewFakeRecorder(250)
@@ -1357,7 +1358,7 @@ func createErrorAAQEventValidationMap() map[string]bool {
 func createReadyEventValidationMap() map[string]bool {
 	match := createNotReadyEventValidationMap()
 	match["Normal DeployCompleted Deployment Completed"] = false
-	match[normalUpdateSuccess+" *v1.ValidatingWebhookConfiguration arq-validator"] = false
+	match[normalUpdateSuccess+" *v1.ValidatingWebhookConfiguration aaq-validator"] = false
 	match[normalUpdateSuccess+" *v1.MutatingWebhookConfiguration gating-mutator"] = false
 	return match
 }
@@ -1381,7 +1382,7 @@ func createNotReadyEventValidationMap() map[string]bool {
 	match[normalCreateSuccess+" *v1.Deployment aaq-server"] = false
 	match[normalCreateSuccess+" *v1.Deployment aaq-controller"] = false
 	match[normalCreateSuccess+" *v1.MutatingWebhookConfiguration gating-mutator"] = false
-	match[normalCreateSuccess+" *v1.ValidatingWebhookConfiguration arq-validator"] = false
+	match[normalCreateSuccess+" *v1.ValidatingWebhookConfiguration aaq-validator"] = false
 	match[normalCreateSuccess+" *v1.CustomResourceDefinition applicationsresourcequotas.aaq.kubevirt.io"] = false
 	match[normalCreateSuccess+" *v1.CustomResourceDefinition aaqjobqueueconfigs.aaq.kubevirt.io"] = false
 	match[normalCreateSuccess+" *v1.Secret aaq-server"] = false

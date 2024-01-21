@@ -30,6 +30,8 @@ type Interface interface {
 	AAQJobQueueConfigs() AAQJobQueueConfigInformer
 	// ApplicationsResourceQuotas returns a ApplicationsResourceQuotaInformer.
 	ApplicationsResourceQuotas() ApplicationsResourceQuotaInformer
+	// ClusterAppsResourceQuotas returns a ClusterAppsResourceQuotaInformer.
+	ClusterAppsResourceQuotas() ClusterAppsResourceQuotaInformer
 }
 
 type version struct {
@@ -56,4 +58,9 @@ func (v *version) AAQJobQueueConfigs() AAQJobQueueConfigInformer {
 // ApplicationsResourceQuotas returns a ApplicationsResourceQuotaInformer.
 func (v *version) ApplicationsResourceQuotas() ApplicationsResourceQuotaInformer {
 	return &applicationsResourceQuotaInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// ClusterAppsResourceQuotas returns a ClusterAppsResourceQuotaInformer.
+func (v *version) ClusterAppsResourceQuotas() ClusterAppsResourceQuotaInformer {
+	return &clusterAppsResourceQuotaInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }

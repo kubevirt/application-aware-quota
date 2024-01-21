@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	admissionv1 "k8s.io/api/admission/v1"
@@ -12,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
+	"kubevirt.io/applications-aware-quota/pkg/client"
 	"kubevirt.io/applications-aware-quota/pkg/util"
 	"kubevirt.io/applications-aware-quota/tests"
 	"net/http"
@@ -160,6 +162,10 @@ var _ = Describe("Test handler of aaq server", func() {
 		arq := tests.NewArqBuilder().WithNamespace("testNS").WithResource(v1.ResourceRequestsMemory, resource.MustParse("4Gi")).Build()
 		arqBytes, err := json.Marshal(arq)
 		Expect(err).ToNot(HaveOccurred())
+		fakek8sCli := fake.NewSimpleClientset()
+		ctrl := gomock.NewController(GinkgoT())
+		cli := client.NewMockAAQClient(ctrl)
+		cli.EXPECT().CoreV1().Times(1).Return(fakek8sCli.CoreV1())
 		v := Handler{
 			request: &admissionv1.AdmissionRequest{
 				Kind: metav1.GroupVersionKind{
@@ -175,7 +181,7 @@ var _ = Describe("Test handler of aaq server", func() {
 				},
 			},
 			aaqNS:  util.DefaultAaqNs,
-			aaqCli: fake.NewSimpleClientset(),
+			aaqCli: cli,
 		}
 		admissionReview, err := v.Handle()
 		Expect(err).ToNot(HaveOccurred())

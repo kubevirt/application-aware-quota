@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"github.com/rs/cors"
 	"io"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/certificate"
 	"k8s.io/klog/v2"
+	"kubevirt.io/applications-aware-quota/pkg/client"
 	"kubevirt.io/applications-aware-quota/pkg/util"
 	"net/http"
 )
@@ -28,6 +28,7 @@ type AAQServer struct {
 	secretCertManager certificate.Manager
 	handler           http.Handler
 	aaqNS             string
+	isOnOpenshift     bool
 }
 
 // AaqServer returns an initialized uploadProxyApp
@@ -35,13 +36,15 @@ func AaqServer(aaqNS string,
 	bindAddress string,
 	bindPort uint,
 	secretCertManager certificate.Manager,
-	aaqCli kubernetes.Interface,
+	aaqCli client.AAQClient,
+	isOnOpenshift bool,
 ) (Server, error) {
 	app := &AAQServer{
 		secretCertManager: secretCertManager,
 		bindAddress:       bindAddress,
 		bindPort:          bindPort,
 		aaqNS:             aaqNS,
+		isOnOpenshift:     isOnOpenshift,
 	}
 	app.initHandler(aaqCli)
 
@@ -52,10 +55,10 @@ func (app *AAQServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	app.handler.ServeHTTP(w, r)
 }
 
-func (app *AAQServer) initHandler(aaqCli kubernetes.Interface) {
+func (app *AAQServer) initHandler(aaqCli client.AAQClient) {
 	mux := http.NewServeMux()
 	mux.HandleFunc(healthzPath, app.handleHealthzRequest)
-	mux.Handle(ServePath, NewAaqServerHandler(app.aaqNS, aaqCli))
+	mux.Handle(ServePath, NewAaqServerHandler(app.aaqNS, aaqCli, app.isOnOpenshift))
 	app.handler = cors.AllowAll().Handler(mux)
 
 }

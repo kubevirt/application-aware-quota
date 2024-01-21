@@ -20,6 +20,7 @@
 package v1alpha1
 
 import (
+	ocquotav1 "github.com/openshift/api/quota/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	sdkapi "kubevirt.io/controller-lifecycle-operator-sdk/api"
@@ -126,7 +127,8 @@ type AAQJobQueueConfigSpec struct {
 // AAQJobQueueConfigStatus defines the status with metadata for current jobs
 type AAQJobQueueConfigStatus struct {
 	// BuiltInCalculationConfigToApply
-	PodsInJobQueue []string `json:"podsInJobQueue,omitempty"`
+	PodsInJobQueue []string        `json:"podsInJobQueue,omitempty"`
+	ControllerLock map[string]bool `json:"controllerLock,omitempty"`
 }
 
 // AAQSpec defines our specification for the AAQ installation
@@ -153,6 +155,9 @@ type AAQSpec struct {
 type AAQConfiguration struct {
 	// VmiCalculatorConfiguration Default is VmiPodUsage please look for VmiCalculatorConfiguration type for more information.
 	VmiCalculatorConfiguration VmiCalculatorConfiguration `json:"vmiCalculatorConfiguration,omitempty"`
+	// EnableClusterAppsResourceQuota can be set to true to allow creation and management
+	// of ClusterAppsResourceQuota. Defaults to false
+	EnableClusterAppsResourceQuota bool `json:"enableClusterAppsResourceQuota,omitempty"`
 }
 
 type VmiCalcConfigName string
@@ -209,4 +214,91 @@ type AAQJobQueueConfigList struct {
 
 	// Items provides a list of AAQ
 	Items []AAQJobQueueConfig `json:"items"`
+}
+
+///  Openshift ClusterAppsResourceQuota
+
+// this has to be here otherwise informer-gen doesn't recognize it
+// see https://github.com/kubernetes/code-generator/issues/59
+// +genclient:nonNamespaced
+
+// ClusterAppsResourceQuota mirrors ResourceQuota at a cluster scope.  This object is easily convertible to
+// synthetic ResourceQuota object to allow quota evaluation re-use.
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
+// +kubebuilder:resource:shortName=carq;carqs,scope=Cluster
+// +kubebuilder:subresource:status
+// +k8s:openapi-gen=true
+type ClusterAppsResourceQuota struct {
+	metav1.TypeMeta `json:",inline"`
+
+	// metadata is the standard object's metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
+
+	// Spec defines the desired quota
+	Spec ClusterAppsResourceQuotaSpec `json:"spec" protobuf:"bytes,2,opt,name=spec"`
+
+	// Status defines the actual enforced quota and its current usage
+	Status ClusterAppsResourceQuotaStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
+}
+
+// ClusterAppsResourceQuotaSpec defines the desired quota restrictions
+type ClusterAppsResourceQuotaSpec struct {
+	ocquotav1.ClusterResourceQuotaSpec `json:",inline"`
+}
+
+// ClusterAppsResourceQuotaStatus defines the actual enforced quota and its current usage
+type ClusterAppsResourceQuotaStatus struct {
+	ocquotav1.ClusterResourceQuotaStatus `json:",inline"`
+}
+
+// ClusterAppsResourceQuotaList is a collection of ClusterResourceQuotas
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+type ClusterAppsResourceQuotaList struct {
+	metav1.TypeMeta `json:",inline"`
+
+	// metadata is the standard list's metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+
+	// Items is a list of ClusterAppsResourceQuotas
+	Items []ClusterAppsResourceQuota `json:"items" protobuf:"bytes,2,rep,name=items"`
+}
+
+// AppliedClusterAppsResourceQuota mirrors ClusterResourceQuota at a project scope, for projection
+// into a project.  It allows a project-admin to know which ClusterResourceQuotas are applied to
+// his project and their associated usage.
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
+// +kubebuilder:resource:shortName=acarq;acarqs,categories=all
+// +kubebuilder:subresource:status
+// +k8s:openapi-gen=true
+// +genclient:onlyVerbs=get,list
+type AppliedClusterAppsResourceQuota struct {
+	metav1.TypeMeta `json:",inline"`
+
+	// metadata is the standard object's metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
+
+	// Spec defines the desired quota
+	Spec ClusterAppsResourceQuotaSpec `json:"spec" protobuf:"bytes,2,opt,name=spec"`
+
+	// Status defines the actual enforced quota and its current usage
+	Status ClusterAppsResourceQuotaStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
+}
+
+// AppliedClusterAppsResourceQuotaList is a collection of AppliedClusterAppsResourceQuotas
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+type AppliedClusterAppsResourceQuotaList struct {
+	metav1.TypeMeta `json:",inline"`
+
+	// metadata is the standard list's metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+
+	// Items is a list of AppliedClusterAppsResourceQuota
+	Items []AppliedClusterAppsResourceQuota `json:"items" protobuf:"bytes,2,rep,name=items"`
 }

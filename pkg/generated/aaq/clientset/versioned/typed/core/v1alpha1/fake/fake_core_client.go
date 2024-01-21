@@ -40,6 +40,10 @@ func (c *FakeAaqV1alpha1) ApplicationsResourceQuotas(namespace string) v1alpha1.
 	return &FakeApplicationsResourceQuotas{c, namespace}
 }
 
+func (c *FakeAaqV1alpha1) ClusterAppsResourceQuotas() v1alpha1.ClusterAppsResourceQuotaInterface {
+	return &FakeClusterAppsResourceQuotas{c}
+}
+
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeAaqV1alpha1) RESTClient() rest.Interface {

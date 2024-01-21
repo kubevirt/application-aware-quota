@@ -11,11 +11,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	generatedclient "kubevirt.io/applications-aware-quota/pkg/generated/aaq/clientset/versioned"
 	aaqv1alpha1 "kubevirt.io/applications-aware-quota/pkg/generated/aaq/clientset/versioned/typed/core/v1alpha1"
+	crqclient "kubevirt.io/applications-aware-quota/pkg/generated/cluster-resource-quota/clientset/versioned"
 	kubevirtclient "kubevirt.io/applications-aware-quota/pkg/generated/kubevirt/clientset/versioned"
 	"kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 )
@@ -24,10 +26,13 @@ type AAQClient interface {
 	RestClient() *rest.RESTClient
 	kubernetes.Interface
 	ApplicationsResourceQuotas(namespace string) ApplicationsResourceQuotaInterface
+	ClusterAppsResourceQuotas() ClusterAppsResourceQuotaInterface
 	AAQJobQueueConfigs(namespace string) AAQJobQueueConfigInterface
 	AAQ() AAQInterface
 	GeneratedAAQClient() generatedclient.Interface
+	CRQClient() crqclient.Interface
 	KubevirtClient() kubevirtclient.Interface
+	DiscoveryClient() discovery.DiscoveryInterface
 	Config() *rest.Config
 }
 
@@ -38,8 +43,14 @@ type aaq struct {
 	config             *rest.Config
 	generatedAAQClient *generatedclient.Clientset
 	kubevirtClient     *kubevirtclient.Clientset
+	crqClient          *crqclient.Clientset
+	discoveryClient    *discovery.DiscoveryClient
 	dynamicClient      dynamic.Interface
 	*kubernetes.Clientset
+}
+
+func (k aaq) CRQClient() crqclient.Interface {
+	return k.crqClient
 }
 
 func (k aaq) KubevirtClient() kubevirtclient.Interface {
@@ -61,6 +72,11 @@ func (k aaq) GeneratedAAQClient() generatedclient.Interface {
 func (k aaq) ApplicationsResourceQuotas(namespace string) ApplicationsResourceQuotaInterface {
 	return k.generatedAAQClient.AaqV1alpha1().ApplicationsResourceQuotas(namespace)
 }
+
+func (k aaq) ClusterAppsResourceQuotas() ClusterAppsResourceQuotaInterface {
+	return k.generatedAAQClient.AaqV1alpha1().ClusterAppsResourceQuotas()
+}
+
 func (k aaq) AAQJobQueueConfigs(namespace string) AAQJobQueueConfigInterface {
 	return k.generatedAAQClient.AaqV1alpha1().AAQJobQueueConfigs(namespace)
 }
@@ -70,6 +86,10 @@ func (k aaq) AAQ() AAQInterface {
 
 func (k aaq) DynamicClient() dynamic.Interface {
 	return k.dynamicClient
+}
+
+func (k aaq) DiscoveryClient() discovery.DiscoveryInterface {
+	return k.discoveryClient
 }
 
 // ApplicationsResourceQuotaInterface has methods to work with ApplicationsResourceQuotas resources.
@@ -84,6 +104,20 @@ type ApplicationsResourceQuotaInterface interface {
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
 	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1alpha1.ApplicationsResourceQuota, err error)
 	aaqv1alpha1.ApplicationsResourceQuotaExpansion
+}
+
+// ClusterAppsResourceQuotaInterface has methods to work with ClusterAppsResourceQuota resources.
+type ClusterAppsResourceQuotaInterface interface {
+	Create(ctx context.Context, applicationsResourceQuota *v1alpha1.ClusterAppsResourceQuota, opts metav1.CreateOptions) (*v1alpha1.ClusterAppsResourceQuota, error)
+	Update(ctx context.Context, applicationsResourceQuota *v1alpha1.ClusterAppsResourceQuota, opts metav1.UpdateOptions) (*v1alpha1.ClusterAppsResourceQuota, error)
+	UpdateStatus(ctx context.Context, applicationsResourceQuota *v1alpha1.ClusterAppsResourceQuota, opts metav1.UpdateOptions) (*v1alpha1.ClusterAppsResourceQuota, error)
+	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
+	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1alpha1.ClusterAppsResourceQuota, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*v1alpha1.ClusterAppsResourceQuotaList, error)
+	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1alpha1.ClusterAppsResourceQuota, err error)
+	aaqv1alpha1.ClusterAppsResourceQuotaExpansion
 }
 
 // AAQJobQueueConfigInterface has methods to work with AAQJobQueueConfigs resources.

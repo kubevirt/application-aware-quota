@@ -30,6 +30,7 @@ var (
 	// SchemeGroupVersion is group version used to register these objects
 	SchemeGroupVersion                        = schema.GroupVersion{Group: applicationsResourceQuota.GroupName, Version: applicationsResourceQuota.LatestVersion}
 	ApplicationsResourceQuotaGroupVersionKind = schema.GroupVersionKind{Group: applicationsResourceQuota.GroupName, Version: applicationsResourceQuota.LatestVersion, Kind: "ApplicationsResourceQuota"}
+	ClusterAppsResourceQuotaGroupVersionKind  = schema.GroupVersionKind{Group: applicationsResourceQuota.GroupName, Version: applicationsResourceQuota.LatestVersion, Kind: "ClusterAppsResourceQuota"}
 )
 
 // Kind takes an unqualified kind and returns back a Group qualified GroupKind
@@ -54,6 +55,10 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
 		&ApplicationsResourceQuota{},
 		&ApplicationsResourceQuotaList{},
+		&ClusterAppsResourceQuota{},
+		&ClusterAppsResourceQuotaList{},
+		&AppliedClusterAppsResourceQuota{},
+		&AppliedClusterAppsResourceQuotaList{},
 		&AAQJobQueueConfig{},
 		&AAQJobQueueConfigList{},
 		&AAQ{},
@@ -71,6 +76,8 @@ func AddKnownTypesGenerator(groupVersions []schema.GroupVersion) func(scheme *ru
 			scheme.AddKnownTypes(groupVersion,
 				&ApplicationsResourceQuota{},
 				&ApplicationsResourceQuotaList{},
+				&ClusterAppsResourceQuota{},
+				&ClusterAppsResourceQuotaList{},
 				&AAQJobQueueConfig{},
 				&AAQJobQueueConfigList{},
 				&AAQ{},

@@ -2,6 +2,8 @@ package client
 
 import (
 	"flag"
+	"k8s.io/client-go/discovery"
+	crqclient "kubevirt.io/applications-aware-quota/pkg/generated/cluster-resource-quota/clientset/versioned"
 	"os"
 	"sync"
 
@@ -46,10 +48,10 @@ func init() {
 	registerVersion := os.Getenv(v1.KubeVirtClientGoSchemeRegistrationVersionEnvVar)
 	if registerVersion != "" {
 		SchemeBuilder = runtime.NewSchemeBuilder(v1.AddKnownTypesGenerator([]schema.GroupVersion{schema.GroupVersion{Group: core.GroupName, Version: registerVersion}}),
-			v1alpha13.AddKnownTypesGenerator([]schema.GroupVersion{schema.GroupVersion{Group: applicationsResourceQuota.GroupName, Version: applicationsResourceQuota.LatestVersion}}))
+			v1alpha13.AddKnownTypesGenerator([]schema.GroupVersion{{Group: applicationsResourceQuota.GroupName, Version: applicationsResourceQuota.LatestVersion}}))
 	} else {
 		SchemeBuilder = runtime.NewSchemeBuilder(v1.AddKnownTypesGenerator(v1.GroupVersions),
-			v1alpha13.AddKnownTypesGenerator([]schema.GroupVersion{schema.GroupVersion{Group: applicationsResourceQuota.GroupName, Version: applicationsResourceQuota.LatestVersion}}))
+			v1alpha13.AddKnownTypesGenerator([]schema.GroupVersion{{Group: applicationsResourceQuota.GroupName, Version: applicationsResourceQuota.LatestVersion}}))
 	}
 	Scheme = runtime.NewScheme()
 	AddToScheme := SchemeBuilder.AddToScheme
@@ -226,6 +228,16 @@ func GetAAQClientFromRESTConfig(config *rest.Config) (AAQClient, error) {
 		return nil, err
 	}
 
+	crqclient, err := crqclient.NewForConfig(&shallowCopy)
+	if err != nil {
+		return nil, err
+	}
+
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+
 	dynamicClient, err := dynamic.NewForConfig(&shallowCopy)
 	if err != nil {
 		return nil, err
@@ -238,6 +250,8 @@ func GetAAQClientFromRESTConfig(config *rest.Config) (AAQClient, error) {
 		&shallowCopy,
 		generatedAAQClient,
 		kubevirtClient,
+		crqclient,
+		discoveryClient,
 		dynamicClient,
 		coreClient,
 	}, nil

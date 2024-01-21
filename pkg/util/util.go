@@ -4,17 +4,21 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	secv1 "github.com/openshift/api/security/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/certificate"
 	"k8s.io/klog/v2"
 	api "k8s.io/kubernetes/pkg/apis/core"
 	k8s_api_v1 "k8s.io/kubernetes/pkg/apis/core/v1"
 	"k8s.io/utils/pointer"
 	v1 "kubevirt.io/api/core/v1"
+	client2 "kubevirt.io/applications-aware-quota/pkg/client"
 	aaqv1alpha1 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	sdkapi "kubevirt.io/controller-lifecycle-operator-sdk/api"
 	utils "kubevirt.io/controller-lifecycle-operator-sdk/pkg/sdk/resources"
@@ -66,6 +70,12 @@ const (
 	InstallerPartOfLabel = "INSTALLER_PART_OF_LABEL"
 	// InstallerVersionLabel provides a constant to capture our env variable "INSTALLER_VERSION_LABEL"
 	InstallerVersionLabel = "INSTALLER_VERSION_LABEL"
+	// IsOnOpenshift provides a constant to capture our env variable "IS_ON_OPENSHIFT"
+	IsOnOpenshift = "IS_ON_OPENSHIFT"
+	// EnableClusterQuota provides a constant to capture our env variable "ENABLE_CLUSTER_QUOTA"
+	EnableClusterQuota = "ENABLE_CLUSTER_QUOTA"
+	// VMICalculatorConfiguration provides a constant to capture our env variable "VMI_CALCULATOR_CONFIGURATION" //todo: should delete once sidecar container for custom evaluation is in
+	VMICalculatorConfiguration = "VMI_CALCULATOR_CONFIGURATION"
 	// TlsLabel provides a constant to capture our env variable "TLS"
 	TlsLabel = "TLS"
 	// ConfigMapName is the name of the aaq configmap that own aaq resources
@@ -332,4 +342,124 @@ func ToExternalPodOrError(obj k8sruntime.Object) (*corev1.Pod, error) {
 		return nil, fmt.Errorf("expect *api.Pod or *v1.Pod, got %v", t)
 	}
 	return pod, nil
+}
+
+func OnOpenshift() bool {
+	clientset, err := client2.GetAAQClient()
+	if err != nil {
+		klog.Error(err.Error())
+		os.Exit(1)
+	}
+	_, apis, err := clientset.DiscoveryClient().ServerGroupsAndResources()
+	if err != nil && !discovery.IsGroupDiscoveryFailedError(err) {
+		klog.Error(err.Error())
+		os.Exit(1)
+	}
+
+	// In case of an error, check if security.openshift.io is the reason (unlikely).
+	// If it is, we are obviously on an openshift cluster.
+	// Otherwise we can do a positive check.
+	if discovery.IsGroupDiscoveryFailedError(err) {
+		e := err.(*discovery.ErrGroupDiscoveryFailed)
+		if _, exists := e.Groups[secv1.GroupVersion]; exists {
+			return true
+		}
+	}
+
+	for _, api := range apis {
+		if api.GroupVersion == secv1.GroupVersion.String() {
+			for _, resource := range api.APIResources {
+				if resource.Name == "securitycontextconstraints" {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
+}
+
+func FilterNonScheduableResources(resourceList corev1.ResourceList) corev1.ResourceList {
+	rlCopy := resourceList.DeepCopy()
+	for resourceName := range resourceList {
+		if isSchedulableResource(resourceName) {
+			delete(rlCopy, resourceName)
+		}
+	}
+	return rlCopy
+}
+
+func isSchedulableResource(resourceName corev1.ResourceName) bool {
+	schedulableResourcesWithoutPrefix := map[corev1.ResourceName]bool{
+		corev1.ResourcePods:             true,
+		corev1.ResourceCPU:              true,
+		corev1.ResourceMemory:           true,
+		corev1.ResourceEphemeralStorage: true,
+	}
+
+	if schedulableResourcesWithoutPrefix[resourceName] {
+		return true
+	}
+
+	if resourceName == corev1.ResourceRequestsStorage {
+		return false
+	}
+	// Check if the resource name contains the "requests." or "limits." prefix
+	if strings.HasPrefix(string(resourceName), "requests.") || strings.HasPrefix(string(resourceName), "limits.") {
+		return true
+	}
+
+	return false
+}
+
+// VerifyPodsWithOutSchedulingGates checks that all pods in the specified namespace
+// with the specified names do not have scheduling gates.
+func VerifyPodsWithOutSchedulingGates(aaqCli client2.AAQClient, podInformer cache.SharedIndexInformer, namespace string, podNames []string) (bool, error) {
+	podObjs, err := podInformer.GetIndexer().ByIndex(cache.NamespaceIndex, namespace)
+	if err != nil {
+		return false, err
+	}
+
+	// Create a map to store pod names and their scheduling gate status
+	podStatusMap := make(map[string]bool)
+
+	// Iterate through all pods and check for scheduling gates.
+	for _, podObj := range podObjs {
+		pod := podObj.(*corev1.Pod)
+		podStatusMap[pod.Name] = len(pod.Spec.SchedulingGates) > 0
+	}
+
+	// Check if all specified pods are found and are not gated
+	for _, name := range podNames {
+		if gated, exists := podStatusMap[name]; exists {
+			if gated {
+				return false, nil
+			}
+		} else {
+			// If one of the pods is not found, make an API call
+			return verifyPodsWithOutSchedulingGatesWithApiCall(aaqCli, namespace, podNames)
+		}
+	}
+
+	return true, nil
+}
+
+// verifyPodsWithOutSchedulingGatesWithApiCall checks that all pods in the specified namespace
+// with the specified names do not have scheduling gates.
+func verifyPodsWithOutSchedulingGatesWithApiCall(aaqCli client2.AAQClient, namespace string, podNames []string) (bool, error) {
+	podList, err := aaqCli.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return false, err
+	}
+
+	// Iterate through all pods and check for scheduling gates.
+	for _, pod := range podList.Items {
+		for _, name := range podNames {
+			if pod.Name == name && len(pod.Spec.SchedulingGates) > 0 {
+				return false, nil
+			}
+		}
+	}
+
+	return true, nil
 }

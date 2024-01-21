@@ -46,6 +46,21 @@ func getClusterPolicyRules() []rbacv1.PolicyRule {
 		},
 		{
 			APIGroups: []string{
+				"security.openshift.io",
+			},
+			Resources: []string{
+				"securitycontextconstraints",
+			},
+			Verbs: []string{
+				"get",
+				"list",
+				"watch",
+				"update",
+				"create",
+			},
+		},
+		{
+			APIGroups: []string{
 				"apiextensions.k8s.io",
 			},
 			Resources: []string{

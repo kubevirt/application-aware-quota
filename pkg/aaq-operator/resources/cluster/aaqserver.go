@@ -15,7 +15,7 @@ import (
 const (
 	aaqServerResourceName              = "aaq-server"
 	MutatingWebhookConfigurationName   = "gating-mutator"
-	validatingWebhookConfigurationName = "arq-validator"
+	validatingWebhookConfigurationName = "aaq-validator"
 	AaqServerServiceName               = "aaq-server"
 )
 
@@ -34,20 +34,9 @@ func createDynamicMutatingGatingServerResources(args *FactoryArgs) []client.Obje
 	objectsToAdd = append(objectsToAdd, createGatingValidatingWebhook(args.Namespace, args.Client, args.Logger))
 	return objectsToAdd
 }
+
 func getAaqServerClusterPolicyRules() []rbacv1.PolicyRule {
 	return []rbacv1.PolicyRule{
-		{
-			APIGroups: []string{
-				"kubevirt.io",
-			},
-			Resources: []string{
-				"kubevirts",
-			},
-			Verbs: []string{
-				"list",
-				"watch",
-			},
-		},
 		{
 			APIGroups: []string{
 				"",
@@ -56,9 +45,17 @@ func getAaqServerClusterPolicyRules() []rbacv1.PolicyRule {
 				"resourcequotas",
 			},
 			Verbs: []string{
-				"list",
-				"watch",
-				"update",
+				"create",
+			},
+		},
+		{
+			APIGroups: []string{
+				"quota.openshift.io",
+			},
+			Resources: []string{
+				"clusterresourcequotas",
+			},
+			Verbs: []string{
 				"create",
 			},
 		},
@@ -171,75 +168,10 @@ func createGatingValidatingWebhook(namespace string, c client.Client, l logr.Log
 	path := aaq_server2.ServePath
 	defaultServicePort := int32(443)
 	namespacedScope := admissionregistrationv1.NamespacedScope
+	clusterScope := admissionregistrationv1.ClusterScope
 	exactPolicy := admissionregistrationv1.Equivalent
 	failurePolicy := admissionregistrationv1.Fail
 	sideEffect := admissionregistrationv1.SideEffectClassNone
-	hooks := []admissionregistrationv1.ValidatingWebhook{}
-	if includeHooks {
-		hooks = []admissionregistrationv1.ValidatingWebhook{
-			{
-				Name:                    "application.resource.quota.validator",
-				AdmissionReviewVersions: []string{"v1", "v1beta1"},
-				FailurePolicy:           &failurePolicy,
-				SideEffects:             &sideEffect,
-				MatchPolicy:             &exactPolicy,
-				Rules: []admissionregistrationv1.RuleWithOperations{
-					{
-						Operations: []admissionregistrationv1.OperationType{
-							admissionregistrationv1.Create,
-							admissionregistrationv1.Update,
-						},
-						Rule: admissionregistrationv1.Rule{
-							APIGroups:   []string{"*"},
-							APIVersions: []string{"*"},
-							Scope:       &namespacedScope,
-							Resources:   []string{"applicationsresourcequotas"},
-						},
-					},
-				},
-
-				ClientConfig: admissionregistrationv1.WebhookClientConfig{
-					Service: &admissionregistrationv1.ServiceReference{
-						Namespace: namespace,
-						Name:      AaqServerServiceName,
-						Path:      &path,
-						Port:      &defaultServicePort,
-					},
-				},
-			},
-			{
-				Name:                    "remove.pod.gate.validator",
-				AdmissionReviewVersions: []string{"v1", "v1beta1"},
-				FailurePolicy:           &failurePolicy,
-				SideEffects:             &sideEffect,
-				MatchPolicy:             &exactPolicy,
-				NamespaceSelector:       cr.Spec.NamespaceSelector,
-				Rules: []admissionregistrationv1.RuleWithOperations{
-					{
-						Operations: []admissionregistrationv1.OperationType{
-							admissionregistrationv1.Update,
-						},
-						Rule: admissionregistrationv1.Rule{
-							APIGroups:   []string{"*"},
-							APIVersions: []string{"*"},
-							Scope:       &namespacedScope,
-							Resources:   []string{"pods"},
-						},
-					},
-				},
-
-				ClientConfig: admissionregistrationv1.WebhookClientConfig{
-					Service: &admissionregistrationv1.ServiceReference{
-						Namespace: namespace,
-						Name:      AaqServerServiceName,
-						Path:      &path,
-						Port:      &defaultServicePort,
-					},
-				},
-			},
-		}
-	}
-
 	mhc := &admissionregistrationv1.ValidatingWebhookConfiguration{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "admissionregistration.k8s.io/v1",
@@ -251,18 +183,113 @@ func createGatingValidatingWebhook(namespace string, c client.Client, l logr.Log
 				util.AAQLabel: AaqServerServiceName,
 			},
 		},
-		Webhooks: hooks,
+		Webhooks: []admissionregistrationv1.ValidatingWebhook{},
 	}
 
-	if c == nil {
+	if !includeHooks {
 		return mhc
 	}
 	bundle := getAPIServerCABundle(namespace, c, l)
-	if bundle != nil {
-		for i := range mhc.Webhooks {
-			mhc.Webhooks[i].ClientConfig.CABundle = bundle
-		}
+	mhc.Webhooks = append(mhc.Webhooks, admissionregistrationv1.ValidatingWebhook{
+		Name:                    "application.resource.quota.validator",
+		AdmissionReviewVersions: []string{"v1", "v1beta1"},
+		FailurePolicy:           &failurePolicy,
+		SideEffects:             &sideEffect,
+		MatchPolicy:             &exactPolicy,
+		Rules: []admissionregistrationv1.RuleWithOperations{
+			{
+				Operations: []admissionregistrationv1.OperationType{
+					admissionregistrationv1.Create,
+					admissionregistrationv1.Update,
+				},
+				Rule: admissionregistrationv1.Rule{
+					APIGroups:   []string{"*"},
+					APIVersions: []string{"*"},
+					Scope:       &namespacedScope,
+					Resources:   []string{"applicationsresourcequotas"},
+				},
+			},
+		},
+
+		ClientConfig: admissionregistrationv1.WebhookClientConfig{
+			Service: &admissionregistrationv1.ServiceReference{
+				Namespace: namespace,
+				Name:      AaqServerServiceName,
+				Path:      &path,
+				Port:      &defaultServicePort,
+			},
+			CABundle: bundle,
+		},
+	})
+
+	mhc.Webhooks = append(mhc.Webhooks, admissionregistrationv1.ValidatingWebhook{
+		Name:                    "remove.pod.gate.validator",
+		AdmissionReviewVersions: []string{"v1", "v1beta1"},
+		FailurePolicy:           &failurePolicy,
+		SideEffects:             &sideEffect,
+		MatchPolicy:             &exactPolicy,
+		NamespaceSelector:       cr.Spec.NamespaceSelector,
+		Rules: []admissionregistrationv1.RuleWithOperations{
+			{
+				Operations: []admissionregistrationv1.OperationType{
+					admissionregistrationv1.Update,
+				},
+				Rule: admissionregistrationv1.Rule{
+					APIGroups:   []string{"*"},
+					APIVersions: []string{"*"},
+					Scope:       &namespacedScope,
+					Resources:   []string{"pods"},
+				},
+			},
+		},
+
+		ClientConfig: admissionregistrationv1.WebhookClientConfig{
+			Service: &admissionregistrationv1.ServiceReference{
+				Namespace: namespace,
+				Name:      AaqServerServiceName,
+				Path:      &path,
+				Port:      &defaultServicePort,
+			},
+			CABundle: bundle,
+		},
+	})
+
+	if !cr.Spec.Configuration.EnableClusterAppsResourceQuota {
+		return mhc
 	}
+
+	mhc.Webhooks = append(mhc.Webhooks, admissionregistrationv1.ValidatingWebhook{
+		Name:                    "cluster.apps.resource.quota.validator",
+		AdmissionReviewVersions: []string{"v1", "v1beta1"},
+		FailurePolicy:           &failurePolicy,
+		SideEffects:             &sideEffect,
+		MatchPolicy:             &exactPolicy,
+		Rules: []admissionregistrationv1.RuleWithOperations{
+			{
+				Operations: []admissionregistrationv1.OperationType{
+					admissionregistrationv1.Create,
+					admissionregistrationv1.Update,
+				},
+				Rule: admissionregistrationv1.Rule{
+					APIGroups:   []string{"*"},
+					APIVersions: []string{"*"},
+					Scope:       &clusterScope,
+					Resources:   []string{"clusterappsresourcequotas"},
+				},
+			},
+		},
+
+		ClientConfig: admissionregistrationv1.WebhookClientConfig{
+			Service: &admissionregistrationv1.ServiceReference{
+				Namespace: namespace,
+				Name:      AaqServerServiceName,
+				Path:      &path,
+				Port:      &defaultServicePort,
+			},
+			CABundle: bundle,
+		},
+	})
+
 	return mhc
 }
 

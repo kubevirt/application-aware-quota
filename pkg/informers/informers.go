@@ -2,6 +2,7 @@ package informers
 
 import (
 	"context"
+	v12 "github.com/openshift/api/quota/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -26,6 +27,11 @@ func GetApplicationsResourceQuotaInformer(aaqCli client.AAQClient) cache.SharedI
 	return cache.NewSharedIndexInformer(listWatcher, &v1alpha13.ApplicationsResourceQuota{}, 1*time.Hour, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 }
 
+func GetClusterAppsResourceQuotaInformer(aaqCli client.AAQClient) cache.SharedIndexInformer {
+	listWatcher := NewListWatchFromClient(aaqCli.RestClient(), "clusterappsresourcequotas", metav1.NamespaceAll, fields.Everything(), labels.Everything())
+	return cache.NewSharedIndexInformer(listWatcher, &v1alpha13.ClusterAppsResourceQuota{}, 1*time.Hour, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+}
+
 func GetAAQJobQueueConfig(aaqCli client.AAQClient) cache.SharedIndexInformer {
 	listWatcher := NewListWatchFromClient(aaqCli.RestClient(), "aaqjobqueueconfigs", metav1.NamespaceAll, fields.Everything(), labels.Everything())
 	return cache.NewSharedIndexInformer(listWatcher, &v1alpha13.AAQJobQueueConfig{}, 1*time.Hour, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
@@ -39,6 +45,11 @@ func GetAAQInformer(aaqCli client.AAQClient) cache.SharedIndexInformer {
 func GetPodInformer(aaqCli client.AAQClient) cache.SharedIndexInformer {
 	listWatcher := NewListWatchFromClient(aaqCli.CoreV1().RESTClient(), "pods", metav1.NamespaceAll, fields.Everything(), labels.Everything())
 	return cache.NewSharedIndexInformer(listWatcher, &v1.Pod{}, 1*time.Hour, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+}
+
+func GetNamespaceInformer(aaqCli client.AAQClient) cache.SharedIndexInformer {
+	listWatcher := NewListWatchFromClient(aaqCli.CoreV1().RESTClient(), "namespaces", metav1.NamespaceAll, fields.Everything(), labels.Everything())
+	return cache.NewSharedIndexInformer(listWatcher, &v1.Namespace{}, 1*time.Hour, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 }
 
 func GetSecretInformer(aaqCli client.AAQClient, ns string) cache.SharedIndexInformer {
@@ -58,6 +69,15 @@ func GetResourceQuotaInformer(aaqCli client.AAQClient) cache.SharedIndexInformer
 	}
 	listWatcher := NewListWatchFromClient(aaqCli.CoreV1().RESTClient(), "resourcequotas", metav1.NamespaceAll, fields.Everything(), labelSelector)
 	return cache.NewSharedIndexInformer(listWatcher, &v1.ResourceQuota{}, 1*time.Hour, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+}
+
+func GetClusterResourceQuotaInformer(aaqCli client.AAQClient) cache.SharedIndexInformer {
+	labelSelector, err := labels.Parse(util.AAQLabel)
+	if err != nil {
+		panic(err)
+	}
+	listWatcher := NewListWatchFromClient(aaqCli.CRQClient().QuotaV1().RESTClient(), "clusterresourcequotas", metav1.NamespaceAll, fields.Everything(), labelSelector)
+	return cache.NewSharedIndexInformer(listWatcher, &v12.ClusterResourceQuota{}, 1*time.Hour, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 }
 
 // NewListWatchFromClient creates a new ListWatch from the specified client, resource, kubevirtNamespace and field selector.

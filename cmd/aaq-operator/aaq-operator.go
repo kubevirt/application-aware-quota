@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	secv1 "github.com/openshift/api/security/v1"
 	"go.uber.org/zap/zapcore"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	controller "kubevirt.io/applications-aware-quota/pkg/aaq-operator"
@@ -83,6 +84,11 @@ func main() {
 
 	log.Info("Registering Components.")
 	if err := v1alpha1.AddToScheme(mgr.GetScheme()); err != nil {
+		log.Error(err, "")
+		os.Exit(1)
+	}
+
+	if err := secv1.Install(mgr.GetScheme()); err != nil {
 		log.Error(err, "")
 		os.Exit(1)
 	}

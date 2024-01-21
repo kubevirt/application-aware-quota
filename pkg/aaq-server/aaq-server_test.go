@@ -3,15 +3,17 @@ package aaq_server
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/admission/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes/fake"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 	"kubevirt.io/applications-aware-quota/pkg/certificates/bootstrap"
+	"kubevirt.io/applications-aware-quota/pkg/client"
 	"kubevirt.io/applications-aware-quota/pkg/util"
 	"net/http"
 	"net/http/httptest"
@@ -27,12 +29,14 @@ var _ = Describe("Test aaq serve functions", func() {
 				secretCache,
 			),
 		)
-		fakeCli := fake.NewSimpleClientset()
+		ctrl := gomock.NewController(GinkgoT())
+		cli := client.NewMockAAQClient(ctrl)
 		AaqServer, err := AaqServer("aaq",
 			util.DefaultHost,
 			util.DefaultPort,
 			secretCertManager,
-			fakeCli,
+			cli,
+			false,
 		)
 		req, err := http.NewRequest("GET", healthzPath, nil)
 		Expect(err).ToNot(HaveOccurred())
@@ -52,12 +56,17 @@ var _ = Describe("Test aaq serve functions", func() {
 				secretCache,
 			),
 		)
-		fakeCli := fake.NewSimpleClientset()
+		fakek8sCli := k8sfake.NewSimpleClientset()
+		ctrl := gomock.NewController(GinkgoT())
+		cli := client.NewMockAAQClient(ctrl)
+		cli.EXPECT().CoreV1().Times(1).Return(fakek8sCli.CoreV1())
+
 		mtqLockServer, err := AaqServer(util.DefaultAaqNs,
 			util.DefaultHost,
 			util.DefaultPort,
 			secretCertManager,
-			fakeCli,
+			cli,
+			false,
 		)
 
 		// Create a new ApplicationsResourceQuota create request

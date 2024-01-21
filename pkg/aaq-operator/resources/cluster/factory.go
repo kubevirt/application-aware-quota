@@ -5,15 +5,17 @@ import (
 	"github.com/go-logr/logr"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"kubevirt.io/applications-aware-quota/pkg/util"
 	utils "kubevirt.io/controller-lifecycle-operator-sdk/pkg/sdk/resources"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // FactoryArgs contains the required parameters to generate all cluster-scoped resources
 type FactoryArgs struct {
-	Namespace string
-	Client    client.Client
-	Logger    logr.Logger
+	Namespace   string
+	Client      client.Client
+	Logger      logr.Logger
+	OnOpenshift bool
 }
 
 type factoryFunc func(*FactoryArgs) []client.Object
@@ -65,10 +67,18 @@ func createResourceGroup(funcMap factoryFuncMap, group string, args *FactoryArgs
 }
 
 func createCRDResources(args *FactoryArgs) []client.Object {
-	return []client.Object{
+	cr, _ := util.GetActiveAAQ(args.Client)
+	if cr == nil {
+		return nil
+	}
+	objs := []client.Object{
 		createApplicationsResourceQuotaCRD(),
 		createAaqJobQueueConfigsCRD(),
 	}
+	if cr.Spec.Configuration.EnableClusterAppsResourceQuota {
+		objs = append(objs, createClusterAppsResourceQuotaCRD())
+	}
+	return objs
 }
 
 // GetClusterRolePolicyRules returns all cluster PolicyRules

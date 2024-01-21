@@ -264,6 +264,7 @@ github.com/openshift/library-go/pkg/operator/resource/resourcehelper
 github.com/openshift/library-go/pkg/operator/resource/resourcemerge
 github.com/openshift/library-go/pkg/operator/resource/resourceread
 github.com/openshift/library-go/pkg/operator/v1helpers
+github.com/openshift/library-go/pkg/quota/quotautil
 # github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190105193533-81104ffdc4fb => github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190128024246-5eb7ae5bdb7a
 ## explicit
 github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators

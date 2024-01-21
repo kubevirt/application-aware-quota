@@ -24,7 +24,7 @@ const launcherLabel = "virt-launcher"
 
 var MyConfigs = []v1alpha1.VmiCalcConfigName{v1alpha1.VmiPodUsage, v1alpha1.VirtualResources, v1alpha1.DedicatedVirtualResources}
 
-func NewVirtLauncherCalculator(stop <-chan struct{}) *VirtLauncherCalculator {
+func NewVirtLauncherCalculator(stop <-chan struct{}, calcConfig v1alpha1.VmiCalcConfigName) *VirtLauncherCalculator {
 	aaqCli, err := client.GetAAQClient()
 	if err != nil {
 		panic("NewVirtLauncherCalculator: couldn't get aaqCli")
@@ -44,6 +44,7 @@ func NewVirtLauncherCalculator(stop <-chan struct{}) *VirtLauncherCalculator {
 		vmiInformer:       vmiInformer,
 		migrationInformer: migrationInformer,
 		aaqCli:            aaqCli,
+		calcConfig:        calcConfig,
 	}
 }
 
@@ -52,10 +53,6 @@ type VirtLauncherCalculator struct {
 	migrationInformer cache.SharedIndexInformer
 	aaqCli            client.AAQClient
 	calcConfig        v1alpha1.VmiCalcConfigName
-}
-
-func (launchercalc *VirtLauncherCalculator) SetConfiguration(config string) {
-	launchercalc.calcConfig = v1alpha1.VmiCalcConfigName(config)
 }
 
 func (launchercalc *VirtLauncherCalculator) PodUsageFunc(obj runtime.Object, items []runtime.Object, clock clock.Clock) (corev1.ResourceList, error, bool) {
