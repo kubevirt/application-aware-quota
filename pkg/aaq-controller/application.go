@@ -43,7 +43,6 @@ import (
 	crq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/additional-cluster-quota-controllers/crq-controller"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-controller/arq-controller"
 	built_in_usage_calculators "kubevirt.io/applications-aware-quota/pkg/aaq-controller/built-in-usage-calculators"
-	configuration_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/configuration-controller"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-controller/leaderelectionconfig"
 	rq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/rq-controller"
 	"kubevirt.io/applications-aware-quota/pkg/certificates/bootstrap"
@@ -51,6 +50,7 @@ import (
 	"kubevirt.io/applications-aware-quota/pkg/generated/aaq/listers/core/v1alpha1"
 	"kubevirt.io/applications-aware-quota/pkg/informers"
 	"kubevirt.io/applications-aware-quota/pkg/util"
+	alpha1 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	golog "log"
 	"net/http"
 	"os"
@@ -71,7 +71,6 @@ type AaqControllerApp struct {
 	aaqGateController             *arq_controller2.AaqGateController
 	rqController                  *rq_controller.RQController
 	crqController                 *crq_controller.CRQController
-	configController              *configuration_controller.AaqConfigurationController
 	podInformer                   cache.SharedIndexInformer
 	arqInformer                   cache.SharedIndexInformer
 	aaqInformer                   cache.SharedIndexInformer
@@ -82,9 +81,6 @@ type AaqControllerApp struct {
 	nsInformer                    cache.SharedIndexInformer
 	calcRegistry                  *aaq_evaluator.AaqCalculatorsRegistry
 	readyChan                     chan bool
-	enqueueAllCargControllerChan  chan struct{}
-	enqueueAllArgControllerChan   chan struct{}
-	enqueueAllGateControllerChan  chan struct{}
 	leaderElector                 *leaderelection.LeaderElector
 }
 
@@ -92,6 +88,7 @@ func Execute() {
 	flag.CommandLine.AddGoFlag(goflag.CommandLine.Lookup("v"))
 	isOnOpenshift := flag.Bool(util.IsOnOpenshift, false, "flag that suggest that we are on Openshift cluster")
 	clusterQuotaEnabled := flag.Bool(util.EnableClusterQuota, false, "flag that to let us know if we should enable clusterQuota controllers")
+	launcherConfig := flag.String(util.VMICalculatorConfiguration, "", "flag that to let us know how to allocate resource for virtual machines") //todo: should delete this once sidecar evaluators are in
 
 	flag.Parse()
 	var err error
@@ -99,9 +96,6 @@ func Execute() {
 
 	app.LeaderElection = leaderelectionconfig.DefaultLeaderElectionConfiguration()
 	app.readyChan = make(chan bool, 1)
-	app.enqueueAllCargControllerChan = make(chan struct{})
-	app.enqueueAllArgControllerChan = make(chan struct{})
-	app.enqueueAllGateControllerChan = make(chan struct{})
 	app.onOpenshift = *isOnOpenshift
 	app.enableClusterQuota = *clusterQuotaEnabled
 	ctx, cancel := context.WithCancel(context.Background())
@@ -136,7 +130,7 @@ func Execute() {
 	app.aaqInformer = informers.GetAAQInformer(app.aaqCli)
 
 	stop := ctx.Done()
-	app.calcRegistry = aaq_evaluator.NewAaqCalculatorsRegistry(10, clock.RealClock{}).AddBuiltInCalculator(util.LauncherConfig, built_in_usage_calculators.NewVirtLauncherCalculator(stop))
+	app.calcRegistry = aaq_evaluator.NewAaqCalculatorsRegistry(10, clock.RealClock{}).AddBuiltInCalculator(util.LauncherConfig, built_in_usage_calculators.NewVirtLauncherCalculator(stop, alpha1.VmiCalcConfigName(*launcherConfig)))
 	var clusterQuotaLister v1alpha1.ClusterAppsResourceQuotaLister
 	var namespaceLister v12.NamespaceLister
 	var clusterQuotaMapper clusterquotamapping.ClusterQuotaMapper
@@ -158,7 +152,6 @@ func Execute() {
 	app.initArqController(stop)
 	app.initAaqGateController(stop, clusterQuotaLister, namespaceLister, clusterQuotaMapper)
 	app.initRQController(stop)
-	app.initAaqConfigurationController(stop)
 
 	app.Run(stop)
 
@@ -193,7 +186,6 @@ func (mca *AaqControllerApp) initArqController(stop <-chan struct{}) {
 		mca.aaqjqcInformer,
 		mca.calcRegistry,
 		stop,
-		mca.enqueueAllArgControllerChan,
 	)
 }
 
@@ -206,7 +198,6 @@ func (mca *AaqControllerApp) initCarqController(stop <-chan struct{}, clusterQuo
 		mca.aaqjqcInformer,
 		mca.calcRegistry,
 		stop,
-		mca.enqueueAllCargControllerChan,
 		mca.onOpenshift,
 	)
 }
@@ -235,7 +226,6 @@ func (mca *AaqControllerApp) initAaqGateController(stop <-chan struct{},
 		clusterQuotaMapper,
 		mca.enableClusterQuota,
 		stop,
-		mca.enqueueAllGateControllerChan,
 	)
 }
 
@@ -252,18 +242,6 @@ func (mca *AaqControllerApp) initCRQController(stop <-chan struct{}) {
 		mca.crqInformer,
 		mca.carqInformer,
 		stop,
-	)
-}
-
-func (mca *AaqControllerApp) initAaqConfigurationController(stop <-chan struct{}) {
-	mca.configController = configuration_controller.NewAaqConfigurationController(mca.aaqCli,
-		mca.aaqInformer,
-		mca.calcRegistry,
-		stop,
-		mca.enqueueAllCargControllerChan,
-		mca.enqueueAllArgControllerChan,
-		mca.enqueueAllGateControllerChan,
-		mca.enableClusterQuota,
 	)
 }
 
@@ -392,9 +370,6 @@ func (mca *AaqControllerApp) onStartedLeading() func(ctx context.Context) {
 		}()
 		go func() {
 			mca.rqController.Run(3)
-		}()
-		go func() {
-			mca.configController.Run(context.Background(), 1)
 		}()
 		close(mca.readyChan)
 	}

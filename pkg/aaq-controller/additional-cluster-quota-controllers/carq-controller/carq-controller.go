@@ -67,7 +67,6 @@ type CarqController struct {
 	// monitors are synced before the controller can process quotas.
 	workerLock      sync.RWMutex
 	stop            <-chan struct{}
-	enqueueAllChan  <-chan struct{}
 	collectCrqsData bool
 }
 
@@ -84,7 +83,6 @@ func NewCarqController(aaqCli client.AAQClient,
 	aaqjqcInformer cache.SharedIndexInformer,
 	calcRegistry *aaq_evaluator.AaqCalculatorsRegistry,
 	stop <-chan struct{},
-	enqueueAllChan <-chan struct{},
 	collectCrqsData bool,
 ) *CarqController {
 	ctrl := &CarqController{
@@ -98,7 +96,6 @@ func NewCarqController(aaqCli client.AAQClient,
 		registry:           generic.NewRegistry([]quota.Evaluator{aaq_evaluator.NewAaqEvaluator(podInformer, calcRegistry, clock.RealClock{})}),
 		queue:              util.NewBucketingWorkQueue("controller_clusterquotareconcilationcontroller"),
 		nsQueue:            workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "ns_queue"),
-		enqueueAllChan:     enqueueAllChan,
 		stop:               stop,
 		collectCrqsData:    collectCrqsData,
 	}
@@ -141,19 +138,6 @@ func (c *CarqController) Run(ctx context.Context, workers int) {
 	defer utilruntime.HandleCrash()
 	klog.Info("Starting Carq controller")
 	defer klog.Info("Shutting Carq Controller")
-	// Start a goroutine to listen for enqueue signals and call enqueueAll in case the configuration is changed.
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-c.enqueueAllChan:
-				log.Log.Infof("CarqController: Signal processed enqueued All")
-				c.calculateAll(c.queue)
-			}
-		}
-	}()
-
 	defer utilruntime.HandleCrash()
 
 	klog.Infof("Starting the cluster quota reconciliation controller")

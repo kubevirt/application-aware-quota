@@ -74,6 +74,8 @@ const (
 	IsOnOpenshift = "IS_ON_OPENSHIFT"
 	// EnableClusterQuota provides a constant to capture our env variable "ENABLE_CLUSTER_QUOTA"
 	EnableClusterQuota = "ENABLE_CLUSTER_QUOTA"
+	// VMICalculatorConfiguration provides a constant to capture our env variable "VMI_CALCULATOR_CONFIGURATION" //todo: should delete once sidecar container for custom evaluation is in
+	VMICalculatorConfiguration = "VMI_CALCULATOR_CONFIGURATION"
 	// TlsLabel provides a constant to capture our env variable "TLS"
 	TlsLabel = "TLS"
 	// ConfigMapName is the name of the aaq configmap that own aaq resources

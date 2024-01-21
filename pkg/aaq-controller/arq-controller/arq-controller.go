@@ -50,12 +50,11 @@ type ArqController struct {
 	// Controls full recalculation of quota usage
 	resyncPeriod time.Duration
 	// knows how to calculate usage
-	evalRegistry   quota.Registry
-	recorder       record.EventRecorder
-	syncHandler    func(key string) error
-	logger         klog.Logger
-	stop           <-chan struct{}
-	enqueueAllChan <-chan struct{}
+	evalRegistry quota.Registry
+	recorder     record.EventRecorder
+	syncHandler  func(key string) error
+	logger       klog.Logger
+	stop         <-chan struct{}
 }
 
 func NewArqController(clientSet client.AAQClient,
@@ -65,7 +64,6 @@ func NewArqController(clientSet client.AAQClient,
 	aaqjqcInformer cache.SharedIndexInformer,
 	calcRegistry *aaq_evaluator.AaqCalculatorsRegistry,
 	stop <-chan struct{},
-	enqueueAllChan <-chan struct{},
 ) *ArqController {
 	//eventBroadcaster := record.NewBroadcaster()
 	//eventBroadcaster.StartRecordingToSink(&v14.EventSinkImpl{Interface: clientSet.CoreV1().Events(v1.NamespaceAll)})
@@ -81,10 +79,9 @@ func NewArqController(clientSet client.AAQClient,
 		nsQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "ns_queue"),
 		resyncPeriod:      metav1.Duration{Duration: 5 * time.Minute}.Duration,
 		//recorder:          eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: util.ControllerPodName}),
-		evalRegistry:   generic.NewRegistry([]quota.Evaluator{aaq_evaluator.NewAaqEvaluator(podInformer, calcRegistry, clock.RealClock{})}),
-		logger:         klog.FromContext(context.Background()),
-		stop:           stop,
-		enqueueAllChan: enqueueAllChan,
+		evalRegistry: generic.NewRegistry([]quota.Evaluator{aaq_evaluator.NewAaqEvaluator(podInformer, calcRegistry, clock.RealClock{})}),
+		logger:       klog.FromContext(context.Background()),
+		stop:         stop,
 	}
 	ctrl.syncHandler = ctrl.syncResourceQuotaFromKey
 
@@ -303,19 +300,6 @@ func (ctrl *ArqController) Run(ctx context.Context, workers int) {
 	logger := klog.FromContext(ctx)
 	klog.Info("Starting ARQ controller")
 	defer klog.Info("Shutting ARQ Controller")
-
-	// Start a goroutine to listen for enqueue signals and call enqueueAll in case the configuration is changed.
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ctrl.enqueueAllChan:
-				log.Log.Infof("ArqController: Signal processed enqueued All")
-				ctrl.enqueueAll()
-			}
-		}
-	}()
 
 	// the workers that chug through the quota calculation backlog
 	for i := 0; i < workers; i++ {

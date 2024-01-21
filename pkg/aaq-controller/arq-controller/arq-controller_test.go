@@ -825,7 +825,6 @@ func setupQuotaController(clientSet client.AAQClient, podInformer cache.SharedIn
 	}
 	fakeClock := testingclock.NewFakeClock(time.Now())
 	stop := make(chan struct{})
-	enqueueAllChan := make(chan struct{})
 	qc := NewArqController(clientSet,
 		podInformer,
 		informerFactory.Aaq().V1alpha1().ApplicationsResourceQuotas().Informer(),
@@ -833,7 +832,6 @@ func setupQuotaController(clientSet client.AAQClient, podInformer cache.SharedIn
 		aaqjqcInformer,
 		aaq_evaluator.NewAaqCalculatorsRegistry(3, fakeClock),
 		stop,
-		enqueueAllChan,
 	)
 	informerFactory.Start(stop)
 	kubeInformerFactory.Start(stop)
