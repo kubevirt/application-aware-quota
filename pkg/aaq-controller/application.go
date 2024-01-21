@@ -144,6 +144,7 @@ func Execute() {
 		}
 		app.initClusterQuotaMappingController(stop)
 		app.initCarqController(stop, app.clusterQuotaMappingController.GetClusterQuotaMapper())
+		app.clusterQuotaMappingController.GetClusterQuotaMapper().AddListener(app.carqController)
 		clusterQuotaLister = v1alpha1.NewClusterAppsResourceQuotaLister(app.carqInformer.GetIndexer())
 		namespaceLister = v12.NewNamespaceLister(app.nsInformer.GetIndexer())
 		clusterQuotaMapper = app.clusterQuotaMappingController.GetClusterQuotaMapper()
