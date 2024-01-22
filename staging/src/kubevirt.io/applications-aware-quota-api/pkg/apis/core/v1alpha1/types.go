@@ -153,7 +153,7 @@ type AAQSpec struct {
 
 // AAQConfiguration holds all AAQ configurations
 type AAQConfiguration struct {
-	// VmiCalculatorConfiguration Default is VmiPodUsage please look for VmiCalculatorConfiguration type for more information.
+	// VmiCalculatorConfiguration Default is DedicatedVirtualResources please look for VmiCalculatorConfiguration type for more information.
 	VmiCalculatorConfiguration VmiCalculatorConfiguration `json:"vmiCalculatorConfiguration,omitempty"`
 	// EnableClusterAppsResourceQuota can be set to true to allow creation and management
 	// of ClusterAppsResourceQuota. Defaults to false
@@ -163,6 +163,10 @@ type AAQConfiguration struct {
 type VmiCalcConfigName string
 
 type VmiCalculatorConfiguration struct {
+	// ConfigName determine how resource allocation will be done with ApplicationsResourceQuota.
+	// allowed values are: VmiPodUsage, VirtualResources, DedicatedVirtualResources or IgnoreVmiCalculator
+	// +kubebuilder:validation:Enum=VmiPodUsage;VirtualResources;DedicatedVirtualResources;IgnoreVmiCalculator
+	// +kubebuilder:default=DedicatedVirtualResources
 	ConfigName VmiCalcConfigName `json:"configName,omitempty"`
 }
 

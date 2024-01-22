@@ -88,10 +88,20 @@ spec:
                       Defaults to false
                     type: boolean
                   vmiCalculatorConfiguration:
-                    description: VmiCalculatorConfiguration Default is VmiPodUsage
+                    description: VmiCalculatorConfiguration Default is DedicatedVirtualResources
                       please look for VmiCalculatorConfiguration type for more information.
                     properties:
                       configName:
+                        default: DedicatedVirtualResources
+                        description: 'ConfigName determine how resource allocation
+                          will be done with ApplicationsResourceQuota. allowed values
+                          are: VmiPodUsage, VirtualResources, DedicatedVirtualResources
+                          or IgnoreVmiCalculator'
+                        enum:
+                        - VmiPodUsage
+                        - VirtualResources
+                        - DedicatedVirtualResources
+                        - IgnoreVmiCalculator
                         type: string
                     type: object
                 type: object
