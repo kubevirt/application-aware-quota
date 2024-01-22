@@ -13,8 +13,7 @@ Pre-built AAQ containers are published on Quay.io and can be viewed at:
 Notable changes
 ---------------
 
-Supporting cluster quota
-Bug fixes
+Add verification for VmiCalcConfigName
 
 Contributors
 ------------
