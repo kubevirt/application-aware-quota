@@ -72,7 +72,7 @@ func NewCRQController(aaqCli client.AAQClient,
 	return &ctrl
 }
 
-// When a ApplicationsResourceQuotas is deleted, enqueue all gated pods for revaluation
+// When a ApplicationAwareResourceQuota is deleted, enqueue all gated pods for revaluation
 func (ctrl *CRQController) deleteCarq(obj interface{}) {
 	carq := obj.(*v1alpha12.ClusterAppsResourceQuota)
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(carq)
@@ -83,7 +83,7 @@ func (ctrl *CRQController) deleteCarq(obj interface{}) {
 	return
 }
 
-// When a ApplicationsResourceQuotas is updated, enqueue all gated pods for revaluation
+// When a ApplicationAwareResourceQuota is updated, enqueue all gated pods for revaluation
 func (ctrl *CRQController) addCarq(obj interface{}) {
 	carq := obj.(*v1alpha12.ClusterAppsResourceQuota)
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(carq)
@@ -94,7 +94,7 @@ func (ctrl *CRQController) addCarq(obj interface{}) {
 	return
 }
 
-// When a ApplicationsResourceQuotas is updated, enqueue all gated pods for revaluation
+// When a ApplicationAwareResourceQuota is updated, enqueue all gated pods for revaluation
 func (ctrl *CRQController) updateCarq(old, cur interface{}) {
 	curArq := cur.(*v1alpha12.ClusterAppsResourceQuota)
 	oldArq := old.(*v1alpha12.ClusterAppsResourceQuota)

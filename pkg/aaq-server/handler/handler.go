@@ -18,7 +18,7 @@ import (
 
 const (
 	allowPodRequest               = "Pod has successfully gated"
-	allowArqRequest               = "ApplicationsResourceQuota request is valid"
+	allowArqRequest               = "ApplicationAwareResourceQuota request is valid"
 	allowCarqRequest              = "ClusterAppsResourceQuota request is valid"
 	validatingResourceQuotaPrefix = "aaq-validating-rq-"
 	validPodUpdate                = "Pod update did not remove AAQGate"
@@ -50,8 +50,8 @@ func (v Handler) Handle() (*admissionv1.AdmissionReview, error) {
 	switch v.request.Kind.Kind {
 	case "Pod":
 		return v.validatePodUpdate()
-	case "ApplicationsResourceQuota":
-		return v.validateApplicationsResourceQuota()
+	case "ApplicationAwareResourceQuota":
+		return v.validateApplicationAwareResourceQuota()
 	case "ClusterAppsResourceQuota":
 		return v.validateClusterAppsResourceQuota()
 	}
@@ -109,8 +109,8 @@ func reviewResponse(uid types.UID, allowed bool, httpCode int32,
 	}
 }
 
-func (v Handler) validateApplicationsResourceQuota() (*admissionv1.AdmissionReview, error) {
-	arq := v1alpha1.ApplicationsResourceQuota{}
+func (v Handler) validateApplicationAwareResourceQuota() (*admissionv1.AdmissionReview, error) {
+	arq := v1alpha1.ApplicationAwareResourceQuota{}
 	if err := json.Unmarshal(v.request.Object.Raw, &arq); err != nil {
 		return nil, err
 	}

@@ -8,9 +8,9 @@ import (
 	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
 )
 
-// createApplicationsResourceQuotaCRD creates the ARQ schema
-func createApplicationsResourceQuotaCRD() *extv1.CustomResourceDefinition {
+// createApplicationAwareResourceQuotaCRD creates the ARQ schema
+func createApplicationAwareResourceQuotaCRD() *extv1.CustomResourceDefinition {
 	crd := extv1.CustomResourceDefinition{}
-	_ = k8syaml.NewYAMLToJSONDecoder(strings.NewReader(resources.AAQCRDs["applicationsresourcequota"])).Decode(&crd)
+	_ = k8syaml.NewYAMLToJSONDecoder(strings.NewReader(resources.AAQCRDs["applicationawareresourcequota"])).Decode(&crd)
 	return &crd
 }

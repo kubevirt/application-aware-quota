@@ -36,8 +36,8 @@ func (c *FakeAaqV1alpha1) AAQJobQueueConfigs(namespace string) v1alpha1.AAQJobQu
 	return &FakeAAQJobQueueConfigs{c, namespace}
 }
 
-func (c *FakeAaqV1alpha1) ApplicationsResourceQuotas(namespace string) v1alpha1.ApplicationsResourceQuotaInterface {
-	return &FakeApplicationsResourceQuotas{c, namespace}
+func (c *FakeAaqV1alpha1) ApplicationAwareResourceQuotas(namespace string) v1alpha1.ApplicationAwareResourceQuotaInterface {
+	return &FakeApplicationAwareResourceQuotas{c, namespace}
 }
 
 func (c *FakeAaqV1alpha1) ClusterAppsResourceQuotas() v1alpha1.ClusterAppsResourceQuotaInterface {

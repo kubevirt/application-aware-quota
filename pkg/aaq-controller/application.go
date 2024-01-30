@@ -123,7 +123,7 @@ func Execute() {
 	if err != nil {
 		golog.Fatalf("AAQClient: %v", err)
 	}
-	app.arqInformer = informers.GetApplicationsResourceQuotaInformer(app.aaqCli)
+	app.arqInformer = informers.GetApplicationAwareResourceQuotaInformer(app.aaqCli)
 	app.rqInformer = informers.GetResourceQuotaInformer(app.aaqCli)
 	app.aaqjqcInformer = informers.GetAAQJobQueueConfig(app.aaqCli)
 	app.podInformer = informers.GetPodInformer(app.aaqCli)

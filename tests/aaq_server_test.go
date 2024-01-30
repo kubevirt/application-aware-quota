@@ -17,26 +17,26 @@ var _ = Describe("AAQ Server", func() {
 	Context("Test Valid/Invalid ARQ creations", func() {
 		It("Simple empty ARQ should be allowed to create", func() {
 			arq := NewArqBuilder().WithName("arq").Build()
-			_, err := f.AaqClient.AaqV1alpha1().ApplicationsResourceQuotas(f.Namespace.GetName()).Create(context.Background(), arq, matav1.CreateOptions{})
+			_, err := f.AaqClient.AaqV1alpha1().ApplicationAwareResourceQuotas(f.Namespace.GetName()).Create(context.Background(), arq, matav1.CreateOptions{})
 			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("ARQ with invalid name should be rejected", func() {
 			var illegalName v1.ResourceName = "illegalName"
 			arq := NewArqBuilder().WithName("arq").WithResource(illegalName, resource.MustParse("1m")).Build()
-			_, err := f.AaqClient.AaqV1alpha1().ApplicationsResourceQuotas(f.Namespace.GetName()).Create(context.Background(), arq, matav1.CreateOptions{})
+			_, err := f.AaqClient.AaqV1alpha1().ApplicationAwareResourceQuotas(f.Namespace.GetName()).Create(context.Background(), arq, matav1.CreateOptions{})
 			Expect(err).To(HaveOccurred(), "resourceName must be a standard resource for quota")
 		})
 
 		It("Simple empty ARQ with valid resource should be allowed to create", func() {
 			arq := NewArqBuilder().WithName("arq").WithResource(v1.ResourceLimitsMemory, resource.MustParse("1m")).Build()
-			_, err := f.AaqClient.AaqV1alpha1().ApplicationsResourceQuotas(f.Namespace.GetName()).Create(context.Background(), arq, matav1.CreateOptions{})
+			_, err := f.AaqClient.AaqV1alpha1().ApplicationAwareResourceQuotas(f.Namespace.GetName()).Create(context.Background(), arq, matav1.CreateOptions{})
 			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Simple empty ARQ with 2 valid resources should be allowed to create", func() {
 			arq := NewArqBuilder().WithName("arq").WithResource(v1.ResourceLimitsMemory, resource.MustParse("1m")).WithResource(v1.ResourceLimitsCPU, resource.MustParse("1")).Build()
-			_, err := f.AaqClient.AaqV1alpha1().ApplicationsResourceQuotas(f.Namespace.GetName()).Create(context.Background(), arq, matav1.CreateOptions{})
+			_, err := f.AaqClient.AaqV1alpha1().ApplicationAwareResourceQuotas(f.Namespace.GetName()).Create(context.Background(), arq, matav1.CreateOptions{})
 			Expect(err).ToNot(HaveOccurred())
 		})
 	})

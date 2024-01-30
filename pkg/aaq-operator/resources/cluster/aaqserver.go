@@ -206,7 +206,7 @@ func createGatingValidatingWebhook(namespace string, c client.Client, l logr.Log
 					APIGroups:   []string{"*"},
 					APIVersions: []string{"*"},
 					Scope:       &namespacedScope,
-					Resources:   []string{"applicationsresourcequotas"},
+					Resources:   []string{"applicationawareresourcequotas"},
 				},
 			},
 		},
