@@ -950,7 +950,7 @@ var _ = Describe("Controller", func() {
 				func() (client.Object, error) {
 					const imagePullSecretName = "fake-registry-key"
 					var imagePullSecrets = []corev1.LocalObjectReference{{Name: imagePullSecretName}}
-					deployment := utils.CreateDeployment("fake-aaq-deployment", "app", "applications-aware-quota", "fake-sa", imagePullSecrets, int32(1), &sdkapi.NodePlacement{})
+					deployment := utils.CreateDeployment("fake-aaq-deployment", "app", "application-aware-quota", "fake-sa", imagePullSecrets, int32(1), &sdkapi.NodePlacement{})
 					return deployment, nil
 				}),
 			Entry("verify - unused service deleted",
@@ -1383,7 +1383,7 @@ func createNotReadyEventValidationMap() map[string]bool {
 	match[normalCreateSuccess+" *v1.Deployment aaq-controller"] = false
 	match[normalCreateSuccess+" *v1.MutatingWebhookConfiguration gating-mutator"] = false
 	match[normalCreateSuccess+" *v1.ValidatingWebhookConfiguration aaq-validator"] = false
-	match[normalCreateSuccess+" *v1.CustomResourceDefinition applicationsresourcequotas.aaq.kubevirt.io"] = false
+	match[normalCreateSuccess+" *v1.CustomResourceDefinition applicationawareresourcequotas.aaq.kubevirt.io"] = false
 	match[normalCreateSuccess+" *v1.CustomResourceDefinition aaqjobqueueconfigs.aaq.kubevirt.io"] = false
 	match[normalCreateSuccess+" *v1.Secret aaq-server"] = false
 	match[normalCreateSuccess+" *v1.ConfigMap aaq-server-signer-bundle"] = false

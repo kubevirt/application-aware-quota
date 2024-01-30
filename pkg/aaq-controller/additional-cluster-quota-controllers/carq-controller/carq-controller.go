@@ -389,7 +389,7 @@ func (ctrl *CarqController) addCRQ(obj interface{}) {
 	ctrl.forceCalculation(carq.Name, namespaces...)
 }
 
-// When a ApplicationsResourceQuotaaqjqc.Status.PodsInJobQueuea is updated, enqueue all gated pods for revaluation
+// When a ApplicationAwareResourceQuota.Status.PodsInJobQueuea is updated, enqueue all gated pods for revaluation
 func (ctrl *CarqController) updateAaqjqc(old, cur interface{}) {
 	aaqjqc := cur.(*v1alpha1.AAQJobQueueConfig)
 	if aaqjqc.Status.ControllerLock[arq_controller.ClusterAppsResourceQuotaLockName] {
@@ -398,7 +398,7 @@ func (ctrl *CarqController) updateAaqjqc(old, cur interface{}) {
 	return
 }
 
-// When a ApplicationsResourceQuotaaqjqc.Status.PodsInJobQueuea is updated, enqueue all gated pods for revaluation
+// When a ApplicationAwareResourceQuota.Status.PodsInJobQueuea is updated, enqueue all gated pods for revaluation
 func (ctrl *CarqController) addAaqjqc(obj interface{}) {
 	aaqjqc := obj.(*v1alpha1.AAQJobQueueConfig)
 	if aaqjqc.Status.ControllerLock[arq_controller.ClusterAppsResourceQuotaLockName] {

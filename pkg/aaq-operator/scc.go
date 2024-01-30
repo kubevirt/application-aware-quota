@@ -24,7 +24,7 @@ import (
 	sdk "kubevirt.io/controller-lifecycle-operator-sdk/pkg/sdk"
 )
 
-const sccName = "applications-aware-quota"
+const sccName = "application-aware-quota"
 
 func setSCC(scc *secv1.SecurityContextConstraints) {
 	scc.AllowHostDirVolumePlugin = true

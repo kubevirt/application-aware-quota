@@ -2147,32 +2147,32 @@ status:
   conditions: null
   storedVersions: null
 `,
-	"applicationsresourcequota": `apiVersion: apiextensions.k8s.io/v1
+	"applicationawareresourcequota": `apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.11.3
   creationTimestamp: null
-  name: applicationsresourcequotas.aaq.kubevirt.io
+  name: applicationawareresourcequotas.aaq.kubevirt.io
 spec:
   group: aaq.kubevirt.io
   names:
     categories:
     - all
-    kind: ApplicationsResourceQuota
-    listKind: ApplicationsResourceQuotaList
-    plural: applicationsresourcequotas
+    kind: ApplicationAwareResourceQuota
+    listKind: ApplicationAwareResourceQuotaList
+    plural: applicationawareresourcequotas
     shortNames:
     - arq
     - arqs
-    singular: applicationsresourcequota
+    singular: applicationawareresourcequota
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: ApplicationsResourceQuota defines resources that should be reserved
-          for a VMI migration
+        description: ApplicationAwareResourceQuota defines resources that should be
+          reserved for a VMI migration
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -2187,7 +2187,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: ApplicationsResourceQuotaSpec is an extension of corev1.ResourceQuotaSpec
+            description: ApplicationAwareResourceQuotaSpec is an extension of corev1.ResourceQuotaSpec
             properties:
               hard:
                 additionalProperties:
@@ -2248,7 +2248,7 @@ spec:
                 type: array
             type: object
           status:
-            description: ApplicationsResourceQuotaStatus is an extension of corev1.ResourceQuotaStatus
+            description: ApplicationAwareResourceQuotaStatus is an extension of corev1.ResourceQuotaStatus
             properties:
               hard:
                 additionalProperties:

@@ -32,16 +32,16 @@ import (
 type enqueueState string
 
 const (
-	Immediate                         enqueueState = "Immediate"
-	Forget                            enqueueState = "Forget"
-	BackOff                           enqueueState = "BackOff"
-	AaqjqcName                                     = "aaqjqc"
-	ApplicationsResourceQuotaLockName              = "applications-resource-quota-lock"
-	ClusterAppsResourceQuotaLockName               = "cluster-apps-resource-quota-lock"
+	Immediate                             enqueueState = "Immediate"
+	Forget                                enqueueState = "Forget"
+	BackOff                               enqueueState = "BackOff"
+	AaqjqcName                                         = "aaqjqc"
+	ApplicationAwareResourceQuotaLockName              = "application-aware-resource-quota-lock"
+	ClusterAppsResourceQuotaLockName                   = "cluster-apps-resource-quota-lock"
 )
 
 var locksNames = []string{
-	ApplicationsResourceQuotaLockName,
+	ApplicationAwareResourceQuotaLockName,
 	ClusterAppsResourceQuotaLockName,
 }
 
@@ -128,7 +128,7 @@ func NewAaqGateController(aaqCli client.AAQClient,
 func (ctrl *AaqGateController) enqueueAll() {
 	arqObjs := ctrl.arqInformer.GetIndexer().List()
 	for _, arqObj := range arqObjs {
-		arq := arqObj.(*v1alpha12.ApplicationsResourceQuota)
+		arq := arqObj.(*v1alpha12.ApplicationAwareResourceQuota)
 		ctrl.nsQueue.Add(arq.Namespace)
 	}
 	if ctrl.clusterQuotaEnabled {
@@ -143,28 +143,28 @@ func (ctrl *AaqGateController) enqueueAll() {
 	}
 }
 
-// When a ApplicationsResourceQuotas is deleted, enqueue all gated pods for revaluation
+// When a ApplicationAwareResourceQuota is deleted, enqueue all gated pods for revaluation
 func (ctrl *AaqGateController) deleteArq(obj interface{}) {
-	arq := obj.(*v1alpha12.ApplicationsResourceQuota)
+	arq := obj.(*v1alpha12.ApplicationAwareResourceQuota)
 	ctrl.nsQueue.Add(arq.Namespace)
 	return
 }
 
-// When a ApplicationsResourceQuotas is updated, enqueue all gated pods for revaluation
+// When a ApplicationAwareResourceQuota is updated, enqueue all gated pods for revaluation
 func (ctrl *AaqGateController) addArq(obj interface{}) {
-	arq := obj.(*v1alpha12.ApplicationsResourceQuota)
+	arq := obj.(*v1alpha12.ApplicationAwareResourceQuota)
 	ctrl.nsQueue.Add(arq.Namespace)
 	return
 }
 
-// When a ApplicationsResourceQuotas is updated, enqueue all gated pods for revaluation
+// When a ApplicationAwareResourceQuota is updated, enqueue all gated pods for revaluation
 func (ctrl *AaqGateController) updateArq(old, cur interface{}) {
-	arq := cur.(*v1alpha12.ApplicationsResourceQuota)
+	arq := cur.(*v1alpha12.ApplicationAwareResourceQuota)
 	ctrl.nsQueue.Add(arq.Namespace)
 	return
 }
 
-// When a ApplicationsResourceQuotas is deleted, enqueue all gated pods for revaluation
+// When a ApplicationAwareResourceQuota is deleted, enqueue all gated pods for revaluation
 func (ctrl *AaqGateController) deleteCarq(obj interface{}) {
 	carq := obj.(*v1alpha12.ClusterAppsResourceQuota)
 	namespaces, _ := ctrl.clusterQuotaMapper.GetNamespacesFor(carq.Name)
@@ -174,7 +174,7 @@ func (ctrl *AaqGateController) deleteCarq(obj interface{}) {
 	return
 }
 
-// When a ApplicationsResourceQuotas is updated, enqueue all gated pods for revaluation
+// When a ApplicationAwareResourceQuota is updated, enqueue all gated pods for revaluation
 func (ctrl *AaqGateController) addCarq(obj interface{}) {
 	carq := obj.(*v1alpha12.ClusterAppsResourceQuota)
 	namespaces, _ := ctrl.clusterQuotaMapper.GetNamespacesFor(carq.Name)
@@ -184,7 +184,7 @@ func (ctrl *AaqGateController) addCarq(obj interface{}) {
 	return
 }
 
-// When a ApplicationsResourceQuotas is updated, enqueue all gated pods for revaluation
+// When a ApplicationAwareResourceQuota is updated, enqueue all gated pods for revaluation
 func (ctrl *AaqGateController) updateCarq(old, cur interface{}) {
 	carq := cur.(*v1alpha12.ClusterAppsResourceQuota)
 	namespaces, _ := ctrl.clusterQuotaMapper.GetNamespacesFor(carq.Name)
@@ -194,14 +194,14 @@ func (ctrl *AaqGateController) updateCarq(old, cur interface{}) {
 	return
 }
 
-// When a ApplicationsResourceQuotaaqjqc.Status.PodsInJobQueuea is updated, enqueue all gated pods for revaluation
+// When a ApplicationAwareResourceQuotAaqjqc.Status.PodsInJobQueuea is updated, enqueue all gated pods for revaluation
 func (ctrl *AaqGateController) updateAaqjqc(old, cur interface{}) {
 	aaqjqc := cur.(*v1alpha12.AAQJobQueueConfig)
 	ctrl.nsQueue.Add(aaqjqc.Namespace)
 	return
 }
 
-// When a ApplicationsResourceQuotas is updated, enqueue all gated pods for revaluation
+// When a ApplicationAwareResourceQuota is updated, enqueue all gated pods for revaluation
 func (ctrl *AaqGateController) deleteAaqjqc(obj interface{}) {
 	aaqjqc := obj.(*v1alpha12.AAQJobQueueConfig)
 	ctrl.nsQueue.Add(aaqjqc.Namespace)
@@ -279,7 +279,7 @@ func (ctrl *AaqGateController) execute(ns string) (error, enqueueState) {
 		pod := podObj.(*v1.Pod)
 		if pod.Spec.SchedulingGates != nil &&
 			len(pod.Spec.SchedulingGates) == 1 &&
-			pod.Spec.SchedulingGates[0].Name == "ApplicationsAwareQuotaGate" {
+			pod.Spec.SchedulingGates[0].Name == util.AAQGate {
 			podCopy := pod.DeepCopy()
 			podCopy.Spec.SchedulingGates = []v1.PodSchedulingGate{}
 
@@ -371,7 +371,7 @@ func (ctrl *AaqGateController) getArtificialRqsForGateController(ns string) ([]v
 	}
 	var rqs []v1.ResourceQuota
 	for _, arqObj := range arqsObjs {
-		arq := arqObj.(*v1alpha12.ApplicationsResourceQuota)
+		arq := arqObj.(*v1alpha12.ApplicationAwareResourceQuota)
 		rq := v1.ResourceQuota{ObjectMeta: metav1.ObjectMeta{Name: arq.Name, Namespace: ns},
 			Spec:   v1.ResourceQuotaSpec{Hard: arq.Spec.Hard},
 			Status: v1.ResourceQuotaStatus{Hard: arq.Status.Hard, Used: arq.Status.Used},

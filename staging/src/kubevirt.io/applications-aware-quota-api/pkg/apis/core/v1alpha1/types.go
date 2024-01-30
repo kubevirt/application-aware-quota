@@ -26,7 +26,7 @@ import (
 	sdkapi "kubevirt.io/controller-lifecycle-operator-sdk/api"
 )
 
-// ApplicationsResourceQuota defines resources that should be reserved for a VMI migration
+// ApplicationAwareResourceQuota defines resources that should be reserved for a VMI migration
 //
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
@@ -34,32 +34,32 @@ import (
 // +kubebuilder:subresource:status
 // +k8s:openapi-gen=true
 // +genclient
-type ApplicationsResourceQuota struct {
+type ApplicationAwareResourceQuota struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   ApplicationsResourceQuotaSpec   `json:"spec" valid:"required"`
-	Status ApplicationsResourceQuotaStatus `json:"status,omitempty"`
+	Spec   ApplicationAwareResourceQuotaSpec   `json:"spec" valid:"required"`
+	Status ApplicationAwareResourceQuotaStatus `json:"status,omitempty"`
 }
 
-// ApplicationsResourceQuotaSpec is an extension of corev1.ResourceQuotaSpec
-type ApplicationsResourceQuotaSpec struct {
+// ApplicationAwareResourceQuotaSpec is an extension of corev1.ResourceQuotaSpec
+type ApplicationAwareResourceQuotaSpec struct {
 	corev1.ResourceQuotaSpec `json:",inline"`
 }
 
-// ApplicationsResourceQuotaStatus is an extension of corev1.ResourceQuotaStatus
-type ApplicationsResourceQuotaStatus struct {
+// ApplicationAwareResourceQuotaStatus is an extension of corev1.ResourceQuotaStatus
+type ApplicationAwareResourceQuotaStatus struct {
 	corev1.ResourceQuotaStatus `json:",inline"`
 }
 
-// ApplicationsResourceQuota List is a list of ApplicationsResourceQuotas
+// ApplicationAwareResourceQuota List is a list of ApplicationsResourceQuotas
 //
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-type ApplicationsResourceQuotaList struct {
+type ApplicationAwareResourceQuotaList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	// +listType=atomic
-	Items []ApplicationsResourceQuota `json:"items"`
+	Items []ApplicationAwareResourceQuota `json:"items"`
 }
 
 // this has to be here otherwise informer-gen doesn't recognize it

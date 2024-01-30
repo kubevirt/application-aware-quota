@@ -72,7 +72,7 @@ var _ = Describe("Test aaq-gate-controller", func() {
 		}
 		Expect(actionSet.Equal(expectedActionSet)).To(BeTrue(), fmt.Sprintf("Expected actions:\n%v\n but got:\n%v\nDifference:\n%v", expectedActionSet, actionSet, expectedActionSet.Difference(actionSet)))
 	}, Entry(" should release gated pods and requeue",
-		&v1alpha1.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: AaqjqcName, Namespace: testNs}, Status: v1alpha1.AAQJobQueueConfigStatus{PodsInJobQueue: []string{"pod-test"}, ControllerLock: map[string]bool{ApplicationsResourceQuotaLockName: true}}},
+		&v1alpha1.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: AaqjqcName, Namespace: testNs}, Status: v1alpha1.AAQJobQueueConfigStatus{PodsInJobQueue: []string{"pod-test"}, ControllerLock: map[string]bool{ApplicationAwareResourceQuotaLockName: true}}},
 		[]metav1.Object{
 			&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{Name: "pod-test", Namespace: testNs},
@@ -86,7 +86,7 @@ var _ = Describe("Test aaq-gate-controller", func() {
 			strings.Join([]string{"update", "pods"}, "-"),
 		),
 	), Entry(" should not update pods without our gate and requeue",
-		&v1alpha1.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: AaqjqcName, Namespace: testNs}, Status: v1alpha1.AAQJobQueueConfigStatus{PodsInJobQueue: []string{"pod-test"}, ControllerLock: map[string]bool{ApplicationsResourceQuotaLockName: true}}},
+		&v1alpha1.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: AaqjqcName, Namespace: testNs}, Status: v1alpha1.AAQJobQueueConfigStatus{PodsInJobQueue: []string{"pod-test"}, ControllerLock: map[string]bool{ApplicationAwareResourceQuotaLockName: true}}},
 		[]metav1.Object{
 			&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{Name: "pod-test", Namespace: testNs},
@@ -164,7 +164,7 @@ var _ = Describe("Test aaq-gate-controller", func() {
 		}, []metav1.Object{},
 		sets.NewString(),
 	), Entry(" there is a pod with gate that should be ungated without arqs",
-		&v1alpha1.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: AaqjqcName, Namespace: testNs}, Status: v1alpha1.AAQJobQueueConfigStatus{PodsInJobQueue: []string{"pod-test"}, ControllerLock: map[string]bool{ApplicationsResourceQuotaLockName: true}}},
+		&v1alpha1.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: AaqjqcName, Namespace: testNs}, Status: v1alpha1.AAQJobQueueConfigStatus{PodsInJobQueue: []string{"pod-test"}, ControllerLock: map[string]bool{ApplicationAwareResourceQuotaLockName: true}}},
 		[]metav1.Object{
 			&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{Name: "pod-test", Namespace: testNs},
@@ -178,7 +178,7 @@ var _ = Describe("Test aaq-gate-controller", func() {
 			strings.Join([]string{"update", "pods"}, "-"),
 		),
 	), Entry(" there is a pod with gate that should be ungated with non-blocking-arqs",
-		&v1alpha1.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: AaqjqcName, Namespace: testNs}, Status: v1alpha1.AAQJobQueueConfigStatus{PodsInJobQueue: []string{"pod-test"}, ControllerLock: map[string]bool{ApplicationsResourceQuotaLockName: true}}},
+		&v1alpha1.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: AaqjqcName, Namespace: testNs}, Status: v1alpha1.AAQJobQueueConfigStatus{PodsInJobQueue: []string{"pod-test"}, ControllerLock: map[string]bool{ApplicationAwareResourceQuotaLockName: true}}},
 		[]metav1.Object{
 			&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{Name: "pod-test", Namespace: testNs},
@@ -226,7 +226,7 @@ var _ = Describe("Test aaq-gate-controller", func() {
 		},
 		sets.NewString(),
 	), Entry(" there is a pod with gate that should be ungated with two non-blocking arqs",
-		&v1alpha1.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: AaqjqcName, Namespace: testNs}, Status: v1alpha1.AAQJobQueueConfigStatus{PodsInJobQueue: []string{"pod-test"}, ControllerLock: map[string]bool{ApplicationsResourceQuotaLockName: true}}},
+		&v1alpha1.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: AaqjqcName, Namespace: testNs}, Status: v1alpha1.AAQJobQueueConfigStatus{PodsInJobQueue: []string{"pod-test"}, ControllerLock: map[string]bool{ApplicationAwareResourceQuotaLockName: true}}},
 		[]metav1.Object{
 			&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{Name: "pod-test", Namespace: testNs},
@@ -244,7 +244,7 @@ var _ = Describe("Test aaq-gate-controller", func() {
 			strings.Join([]string{"update", "pods"}, "-"),
 		),
 	), Entry(" there are two pods with gate with args with enough place just for one of them",
-		&v1alpha1.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: AaqjqcName, Namespace: testNs}, Status: v1alpha1.AAQJobQueueConfigStatus{PodsInJobQueue: []string{"pod-test2"}, ControllerLock: map[string]bool{ApplicationsResourceQuotaLockName: true}}},
+		&v1alpha1.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: AaqjqcName, Namespace: testNs}, Status: v1alpha1.AAQJobQueueConfigStatus{PodsInJobQueue: []string{"pod-test2"}, ControllerLock: map[string]bool{ApplicationAwareResourceQuotaLockName: true}}},
 		[]metav1.Object{
 			&corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{Name: "pod-test", Namespace: testNs},
@@ -305,7 +305,7 @@ func setupAAQGateController(clientSet client.AAQClient, podInformer cache.Shared
 		podInformer = kubeInformerFactory.Core().V1().Pods().Informer()
 	}
 	if arqInformer == nil {
-		arqInformer = informerFactory.Aaq().V1alpha1().ApplicationsResourceQuotas().Informer()
+		arqInformer = informerFactory.Aaq().V1alpha1().ApplicationAwareResourceQuotas().Informer()
 	}
 	if aaqjcInformer == nil {
 		aaqjcInformer = informerFactory.Aaq().V1alpha1().AAQJobQueueConfigs().Informer()
