@@ -22,6 +22,6 @@ type AAQExpansion interface{}
 
 type AAQJobQueueConfigExpansion interface{}
 
-type ApplicationAwareResourceQuotaExpansion interface{}
+type ApplicationAwareClusterResourceQuotaExpansion interface{}
 
-type ClusterAppsResourceQuotaExpansion interface{}
+type ApplicationAwareResourceQuotaExpansion interface{}

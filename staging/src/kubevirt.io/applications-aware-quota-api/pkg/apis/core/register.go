@@ -25,10 +25,10 @@ const (
 	LatestVersion             = "v1alpha1"
 	AAQJobQueueConfigKind     = "AAQJobQueueConfig"
 	AAQJobQueueConfigListKind = "AAQJobQueueConfigList"
-	Kind                      = "ApplicationsResourceQuota"
-	ListKind                  = "ApplicationsResourceQuotaList"
+	Kind                      = "ApplicationAwareResourceQuota"
+	ListKind                  = "ApplicationAwareResourceQuotaList"
 
-	ResourceVMResourceQuotaSingular = "applicationsresourcequota"
+	ResourceVMResourceQuotaSingular = "applicationawareresourcequota"
 	ResourceVMResourceQuotaPlural   = ResourceVMResourceQuotaSingular + "s"
 )
 
