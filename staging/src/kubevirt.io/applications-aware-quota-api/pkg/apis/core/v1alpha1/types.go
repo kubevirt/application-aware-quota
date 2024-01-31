@@ -153,7 +153,7 @@ type AAQSpec struct {
 
 // AAQConfiguration holds all AAQ configurations
 type AAQConfiguration struct {
-	// VmiCalculatorConfiguration Default is DedicatedVirtualResources please look for VmiCalculatorConfiguration type for more information.
+	// VmiCalculatorConfiguration determine how resource allocation will be done with ApplicationsResourceQuota
 	VmiCalculatorConfiguration VmiCalculatorConfiguration `json:"vmiCalculatorConfiguration,omitempty"`
 	// AllowApplicationAwareClusterResourceQuota can be set to true to allow creation and management
 	// of ApplicationAwareClusterResourceQuota. Defaults to false
@@ -171,14 +171,17 @@ type VmiCalculatorConfiguration struct {
 }
 
 const (
-	// VmiPodUsage Calculate usage of launcher like any other pod but hide migration additional resources
+	// VmiPodUsage (default) calculates pod usage for VM-associated pods while concealing migration-specific resources.
 	VmiPodUsage VmiCalcConfigName = "VmiPodUsage"
-	// VirtualResources Calculate memory.request/limits as the vmi's ram size and cpu.request/limits as number of threads of vmi
+	// VirtualResources allocates resources for VM-associated pods, using the VM's RAM size for memory and CPU threads
+	// for processing.
 	VirtualResources VmiCalcConfigName = "VirtualResources"
-	// DedicatedVirtualResources Calculate vmi.requests.memory as the vmi's ram size and vmi.requests.cpu as number of threads of vmi
-	// in this configuration no memory.request/limits and cpu.request/limits won't be included
+	// DedicatedVirtualResources allocates resources for VM-associated pods,
+	//appending a /vm suffix to requests/limits.cpu and requests/limits.memory,
+	//derived from the VM's RAM size and CPU threads.
+	//Notably, it does not allocate resources for the standard requests/limits.cpu and requests/limits.memory.
 	DedicatedVirtualResources VmiCalcConfigName = "DedicatedVirtualResources"
-	// in this configuration no memory.request/limits and cpu.request/limits won't be included
+	// avoids allocating VM-associated pods differently from normal pods, maintaining uniform resource allocation.
 	IgnoreVmiCalculator VmiCalcConfigName = "IgnoreVmiCalculator"
 	//VirtualResources:
 	// ResourcePodsOfVmi Launcher Pods, number.
