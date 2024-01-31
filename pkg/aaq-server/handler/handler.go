@@ -19,7 +19,7 @@ import (
 const (
 	allowPodRequest               = "Pod has successfully gated"
 	allowArqRequest               = "ApplicationAwareResourceQuota request is valid"
-	allowCarqRequest              = "ClusterAppsResourceQuota request is valid"
+	allowAcrqRequest              = "ApplicationAwareClusterResourceQuota request is valid"
 	validatingResourceQuotaPrefix = "aaq-validating-rq-"
 	validPodUpdate                = "Pod update did not remove AAQGate"
 	aaqControllerPodUpdate        = "AAQ controller has permission to remove gate from pods"
@@ -52,8 +52,8 @@ func (v Handler) Handle() (*admissionv1.AdmissionReview, error) {
 		return v.validatePodUpdate()
 	case "ApplicationAwareResourceQuota":
 		return v.validateApplicationAwareResourceQuota()
-	case "ClusterAppsResourceQuota":
-		return v.validateClusterAppsResourceQuota()
+	case "ApplicationAwareClusterResourceQuota":
+		return v.validateApplicationAwareClusterResourceQuota()
 	}
 	return nil, fmt.Errorf("AAQ webhook doesn't recongnize request: %+v", v.request)
 }
@@ -128,26 +128,26 @@ func (v Handler) validateApplicationAwareResourceQuota() (*admissionv1.Admission
 
 }
 
-func (v Handler) validateClusterAppsResourceQuota() (*admissionv1.AdmissionReview, error) {
-	carq := v1alpha1.ClusterAppsResourceQuota{}
-	if err := json.Unmarshal(v.request.Object.Raw, &carq); err != nil {
+func (v Handler) validateApplicationAwareClusterResourceQuota() (*admissionv1.AdmissionReview, error) {
+	acrq := v1alpha1.ApplicationAwareClusterResourceQuota{}
+	if err := json.Unmarshal(v.request.Object.Raw, &acrq); err != nil {
 		return nil, err
 	}
 	rq := &v1.ResourceQuota{}
 	rq.Name = createRQName()
-	rq.Spec.Hard = carq.Spec.Quota.Hard
-	rq.Spec.ScopeSelector = carq.Spec.Quota.ScopeSelector
-	rq.Spec.Scopes = carq.Spec.Quota.Scopes
+	rq.Spec.Hard = acrq.Spec.Quota.Hard
+	rq.Spec.ScopeSelector = acrq.Spec.Quota.ScopeSelector
+	rq.Spec.Scopes = acrq.Spec.Quota.Scopes
 	_, err := v.aaqCli.CoreV1().ResourceQuotas(v1.NamespaceDefault).Create(context.Background(), rq, metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}})
 	if err != nil {
 		return reviewResponse(v.request.UID, false, http.StatusForbidden, ignoreRqErr(err.Error())), nil
 	}
-	nonSchedulableResourcesHard := util.FilterNonScheduableResources(carq.Spec.Quota.Hard)
+	nonSchedulableResourcesHard := util.FilterNonScheduableResources(acrq.Spec.Quota.Hard)
 	if !v.isOnOpenshift && len(nonSchedulableResourcesHard) > 0 {
-		errMsg := fmt.Sprintf("ClusterAppsResourceQuota without clusterResourceQuota support, operator cannot handle non scheduable resources :%v", getResourcesNames(nonSchedulableResourcesHard))
+		errMsg := fmt.Sprintf("ApplicationAwareClusterResourceQuota without clusterResourceQuota support, operator cannot handle non scheduable resources :%v", getResourcesNames(nonSchedulableResourcesHard))
 		return reviewResponse(v.request.UID, false, http.StatusForbidden, errMsg), nil
 	}
-	return reviewResponse(v.request.UID, true, http.StatusAccepted, allowCarqRequest), nil
+	return reviewResponse(v.request.UID, true, http.StatusAccepted, allowAcrqRequest), nil
 }
 
 func (v Handler) validatePodUpdate() (*admissionv1.AdmissionReview, error) {

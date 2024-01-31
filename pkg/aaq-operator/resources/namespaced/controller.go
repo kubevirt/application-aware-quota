@@ -23,7 +23,7 @@ func createAAQControllerResources(args *FactoryArgs) []client.Object {
 		createAAQControllerServiceAccount(),
 		createControllerRoleBinding(),
 		createControllerRole(),
-		createAAQControllerDeployment(args.ControllerImage, args.Verbosity, args.PullPolicy, args.ImagePullSecrets, args.PriorityClassName, args.InfraNodePlacement, cr.Spec.Configuration.EnableClusterAppsResourceQuota, args.OnOpenshift, cr.Spec.Configuration.VmiCalculatorConfiguration.ConfigName),
+		createAAQControllerDeployment(args.ControllerImage, args.Verbosity, args.PullPolicy, args.ImagePullSecrets, args.PriorityClassName, args.InfraNodePlacement, cr.Spec.Configuration.AllowApplicationAwareClusterResourceQuota, args.OnOpenshift, cr.Spec.Configuration.VmiCalculatorConfiguration.ConfigName),
 	}
 }
 func createControllerRoleBinding() *rbacv1.RoleBinding {

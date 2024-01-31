@@ -254,7 +254,7 @@ func createGatingValidatingWebhook(namespace string, c client.Client, l logr.Log
 		},
 	})
 
-	if !cr.Spec.Configuration.EnableClusterAppsResourceQuota {
+	if !cr.Spec.Configuration.AllowApplicationAwareClusterResourceQuota {
 		return mhc
 	}
 
@@ -274,7 +274,7 @@ func createGatingValidatingWebhook(namespace string, c client.Client, l logr.Log
 					APIGroups:   []string{"*"},
 					APIVersions: []string{"*"},
 					Scope:       &clusterScope,
-					Resources:   []string{"clusterappsresourcequotas"},
+					Resources:   []string{"applicationawareclusterresourcequotas"},
 				},
 			},
 		},

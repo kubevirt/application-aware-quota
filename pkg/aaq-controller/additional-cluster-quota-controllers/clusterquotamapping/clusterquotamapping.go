@@ -19,7 +19,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-// NewClusterQuotaMappingController builds a mapping between namespaces and ClusterAppsResourceQuotas
+// NewClusterQuotaMappingController builds a mapping between namespaces and ApplicationAwareClusterResourceQuotas
 func NewClusterQuotaMappingController(namespaceInformer cache.SharedIndexInformer, quotaInformer cache.SharedIndexInformer, stop <-chan struct{}) *ClusterQuotaMappingController {
 	c := newClusterQuotaMappingController(namespaceInformer, quotaInformer, stop)
 	c.namespaceLister = v1NamespaceLister{lister: corev1listers.NewNamespaceLister(namespaceInformer.GetIndexer())}
@@ -71,7 +71,7 @@ func newClusterQuotaMappingController(namespaceInformer cache.SharedIndexInforme
 		DeleteFunc: c.deleteQuota,
 	})
 
-	c.quotaLister = v1alpha1.NewClusterAppsResourceQuotaLister(quotaInformer.GetIndexer())
+	c.quotaLister = v1alpha1.NewApplicationAwareClusterResourceQuotaLister(quotaInformer.GetIndexer())
 	c.quotasSynced = quotaInformer.HasSynced
 
 	return c
@@ -83,7 +83,7 @@ type ClusterQuotaMappingController struct {
 	namespacesSynced func() bool
 
 	quotaQueue   workqueue.RateLimitingInterface
-	quotaLister  v1alpha1.ClusterAppsResourceQuotaLister
+	quotaLister  v1alpha1.ApplicationAwareClusterResourceQuotaLister
 	quotasSynced func() bool
 
 	clusterQuotaMapper *clusterQuotaMapper
@@ -116,7 +116,7 @@ func (c *ClusterQuotaMappingController) Run(workers int) {
 	<-c.stop
 }
 
-func (c *ClusterQuotaMappingController) syncQuota(quota *v1alpha12.ClusterAppsResourceQuota) error {
+func (c *ClusterQuotaMappingController) syncQuota(quota *v1alpha12.ApplicationAwareClusterResourceQuota) error {
 	matcherFunc, err := GetObjectMatcher(quota.Spec.Selector)
 	if err != nil {
 		return err
@@ -342,14 +342,14 @@ func (c *ClusterQuotaMappingController) enqueueNamespace(obj interface{}) {
 }
 
 func (c *ClusterQuotaMappingController) deleteQuota(obj interface{}) {
-	quota, ok1 := obj.(*v1alpha12.ClusterAppsResourceQuota)
+	quota, ok1 := obj.(*v1alpha12.ApplicationAwareClusterResourceQuota)
 	if !ok1 {
 		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 		if !ok {
 			utilruntime.HandleError(fmt.Errorf("couldn't get object from tombstone %v", obj))
 			return
 		}
-		quota, ok = tombstone.Obj.(*v1alpha12.ClusterAppsResourceQuota)
+		quota, ok = tombstone.Obj.(*v1alpha12.ApplicationAwareClusterResourceQuota)
 		if !ok {
 			utilruntime.HandleError(fmt.Errorf("tombstone contained object that is not a Quota %v", obj))
 			return
@@ -366,7 +366,7 @@ func (c *ClusterQuotaMappingController) updateQuota(old, cur interface{}) {
 	c.enqueueQuota(cur)
 }
 func (c *ClusterQuotaMappingController) enqueueQuota(obj interface{}) {
-	quota, ok := obj.(*v1alpha12.ClusterAppsResourceQuota)
+	quota, ok := obj.(*v1alpha12.ApplicationAwareClusterResourceQuota)
 	if !ok {
 		utilruntime.HandleError(fmt.Errorf("not a Quota %v", obj))
 		return

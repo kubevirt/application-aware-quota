@@ -99,7 +99,7 @@ func (m *clusterQuotaMapper) AddListener(listener MappingChangeListener) {
 
 // requireQuota updates the selector requirements for the given quota.  This prevents stale updates to the mapping itself.
 // returns true if a modification was made
-func (m *clusterQuotaMapper) requireQuota(quota *v1alpha1.ClusterAppsResourceQuota) bool {
+func (m *clusterQuotaMapper) requireQuota(quota *v1alpha1.ApplicationAwareClusterResourceQuota) bool {
 	m.lock.RLock()
 	selector, exists := m.requiredQuotaToSelector[quota.Name]
 	m.lock.RUnlock()
@@ -121,7 +121,7 @@ func (m *clusterQuotaMapper) requireQuota(quota *v1alpha1.ClusterAppsResourceQuo
 
 // completeQuota updates the latest selector used to generate the mappings for this quota.  The value is returned
 // by the Get methods for the mapping so that callers can determine staleness
-func (m *clusterQuotaMapper) completeQuota(quota *v1alpha1.ClusterAppsResourceQuota) {
+func (m *clusterQuotaMapper) completeQuota(quota *v1alpha1.ApplicationAwareClusterResourceQuota) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	m.completedQuotaToSelector[quota.Name] = quota.Spec.Selector
@@ -193,7 +193,7 @@ func (m *clusterQuotaMapper) removeNamespace(namespaceName string) {
 	}
 }
 
-func selectorMatches(selector quotav1.ClusterResourceQuotaSelector, exists bool, quota *v1alpha1.ClusterAppsResourceQuota) bool {
+func selectorMatches(selector quotav1.ClusterResourceQuotaSelector, exists bool, quota *v1alpha1.ApplicationAwareClusterResourceQuota) bool {
 	return exists && equality.Semantic.DeepEqual(selector, quota.Spec.Selector)
 }
 func selectionFieldsMatch(selectionFields SelectionFields, exists bool, namespace metav1.Object) bool {
@@ -203,7 +203,7 @@ func selectionFieldsMatch(selectionFields SelectionFields, exists bool, namespac
 // setMapping maps (or removes a mapping) between a clusterquota and a namespace
 // It returns whether the action worked, whether the quota is out of date, whether the namespace is out of date
 // This allows callers to decide whether to pull new information from the cache or simply skip execution
-func (m *clusterQuotaMapper) setMapping(quota *v1alpha1.ClusterAppsResourceQuota, namespace metav1.Object, remove bool) (bool /*added*/, bool /*quota matches*/, bool /*namespace matches*/) {
+func (m *clusterQuotaMapper) setMapping(quota *v1alpha1.ApplicationAwareClusterResourceQuota, namespace metav1.Object, remove bool) (bool /*added*/, bool /*quota matches*/, bool /*namespace matches*/) {
 	m.lock.RLock()
 	selector, selectorExists := m.requiredQuotaToSelector[quota.Name]
 	selectionFields, selectionFieldsExist := m.requiredNamespaceToLabels[namespace.GetName()]

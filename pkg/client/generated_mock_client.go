@@ -164,6 +164,20 @@ func (mr *MockAAQClientMockRecorder) AdmissionregistrationV1beta1() *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AdmissionregistrationV1beta1", reflect.TypeOf((*MockAAQClient)(nil).AdmissionregistrationV1beta1))
 }
 
+// ApplicationAwareClusterResourceQuotas mocks base method.
+func (m *MockAAQClient) ApplicationAwareClusterResourceQuotas() ApplicationAwareClusterResourceQuotaInterface {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ApplicationAwareClusterResourceQuotas")
+	ret0, _ := ret[0].(ApplicationAwareClusterResourceQuotaInterface)
+	return ret0
+}
+
+// ApplicationAwareClusterResourceQuotas indicates an expected call of ApplicationAwareClusterResourceQuotas.
+func (mr *MockAAQClientMockRecorder) ApplicationAwareClusterResourceQuotas() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ApplicationAwareClusterResourceQuotas", reflect.TypeOf((*MockAAQClient)(nil).ApplicationAwareClusterResourceQuotas))
+}
+
 // ApplicationAwareResourceQuotas mocks base method.
 func (m *MockAAQClient) ApplicationAwareResourceQuotas(namespace string) ApplicationAwareResourceQuotaInterface {
 	m.ctrl.T.Helper()
@@ -428,20 +442,6 @@ func (m *MockAAQClient) CertificatesV1beta1() v1beta14.CertificatesV1beta1Interf
 func (mr *MockAAQClientMockRecorder) CertificatesV1beta1() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CertificatesV1beta1", reflect.TypeOf((*MockAAQClient)(nil).CertificatesV1beta1))
-}
-
-// ClusterAppsResourceQuotas mocks base method.
-func (m *MockAAQClient) ClusterAppsResourceQuotas() ClusterAppsResourceQuotaInterface {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ClusterAppsResourceQuotas")
-	ret0, _ := ret[0].(ClusterAppsResourceQuotaInterface)
-	return ret0
-}
-
-// ClusterAppsResourceQuotas indicates an expected call of ClusterAppsResourceQuotas.
-func (mr *MockAAQClientMockRecorder) ClusterAppsResourceQuotas() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClusterAppsResourceQuotas", reflect.TypeOf((*MockAAQClient)(nil).ClusterAppsResourceQuotas))
 }
 
 // Config mocks base method.
@@ -1123,46 +1123,46 @@ func (mr *MockApplicationAwareResourceQuotaInterfaceMockRecorder) Watch(ctx, opt
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Watch", reflect.TypeOf((*MockApplicationAwareResourceQuotaInterface)(nil).Watch), ctx, opts)
 }
 
-// MockClusterAppsResourceQuotaInterface is a mock of ClusterAppsResourceQuotaInterface interface.
-type MockClusterAppsResourceQuotaInterface struct {
+// MockApplicationAwareClusterResourceQuotaInterface is a mock of ApplicationAwareClusterResourceQuotaInterface interface.
+type MockApplicationAwareClusterResourceQuotaInterface struct {
 	ctrl     *gomock.Controller
-	recorder *MockClusterAppsResourceQuotaInterfaceMockRecorder
+	recorder *MockApplicationAwareClusterResourceQuotaInterfaceMockRecorder
 }
 
-// MockClusterAppsResourceQuotaInterfaceMockRecorder is the mock recorder for MockClusterAppsResourceQuotaInterface.
-type MockClusterAppsResourceQuotaInterfaceMockRecorder struct {
-	mock *MockClusterAppsResourceQuotaInterface
+// MockApplicationAwareClusterResourceQuotaInterfaceMockRecorder is the mock recorder for MockApplicationAwareClusterResourceQuotaInterface.
+type MockApplicationAwareClusterResourceQuotaInterfaceMockRecorder struct {
+	mock *MockApplicationAwareClusterResourceQuotaInterface
 }
 
-// NewMockClusterAppsResourceQuotaInterface creates a new mock instance.
-func NewMockClusterAppsResourceQuotaInterface(ctrl *gomock.Controller) *MockClusterAppsResourceQuotaInterface {
-	mock := &MockClusterAppsResourceQuotaInterface{ctrl: ctrl}
-	mock.recorder = &MockClusterAppsResourceQuotaInterfaceMockRecorder{mock}
+// NewMockApplicationAwareClusterResourceQuotaInterface creates a new mock instance.
+func NewMockApplicationAwareClusterResourceQuotaInterface(ctrl *gomock.Controller) *MockApplicationAwareClusterResourceQuotaInterface {
+	mock := &MockApplicationAwareClusterResourceQuotaInterface{ctrl: ctrl}
+	mock.recorder = &MockApplicationAwareClusterResourceQuotaInterfaceMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockClusterAppsResourceQuotaInterface) EXPECT() *MockClusterAppsResourceQuotaInterfaceMockRecorder {
+func (m *MockApplicationAwareClusterResourceQuotaInterface) EXPECT() *MockApplicationAwareClusterResourceQuotaInterfaceMockRecorder {
 	return m.recorder
 }
 
 // Create mocks base method.
-func (m *MockClusterAppsResourceQuotaInterface) Create(ctx context.Context, applicationAwareResourceQuota *v1alpha19.ClusterAppsResourceQuota, opts v1.CreateOptions) (*v1alpha19.ClusterAppsResourceQuota, error) {
+func (m *MockApplicationAwareClusterResourceQuotaInterface) Create(ctx context.Context, applicationAwareResourceQuota *v1alpha19.ApplicationAwareClusterResourceQuota, opts v1.CreateOptions) (*v1alpha19.ApplicationAwareClusterResourceQuota, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", ctx, applicationAwareResourceQuota, opts)
-	ret0, _ := ret[0].(*v1alpha19.ClusterAppsResourceQuota)
+	ret0, _ := ret[0].(*v1alpha19.ApplicationAwareClusterResourceQuota)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Create indicates an expected call of Create.
-func (mr *MockClusterAppsResourceQuotaInterfaceMockRecorder) Create(ctx, applicationAwareResourceQuota, opts interface{}) *gomock.Call {
+func (mr *MockApplicationAwareClusterResourceQuotaInterfaceMockRecorder) Create(ctx, applicationAwareResourceQuota, opts interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockClusterAppsResourceQuotaInterface)(nil).Create), ctx, applicationAwareResourceQuota, opts)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockApplicationAwareClusterResourceQuotaInterface)(nil).Create), ctx, applicationAwareResourceQuota, opts)
 }
 
 // Delete mocks base method.
-func (m *MockClusterAppsResourceQuotaInterface) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
+func (m *MockApplicationAwareClusterResourceQuotaInterface) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Delete", ctx, name, opts)
 	ret0, _ := ret[0].(error)
@@ -1170,13 +1170,13 @@ func (m *MockClusterAppsResourceQuotaInterface) Delete(ctx context.Context, name
 }
 
 // Delete indicates an expected call of Delete.
-func (mr *MockClusterAppsResourceQuotaInterfaceMockRecorder) Delete(ctx, name, opts interface{}) *gomock.Call {
+func (mr *MockApplicationAwareClusterResourceQuotaInterfaceMockRecorder) Delete(ctx, name, opts interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockClusterAppsResourceQuotaInterface)(nil).Delete), ctx, name, opts)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockApplicationAwareClusterResourceQuotaInterface)(nil).Delete), ctx, name, opts)
 }
 
 // DeleteCollection mocks base method.
-func (m *MockClusterAppsResourceQuotaInterface) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+func (m *MockApplicationAwareClusterResourceQuotaInterface) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteCollection", ctx, opts, listOpts)
 	ret0, _ := ret[0].(error)
@@ -1184,93 +1184,93 @@ func (m *MockClusterAppsResourceQuotaInterface) DeleteCollection(ctx context.Con
 }
 
 // DeleteCollection indicates an expected call of DeleteCollection.
-func (mr *MockClusterAppsResourceQuotaInterfaceMockRecorder) DeleteCollection(ctx, opts, listOpts interface{}) *gomock.Call {
+func (mr *MockApplicationAwareClusterResourceQuotaInterfaceMockRecorder) DeleteCollection(ctx, opts, listOpts interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteCollection", reflect.TypeOf((*MockClusterAppsResourceQuotaInterface)(nil).DeleteCollection), ctx, opts, listOpts)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteCollection", reflect.TypeOf((*MockApplicationAwareClusterResourceQuotaInterface)(nil).DeleteCollection), ctx, opts, listOpts)
 }
 
 // Get mocks base method.
-func (m *MockClusterAppsResourceQuotaInterface) Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha19.ClusterAppsResourceQuota, error) {
+func (m *MockApplicationAwareClusterResourceQuotaInterface) Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha19.ApplicationAwareClusterResourceQuota, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", ctx, name, opts)
-	ret0, _ := ret[0].(*v1alpha19.ClusterAppsResourceQuota)
+	ret0, _ := ret[0].(*v1alpha19.ApplicationAwareClusterResourceQuota)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Get indicates an expected call of Get.
-func (mr *MockClusterAppsResourceQuotaInterfaceMockRecorder) Get(ctx, name, opts interface{}) *gomock.Call {
+func (mr *MockApplicationAwareClusterResourceQuotaInterfaceMockRecorder) Get(ctx, name, opts interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockClusterAppsResourceQuotaInterface)(nil).Get), ctx, name, opts)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockApplicationAwareClusterResourceQuotaInterface)(nil).Get), ctx, name, opts)
 }
 
 // List mocks base method.
-func (m *MockClusterAppsResourceQuotaInterface) List(ctx context.Context, opts v1.ListOptions) (*v1alpha19.ClusterAppsResourceQuotaList, error) {
+func (m *MockApplicationAwareClusterResourceQuotaInterface) List(ctx context.Context, opts v1.ListOptions) (*v1alpha19.ApplicationAwareClusterResourceQuotaList, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "List", ctx, opts)
-	ret0, _ := ret[0].(*v1alpha19.ClusterAppsResourceQuotaList)
+	ret0, _ := ret[0].(*v1alpha19.ApplicationAwareClusterResourceQuotaList)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // List indicates an expected call of List.
-func (mr *MockClusterAppsResourceQuotaInterfaceMockRecorder) List(ctx, opts interface{}) *gomock.Call {
+func (mr *MockApplicationAwareClusterResourceQuotaInterfaceMockRecorder) List(ctx, opts interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockClusterAppsResourceQuotaInterface)(nil).List), ctx, opts)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockApplicationAwareClusterResourceQuotaInterface)(nil).List), ctx, opts)
 }
 
 // Patch mocks base method.
-func (m *MockClusterAppsResourceQuotaInterface) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (*v1alpha19.ClusterAppsResourceQuota, error) {
+func (m *MockApplicationAwareClusterResourceQuotaInterface) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (*v1alpha19.ApplicationAwareClusterResourceQuota, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, name, pt, data, opts}
 	for _, a := range subresources {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "Patch", varargs...)
-	ret0, _ := ret[0].(*v1alpha19.ClusterAppsResourceQuota)
+	ret0, _ := ret[0].(*v1alpha19.ApplicationAwareClusterResourceQuota)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Patch indicates an expected call of Patch.
-func (mr *MockClusterAppsResourceQuotaInterfaceMockRecorder) Patch(ctx, name, pt, data, opts interface{}, subresources ...interface{}) *gomock.Call {
+func (mr *MockApplicationAwareClusterResourceQuotaInterfaceMockRecorder) Patch(ctx, name, pt, data, opts interface{}, subresources ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{ctx, name, pt, data, opts}, subresources...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Patch", reflect.TypeOf((*MockClusterAppsResourceQuotaInterface)(nil).Patch), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Patch", reflect.TypeOf((*MockApplicationAwareClusterResourceQuotaInterface)(nil).Patch), varargs...)
 }
 
 // Update mocks base method.
-func (m *MockClusterAppsResourceQuotaInterface) Update(ctx context.Context, applicationAwareResourceQuota *v1alpha19.ClusterAppsResourceQuota, opts v1.UpdateOptions) (*v1alpha19.ClusterAppsResourceQuota, error) {
+func (m *MockApplicationAwareClusterResourceQuotaInterface) Update(ctx context.Context, applicationAwareResourceQuota *v1alpha19.ApplicationAwareClusterResourceQuota, opts v1.UpdateOptions) (*v1alpha19.ApplicationAwareClusterResourceQuota, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Update", ctx, applicationAwareResourceQuota, opts)
-	ret0, _ := ret[0].(*v1alpha19.ClusterAppsResourceQuota)
+	ret0, _ := ret[0].(*v1alpha19.ApplicationAwareClusterResourceQuota)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Update indicates an expected call of Update.
-func (mr *MockClusterAppsResourceQuotaInterfaceMockRecorder) Update(ctx, applicationAwareResourceQuota, opts interface{}) *gomock.Call {
+func (mr *MockApplicationAwareClusterResourceQuotaInterfaceMockRecorder) Update(ctx, applicationAwareResourceQuota, opts interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockClusterAppsResourceQuotaInterface)(nil).Update), ctx, applicationAwareResourceQuota, opts)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockApplicationAwareClusterResourceQuotaInterface)(nil).Update), ctx, applicationAwareResourceQuota, opts)
 }
 
 // UpdateStatus mocks base method.
-func (m *MockClusterAppsResourceQuotaInterface) UpdateStatus(ctx context.Context, applicationAwareResourceQuota *v1alpha19.ClusterAppsResourceQuota, opts v1.UpdateOptions) (*v1alpha19.ClusterAppsResourceQuota, error) {
+func (m *MockApplicationAwareClusterResourceQuotaInterface) UpdateStatus(ctx context.Context, applicationAwareResourceQuota *v1alpha19.ApplicationAwareClusterResourceQuota, opts v1.UpdateOptions) (*v1alpha19.ApplicationAwareClusterResourceQuota, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateStatus", ctx, applicationAwareResourceQuota, opts)
-	ret0, _ := ret[0].(*v1alpha19.ClusterAppsResourceQuota)
+	ret0, _ := ret[0].(*v1alpha19.ApplicationAwareClusterResourceQuota)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // UpdateStatus indicates an expected call of UpdateStatus.
-func (mr *MockClusterAppsResourceQuotaInterfaceMockRecorder) UpdateStatus(ctx, applicationAwareResourceQuota, opts interface{}) *gomock.Call {
+func (mr *MockApplicationAwareClusterResourceQuotaInterfaceMockRecorder) UpdateStatus(ctx, applicationAwareResourceQuota, opts interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateStatus", reflect.TypeOf((*MockClusterAppsResourceQuotaInterface)(nil).UpdateStatus), ctx, applicationAwareResourceQuota, opts)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateStatus", reflect.TypeOf((*MockApplicationAwareClusterResourceQuotaInterface)(nil).UpdateStatus), ctx, applicationAwareResourceQuota, opts)
 }
 
 // Watch mocks base method.
-func (m *MockClusterAppsResourceQuotaInterface) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
+func (m *MockApplicationAwareClusterResourceQuotaInterface) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Watch", ctx, opts)
 	ret0, _ := ret[0].(watch.Interface)
@@ -1279,9 +1279,9 @@ func (m *MockClusterAppsResourceQuotaInterface) Watch(ctx context.Context, opts 
 }
 
 // Watch indicates an expected call of Watch.
-func (mr *MockClusterAppsResourceQuotaInterfaceMockRecorder) Watch(ctx, opts interface{}) *gomock.Call {
+func (mr *MockApplicationAwareClusterResourceQuotaInterfaceMockRecorder) Watch(ctx, opts interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Watch", reflect.TypeOf((*MockClusterAppsResourceQuotaInterface)(nil).Watch), ctx, opts)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Watch", reflect.TypeOf((*MockApplicationAwareClusterResourceQuotaInterface)(nil).Watch), ctx, opts)
 }
 
 // MockAAQJobQueueConfigInterface is a mock of AAQJobQueueConfigInterface interface.

@@ -82,9 +82,9 @@ spec:
               configuration:
                 description: holds aaq configurations.
                 properties:
-                  enableClusterAppsResourceQuota:
-                    description: EnableClusterAppsResourceQuota can be set to true
-                      to allow creation and management of ClusterAppsResourceQuota.
+                  allowApplicationAwareClusterResourceQuota:
+                    description: AllowApplicationAwareClusterResourceQuota can be
+                      set to true to allow creation and management of ApplicationAwareClusterResourceQuota.
                       Defaults to false
                     type: boolean
                   vmiCalculatorConfiguration:
@@ -2147,172 +2147,31 @@ status:
   conditions: null
   storedVersions: null
 `,
-	"applicationawareresourcequota": `apiVersion: apiextensions.k8s.io/v1
+	"applicationawareclusterresourcequota": `apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.11.3
   creationTimestamp: null
-  name: applicationawareresourcequotas.aaq.kubevirt.io
+  name: applicationawareclusterresourcequotas.aaq.kubevirt.io
 spec:
   group: aaq.kubevirt.io
   names:
-    categories:
-    - all
-    kind: ApplicationAwareResourceQuota
-    listKind: ApplicationAwareResourceQuotaList
-    plural: applicationawareresourcequotas
+    kind: ApplicationAwareClusterResourceQuota
+    listKind: ApplicationAwareClusterResourceQuotaList
+    plural: applicationawareclusterresourcequotas
     shortNames:
-    - arq
-    - arqs
-    singular: applicationawareresourcequota
-  scope: Namespaced
+    - acrq
+    - acrqs
+    singular: applicationawareclusterresourcequota
+  scope: Cluster
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: ApplicationAwareResourceQuota defines resources that should be
-          reserved for a VMI migration
-        properties:
-          apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-            type: string
-          kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-            type: string
-          metadata:
-            type: object
-          spec:
-            description: ApplicationAwareResourceQuotaSpec is an extension of corev1.ResourceQuotaSpec
-            properties:
-              hard:
-                additionalProperties:
-                  anyOf:
-                  - type: integer
-                  - type: string
-                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                  x-kubernetes-int-or-string: true
-                description: 'hard is the set of desired hard limits for each named
-                  resource. More info: https://kubernetes.io/docs/concepts/policy/resource-quotas/'
-                type: object
-              scopeSelector:
-                description: scopeSelector is also a collection of filters like scopes
-                  that must match each object tracked by a quota but expressed using
-                  ScopeSelectorOperator in combination with possible values. For a
-                  resource to match, both scopes AND scopeSelector (if specified in
-                  spec), must be matched.
-                properties:
-                  matchExpressions:
-                    description: A list of scope selector requirements by scope of
-                      the resources.
-                    items:
-                      description: A scoped-resource selector requirement is a selector
-                        that contains values, a scope name, and an operator that relates
-                        the scope name and values.
-                      properties:
-                        operator:
-                          description: Represents a scope's relationship to a set
-                            of values. Valid operators are In, NotIn, Exists, DoesNotExist.
-                          type: string
-                        scopeName:
-                          description: The name of the scope that the selector applies
-                            to.
-                          type: string
-                        values:
-                          description: An array of string values. If the operator
-                            is In or NotIn, the values array must be non-empty. If
-                            the operator is Exists or DoesNotExist, the values array
-                            must be empty. This array is replaced during a strategic
-                            merge patch.
-                          items:
-                            type: string
-                          type: array
-                      required:
-                      - operator
-                      - scopeName
-                      type: object
-                    type: array
-                type: object
-                x-kubernetes-map-type: atomic
-              scopes:
-                description: A collection of filters that must match each object tracked
-                  by a quota. If not specified, the quota matches all objects.
-                items:
-                  description: A ResourceQuotaScope defines a filter that must match
-                    each object tracked by a quota
-                  type: string
-                type: array
-            type: object
-          status:
-            description: ApplicationAwareResourceQuotaStatus is an extension of corev1.ResourceQuotaStatus
-            properties:
-              hard:
-                additionalProperties:
-                  anyOf:
-                  - type: integer
-                  - type: string
-                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                  x-kubernetes-int-or-string: true
-                description: 'Hard is the set of enforced hard limits for each named
-                  resource. More info: https://kubernetes.io/docs/concepts/policy/resource-quotas/'
-                type: object
-              used:
-                additionalProperties:
-                  anyOf:
-                  - type: integer
-                  - type: string
-                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                  x-kubernetes-int-or-string: true
-                description: Used is the current observed total usage of the resource
-                  in the namespace.
-                type: object
-            type: object
-        required:
-        - spec
-        type: object
-    served: true
-    storage: true
-    subresources:
-      status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: null
-  storedVersions: null
-`,
-	"appliedclusterappsresourcequota": `apiVersion: apiextensions.k8s.io/v1
-kind: CustomResourceDefinition
-metadata:
-  annotations:
-    controller-gen.kubebuilder.io/version: v0.11.3
-  creationTimestamp: null
-  name: appliedclusterappsresourcequotas.aaq.kubevirt.io
-spec:
-  group: aaq.kubevirt.io
-  names:
-    categories:
-    - all
-    kind: AppliedClusterAppsResourceQuota
-    listKind: AppliedClusterAppsResourceQuotaList
-    plural: appliedclusterappsresourcequotas
-    shortNames:
-    - acarq
-    - acarqs
-    singular: appliedclusterappsresourcequota
-  scope: Namespaced
-  versions:
-  - name: v1alpha1
-    schema:
-      openAPIV3Schema:
-        description: AppliedClusterAppsResourceQuota mirrors ClusterResourceQuota
-          at a project scope, for projection into a project.  It allows a project-admin
-          to know which ClusterResourceQuotas are applied to his project and their
-          associated usage.
+        description: ApplicationAwareClusterResourceQuota mirrors ResourceQuota at
+          a cluster scope.  This object is easily convertible to synthetic ResourceQuota
+          object to allow quota evaluation re-use.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -2546,31 +2405,172 @@ status:
   conditions: null
   storedVersions: null
 `,
-	"clusterappsresourcequota": `apiVersion: apiextensions.k8s.io/v1
+	"applicationawareresourcequota": `apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.11.3
   creationTimestamp: null
-  name: clusterappsresourcequotas.aaq.kubevirt.io
+  name: applicationawareresourcequotas.aaq.kubevirt.io
 spec:
   group: aaq.kubevirt.io
   names:
-    kind: ClusterAppsResourceQuota
-    listKind: ClusterAppsResourceQuotaList
-    plural: clusterappsresourcequotas
+    categories:
+    - all
+    kind: ApplicationAwareResourceQuota
+    listKind: ApplicationAwareResourceQuotaList
+    plural: applicationawareresourcequotas
     shortNames:
-    - carq
-    - carqs
-    singular: clusterappsresourcequota
-  scope: Cluster
+    - arq
+    - arqs
+    singular: applicationawareresourcequota
+  scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: ClusterAppsResourceQuota mirrors ResourceQuota at a cluster scope.  This
-          object is easily convertible to synthetic ResourceQuota object to allow
-          quota evaluation re-use.
+        description: ApplicationAwareResourceQuota defines resources that should be
+          reserved for a VMI migration
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ApplicationAwareResourceQuotaSpec is an extension of corev1.ResourceQuotaSpec
+            properties:
+              hard:
+                additionalProperties:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                  x-kubernetes-int-or-string: true
+                description: 'hard is the set of desired hard limits for each named
+                  resource. More info: https://kubernetes.io/docs/concepts/policy/resource-quotas/'
+                type: object
+              scopeSelector:
+                description: scopeSelector is also a collection of filters like scopes
+                  that must match each object tracked by a quota but expressed using
+                  ScopeSelectorOperator in combination with possible values. For a
+                  resource to match, both scopes AND scopeSelector (if specified in
+                  spec), must be matched.
+                properties:
+                  matchExpressions:
+                    description: A list of scope selector requirements by scope of
+                      the resources.
+                    items:
+                      description: A scoped-resource selector requirement is a selector
+                        that contains values, a scope name, and an operator that relates
+                        the scope name and values.
+                      properties:
+                        operator:
+                          description: Represents a scope's relationship to a set
+                            of values. Valid operators are In, NotIn, Exists, DoesNotExist.
+                          type: string
+                        scopeName:
+                          description: The name of the scope that the selector applies
+                            to.
+                          type: string
+                        values:
+                          description: An array of string values. If the operator
+                            is In or NotIn, the values array must be non-empty. If
+                            the operator is Exists or DoesNotExist, the values array
+                            must be empty. This array is replaced during a strategic
+                            merge patch.
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - operator
+                      - scopeName
+                      type: object
+                    type: array
+                type: object
+                x-kubernetes-map-type: atomic
+              scopes:
+                description: A collection of filters that must match each object tracked
+                  by a quota. If not specified, the quota matches all objects.
+                items:
+                  description: A ResourceQuotaScope defines a filter that must match
+                    each object tracked by a quota
+                  type: string
+                type: array
+            type: object
+          status:
+            description: ApplicationAwareResourceQuotaStatus is an extension of corev1.ResourceQuotaStatus
+            properties:
+              hard:
+                additionalProperties:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                  x-kubernetes-int-or-string: true
+                description: 'Hard is the set of enforced hard limits for each named
+                  resource. More info: https://kubernetes.io/docs/concepts/policy/resource-quotas/'
+                type: object
+              used:
+                additionalProperties:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                  x-kubernetes-int-or-string: true
+                description: Used is the current observed total usage of the resource
+                  in the namespace.
+                type: object
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: null
+  storedVersions: null
+`,
+	"appliedapplicationawareclusterresourcequota": `apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.11.3
+  creationTimestamp: null
+  name: appliedapplicationawareclusterresourcequotas.aaq.kubevirt.io
+spec:
+  group: aaq.kubevirt.io
+  names:
+    categories:
+    - all
+    kind: AppliedApplicationAwareClusterResourceQuota
+    listKind: AppliedApplicationAwareClusterResourceQuotaList
+    plural: appliedapplicationawareclusterresourcequotas
+    shortNames:
+    - acrq
+    - acrqs
+    singular: appliedapplicationawareclusterresourcequota
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: AppliedApplicationAwareClusterResourceQuota mirrors ClusterResourceQuota
+          at a project scope, for projection into a project.  It allows a project-admin
+          to know which ClusterResourceQuotas are applied to his project and their
+          associated usage.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation

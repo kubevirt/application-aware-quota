@@ -36,12 +36,12 @@ func (c *FakeAaqV1alpha1) AAQJobQueueConfigs(namespace string) v1alpha1.AAQJobQu
 	return &FakeAAQJobQueueConfigs{c, namespace}
 }
 
-func (c *FakeAaqV1alpha1) ApplicationAwareResourceQuotas(namespace string) v1alpha1.ApplicationAwareResourceQuotaInterface {
-	return &FakeApplicationAwareResourceQuotas{c, namespace}
+func (c *FakeAaqV1alpha1) ApplicationAwareClusterResourceQuotas() v1alpha1.ApplicationAwareClusterResourceQuotaInterface {
+	return &FakeApplicationAwareClusterResourceQuotas{c}
 }
 
-func (c *FakeAaqV1alpha1) ClusterAppsResourceQuotas() v1alpha1.ClusterAppsResourceQuotaInterface {
-	return &FakeClusterAppsResourceQuotas{c}
+func (c *FakeAaqV1alpha1) ApplicationAwareResourceQuotas(namespace string) v1alpha1.ApplicationAwareResourceQuotaInterface {
+	return &FakeApplicationAwareResourceQuotas{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

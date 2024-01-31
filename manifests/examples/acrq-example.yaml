@@ -1,11 +1,10 @@
 apiVersion: aaq.kubevirt.io/v1alpha1
-kind: ClusterAppsResourceQuota
+kind: ApplicationAwareClusterResourceQuota
 metadata:
   name: example-resource-quota
 spec:
   quota:
     hard:
-      services: "5"
       pods: "10"
       limits.cpu: "1"
       limits.memory: 1Gi
