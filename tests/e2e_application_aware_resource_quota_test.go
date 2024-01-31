@@ -46,7 +46,7 @@ import (
 )
 
 const (
-	// how long to wait for a Applications Resource Quota update to occur
+	// how long to wait for a Application Aware Resource Quota update to occur
 	resourceQuotaTimeout = 2 * time.Minute
 	podName              = "pfpod"
 )
@@ -54,42 +54,42 @@ const (
 var classGold = "gold"
 var extendedResourceName = "example.com/dongle"
 
-var _ = Describe("ApplicationsResourceQuota", func() {
+var _ = Describe("ApplicationAwareResourceQuota", func() {
 	f := framework.NewFramework("resourcequota")
 
-	It("should create a ApplicationsResourceQuota and ensure its status is promptly calculated.", func(ctx context.Context) {
-		By("Counting existing ApplicationsResourceQuota")
-		c, err := countApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
+	It("should create a ApplicationAwareResourceQuota and ensure its status is promptly calculated.", func(ctx context.Context) {
+		By("Counting existing ApplicationAwareResourceQuota")
+		c, err := countApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Creating a ApplicationsResourceQuota")
+		By("Creating a ApplicationAwareResourceQuota")
 		quotaName := "test-quota"
-		ApplicationsResourceQuota := newTestApplicationsResourceQuota(quotaName)
-		_, err = createApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, ApplicationsResourceQuota)
+		ApplicationAwareResourceQuota := newTestApplicationAwareResourceQuota(quotaName)
+		_, err = createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, ApplicationAwareResourceQuota)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status is calculated")
+		By("Ensuring Application Aware Resource Quota status is calculated")
 		usedResources := v1.ResourceList{}
 		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 	})
 
-	It("should create a ApplicationsResourceQuota and capture the life of a service.", func(ctx context.Context) {
-		By("Counting existing ApplicationsResourceQuota")
-		c, err := countApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
+	It("should create a ApplicationAwareResourceQuota and capture the life of a service.", func(ctx context.Context) {
+		By("Counting existing ApplicationAwareResourceQuota")
+		c, err := countApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Creating a ApplicationsResourceQuota")
+		By("Creating a ApplicationAwareResourceQuota")
 		quotaName := "test-quota"
-		ApplicationsResourceQuota := newTestApplicationsResourceQuota(quotaName)
-		_, err = createApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, ApplicationsResourceQuota)
+		ApplicationAwareResourceQuota := newTestApplicationAwareResourceQuota(quotaName)
+		_, err = createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, ApplicationAwareResourceQuota)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status is calculated")
+		By("Ensuring Application Aware Resource Quota status is calculated")
 		usedResources := v1.ResourceList{}
 		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a Service")
@@ -107,12 +107,12 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		_, err = f.K8sClient.CoreV1().Services(f.Namespace.Name).Create(ctx, loadbalancer, metav1.CreateOptions{})
 		Expect(err).To(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status captures service creation")
+		By("Ensuring Application Aware Resource Quota status captures service creation")
 		usedResources = v1.ResourceList{}
 		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
 		usedResources[v1.ResourceServices] = resource.MustParse("2")
 		usedResources[v1.ResourceServicesNodePorts] = resource.MustParse("1")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Deleting Services")
@@ -121,14 +121,14 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		err = f.K8sClient.CoreV1().Services(f.Namespace.Name).Delete(ctx, nodeport.Name, metav1.DeleteOptions{})
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status released usage")
+		By("Ensuring Application Aware Resource Quota status released usage")
 		usedResources[v1.ResourceServices] = resource.MustParse("0")
 		usedResources[v1.ResourceServicesNodePorts] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 	})
 
-	It("should create a ApplicationsResourceQuota and capture the life of a secret.", func(ctx context.Context) {
+	It("should create a ApplicationAwareResourceQuota and capture the life of a secret.", func(ctx context.Context) {
 		By("Discovering how many secrets are in namespace by default")
 		found, unchanged := 0, 0
 		// On contended servers the service account controller can slow down, leading to the count changing during a run.
@@ -149,22 +149,22 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		defaultSecrets := fmt.Sprintf("%d", found)
 		hardSecrets := fmt.Sprintf("%d", found+1)
 
-		By("Counting existing ApplicationsResourceQuota")
-		c, err := countApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
+		By("Counting existing ApplicationAwareResourceQuota")
+		c, err := countApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Creating a ApplicationsResourceQuota")
+		By("Creating a ApplicationAwareResourceQuota")
 		quotaName := "test-quota"
-		ApplicationsResourceQuota := newTestApplicationsResourceQuota(quotaName)
-		ApplicationsResourceQuota.Spec.Hard[v1.ResourceSecrets] = resource.MustParse(hardSecrets)
-		_, err = createApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, ApplicationsResourceQuota)
+		ApplicationAwareResourceQuota := newTestApplicationAwareResourceQuota(quotaName)
+		ApplicationAwareResourceQuota.Spec.Hard[v1.ResourceSecrets] = resource.MustParse(hardSecrets)
+		_, err = createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, ApplicationAwareResourceQuota)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status is calculated")
+		By("Ensuring Application Aware Resource Quota status is calculated")
 		usedResources := v1.ResourceList{}
 		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
 		usedResources[v1.ResourceSecrets] = resource.MustParse(defaultSecrets)
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a Secret")
@@ -172,39 +172,39 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		secret, err = f.K8sClient.CoreV1().Secrets(f.Namespace.Name).Create(ctx, secret, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status captures secret creation")
+		By("Ensuring Application Aware Resource Quota status captures secret creation")
 		usedResources = v1.ResourceList{}
 		usedResources[v1.ResourceSecrets] = resource.MustParse(hardSecrets)
 		// we expect there to be two secrets because each namespace will receive
 		// a service account token secret by default
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Deleting a secret")
 		err = f.K8sClient.CoreV1().Secrets(f.Namespace.Name).Delete(ctx, secret.Name, metav1.DeleteOptions{})
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status released usage")
+		By("Ensuring Application Aware Resource Quota status released usage")
 		usedResources[v1.ResourceSecrets] = resource.MustParse(defaultSecrets)
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 	})
 
-	It("should create a ApplicationsResourceQuota and capture the life of a pod.", func(ctx context.Context) {
-		By("Counting existing ApplicationsResourceQuota")
-		c, err := countApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
+	It("should create a ApplicationAwareResourceQuota and capture the life of a pod.", func(ctx context.Context) {
+		By("Counting existing ApplicationAwareResourceQuota")
+		c, err := countApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Creating a ApplicationsResourceQuota")
+		By("Creating a ApplicationAwareResourceQuota")
 		quotaName := "test-quota"
-		ApplicationsResourceQuota := newTestApplicationsResourceQuota(quotaName)
-		_, err = createApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, ApplicationsResourceQuota)
+		ApplicationAwareResourceQuota := newTestApplicationAwareResourceQuota(quotaName)
+		_, err = createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, ApplicationAwareResourceQuota)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status is calculated")
+		By("Ensuring Application Aware Resource Quota status is calculated")
 		usedResources := v1.ResourceList{}
 		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a Pod that fits quota")
@@ -222,14 +222,14 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 		podToUpdate := pod
 
-		By("Ensuring ApplicationsResourceQuota status captures the pod usage")
+		By("Ensuring ApplicationAwareResourceQuota status captures the pod usage")
 		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
 		usedResources[v1.ResourcePods] = resource.MustParse("1")
 		usedResources[v1.ResourceCPU] = requests[v1.ResourceCPU]
 		usedResources[v1.ResourceMemory] = requests[v1.ResourceMemory]
 		usedResources[v1.ResourceEphemeralStorage] = requests[v1.ResourceEphemeralStorage]
 		usedResources[v1.ResourceName(v1.DefaultResourceRequestsPrefix+extendedResourceName)] = requests[v1.ResourceName(extendedResourceName)]
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Not allowing a pod to be created that exceeds remaining quota")
@@ -267,25 +267,25 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		Expect(err).To(HaveOccurred())
 
 		By("Ensuring attempts to update pod resource requirements did not change quota usage")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Deleting the pod")
 		err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Delete(ctx, podName, *metav1.NewDeleteOptions(0))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status released the pod usage")
+		By("Ensuring Application Aware Resource Quota status released the pod usage")
 		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
 		usedResources[v1.ResourceCPU] = resource.MustParse("0")
 		usedResources[v1.ResourceMemory] = resource.MustParse("0")
 		usedResources[v1.ResourceEphemeralStorage] = resource.MustParse("0")
 		usedResources[v1.ResourceName(v1.DefaultResourceRequestsPrefix+extendedResourceName)] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 	})
 
-	It("should create a ApplicationsResourceQuota and capture the life of a configMap.", func(ctx context.Context) {
+	It("should create a ApplicationAwareResourceQuota and capture the life of a configMap.", func(ctx context.Context) {
 		found, unchanged := 0, 0
 		// On contended servers the service account controller can slow down, leading to the count changing during a run.
 		// Wait up to 15s for the count to stabilize, assuming that updates come at a consistent rate, and are not held indefinitely.
@@ -305,22 +305,22 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		defaultConfigMaps := fmt.Sprintf("%d", found)
 		hardConfigMaps := fmt.Sprintf("%d", found+1)
 
-		By("Counting existing ApplicationsResourceQuota")
-		c, err := countApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
+		By("Counting existing ApplicationAwareResourceQuota")
+		c, err := countApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Creating a ApplicationsResourceQuota")
+		By("Creating a ApplicationAwareResourceQuota")
 		quotaName := "test-quota"
-		ApplicationsResourceQuota := newTestApplicationsResourceQuota(quotaName)
-		ApplicationsResourceQuota.Spec.Hard[v1.ResourceConfigMaps] = resource.MustParse(hardConfigMaps)
-		_, err = createApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, ApplicationsResourceQuota)
+		ApplicationAwareResourceQuota := newTestApplicationAwareResourceQuota(quotaName)
+		ApplicationAwareResourceQuota.Spec.Hard[v1.ResourceConfigMaps] = resource.MustParse(hardConfigMaps)
+		_, err = createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, ApplicationAwareResourceQuota)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status is calculated")
+		By("Ensuring Application Aware Resource Quota status is calculated")
 		usedResources := v1.ResourceList{}
 		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
 		usedResources[v1.ResourceConfigMaps] = resource.MustParse(defaultConfigMaps)
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a ConfigMap")
@@ -328,39 +328,39 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		configMap, err = f.K8sClient.CoreV1().ConfigMaps(f.Namespace.Name).Create(ctx, configMap, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status captures configMap creation")
+		By("Ensuring Application Aware Resource Quota status captures configMap creation")
 		usedResources = v1.ResourceList{}
 		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
 		usedResources[v1.ResourceConfigMaps] = resource.MustParse(hardConfigMaps)
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Deleting a ConfigMap")
 		err = f.K8sClient.CoreV1().ConfigMaps(f.Namespace.Name).Delete(ctx, configMap.Name, metav1.DeleteOptions{})
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status released usage")
+		By("Ensuring Application Aware Resource Quota status released usage")
 		usedResources[v1.ResourceConfigMaps] = resource.MustParse(defaultConfigMaps)
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 	})
 
-	It("should create a ApplicationsResourceQuota and capture the life of a replication controller.", func(ctx context.Context) {
-		By("Counting existing ApplicationsResourceQuota")
-		c, err := countApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
+	It("should create a ApplicationAwareResourceQuota and capture the life of a replication controller.", func(ctx context.Context) {
+		By("Counting existing ApplicationAwareResourceQuota")
+		c, err := countApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Creating a ApplicationsResourceQuota")
+		By("Creating a ApplicationAwareResourceQuota")
 		quotaName := "test-quota"
-		ApplicationsResourceQuota := newTestApplicationsResourceQuota(quotaName)
-		_, err = createApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, ApplicationsResourceQuota)
+		ApplicationAwareResourceQuota := newTestApplicationAwareResourceQuota(quotaName)
+		_, err = createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, ApplicationAwareResourceQuota)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status is calculated")
+		By("Ensuring Application Aware Resource Quota status is calculated")
 		usedResources := v1.ResourceList{}
 		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
 		usedResources[v1.ResourceReplicationControllers] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a ReplicationController")
@@ -368,10 +368,10 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		replicationController, err = f.K8sClient.CoreV1().ReplicationControllers(f.Namespace.Name).Create(ctx, replicationController, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status captures replication controller creation")
+		By("Ensuring Application Aware Resource Quota status captures replication controller creation")
 		usedResources = v1.ResourceList{}
 		usedResources[v1.ResourceReplicationControllers] = resource.MustParse("1")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Deleting a ReplicationController")
@@ -388,28 +388,28 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		})
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status released usage")
+		By("Ensuring Application Aware Resource Quota status released usage")
 		usedResources[v1.ResourceReplicationControllers] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 	})
 
-	It("should create a ApplicationsResourceQuota and capture the life of a replica set.", func(ctx context.Context) {
-		By("Counting existing ApplicationsResourceQuota")
-		c, err := countApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
+	It("should create a ApplicationAwareResourceQuota and capture the life of a replica set.", func(ctx context.Context) {
+		By("Counting existing ApplicationAwareResourceQuota")
+		c, err := countApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Creating a ApplicationsResourceQuota")
+		By("Creating a ApplicationAwareResourceQuota")
 		quotaName := "test-quota"
-		ApplicationsResourceQuota := newTestApplicationsResourceQuota(quotaName)
-		_, err = createApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, ApplicationsResourceQuota)
+		ApplicationAwareResourceQuota := newTestApplicationAwareResourceQuota(quotaName)
+		_, err = createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, ApplicationAwareResourceQuota)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status is calculated")
+		By("Ensuring Application Aware Resource Quota status is calculated")
 		usedResources := v1.ResourceList{}
 		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
 		usedResources[v1.ResourceName("count/replicasets.apps")] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a ReplicaSet")
@@ -417,39 +417,39 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		replicaSet, err = f.K8sClient.AppsV1().ReplicaSets(f.Namespace.Name).Create(ctx, replicaSet, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status captures replicaset creation")
+		By("Ensuring Application Aware Resource Quota status captures replicaset creation")
 		usedResources = v1.ResourceList{}
 		usedResources[v1.ResourceName("count/replicasets.apps")] = resource.MustParse("1")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Deleting a ReplicaSet")
 		err = f.K8sClient.AppsV1().ReplicaSets(f.Namespace.Name).Delete(ctx, replicaSet.Name, metav1.DeleteOptions{})
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status released usage")
+		By("Ensuring Application Aware Resource Quota status released usage")
 		usedResources[v1.ResourceName("count/replicasets.apps")] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 	})
 
-	It("should create a ApplicationsResourceQuota and capture the life of a persistent volume claim", func(ctx context.Context) {
-		By("Counting existing ApplicationsResourceQuota")
-		c, err := countApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
+	It("should create a ApplicationAwareResourceQuota and capture the life of a persistent volume claim", func(ctx context.Context) {
+		By("Counting existing ApplicationAwareResourceQuota")
+		c, err := countApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Creating a ApplicationsResourceQuota")
+		By("Creating a ApplicationAwareResourceQuota")
 		quotaName := "test-quota"
-		ApplicationsResourceQuota := newTestApplicationsResourceQuota(quotaName)
-		_, err = createApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, ApplicationsResourceQuota)
+		ApplicationAwareResourceQuota := newTestApplicationAwareResourceQuota(quotaName)
+		_, err = createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, ApplicationAwareResourceQuota)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status is calculated")
+		By("Ensuring Application Aware Resource Quota status is calculated")
 		usedResources := v1.ResourceList{}
 		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
 		usedResources[v1.ResourcePersistentVolumeClaims] = resource.MustParse("0")
 		usedResources[v1.ResourceRequestsStorage] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a PersistentVolumeClaim")
@@ -457,36 +457,36 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		pvc, err = f.K8sClient.CoreV1().PersistentVolumeClaims(f.Namespace.Name).Create(ctx, pvc, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status captures persistent volume claim creation")
+		By("Ensuring Application Aware Resource Quota status captures persistent volume claim creation")
 		usedResources = v1.ResourceList{}
 		usedResources[v1.ResourcePersistentVolumeClaims] = resource.MustParse("1")
 		usedResources[v1.ResourceRequestsStorage] = resource.MustParse("1Gi")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Deleting a PersistentVolumeClaim")
 		err = f.K8sClient.CoreV1().PersistentVolumeClaims(f.Namespace.Name).Delete(ctx, pvc.Name, metav1.DeleteOptions{})
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status released usage")
+		By("Ensuring Application Aware Resource Quota status released usage")
 		usedResources[v1.ResourcePersistentVolumeClaims] = resource.MustParse("0")
 		usedResources[v1.ResourceRequestsStorage] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 	})
 
-	It("should create a ApplicationsResourceQuota and capture the life of a persistent volume claim with a storage class", func(ctx context.Context) {
-		By("Counting existing ApplicationsResourceQuota")
-		c, err := countApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
+	It("should create a ApplicationAwareResourceQuota and capture the life of a persistent volume claim with a storage class", func(ctx context.Context) {
+		By("Counting existing ApplicationAwareResourceQuota")
+		c, err := countApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Creating a ApplicationsResourceQuota")
+		By("Creating a ApplicationAwareResourceQuota")
 		quotaName := "test-quota"
-		ApplicationsResourceQuota := newTestApplicationsResourceQuota(quotaName)
-		_, err = createApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, ApplicationsResourceQuota)
+		ApplicationAwareResourceQuota := newTestApplicationAwareResourceQuota(quotaName)
+		_, err = createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, ApplicationAwareResourceQuota)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status is calculated")
+		By("Ensuring Application Aware Resource Quota status is calculated")
 		usedResources := v1.ResourceList{}
 		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
 		usedResources[v1.ResourcePersistentVolumeClaims] = resource.MustParse("0")
@@ -494,7 +494,7 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		usedResources[core.V1ResourceByStorageClass(classGold, v1.ResourcePersistentVolumeClaims)] = resource.MustParse("0")
 		usedResources[core.V1ResourceByStorageClass(classGold, v1.ResourceRequestsStorage)] = resource.MustParse("0")
 
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a PersistentVolumeClaim with storage class")
@@ -503,38 +503,38 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		pvc, err = f.K8sClient.CoreV1().PersistentVolumeClaims(f.Namespace.Name).Create(ctx, pvc, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status captures persistent volume claim creation")
+		By("Ensuring Application Aware Resource Quota status captures persistent volume claim creation")
 		usedResources = v1.ResourceList{}
 		usedResources[v1.ResourcePersistentVolumeClaims] = resource.MustParse("1")
 		usedResources[v1.ResourceRequestsStorage] = resource.MustParse("1Gi")
 		usedResources[core.V1ResourceByStorageClass(classGold, v1.ResourcePersistentVolumeClaims)] = resource.MustParse("1")
 		usedResources[core.V1ResourceByStorageClass(classGold, v1.ResourceRequestsStorage)] = resource.MustParse("1Gi")
 
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Deleting a PersistentVolumeClaim")
 		err = f.K8sClient.CoreV1().PersistentVolumeClaims(f.Namespace.Name).Delete(ctx, pvc.Name, metav1.DeleteOptions{})
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status released usage")
+		By("Ensuring Application Aware Resource Quota status released usage")
 		usedResources[v1.ResourcePersistentVolumeClaims] = resource.MustParse("0")
 		usedResources[v1.ResourceRequestsStorage] = resource.MustParse("0")
 		usedResources[core.V1ResourceByStorageClass(classGold, v1.ResourcePersistentVolumeClaims)] = resource.MustParse("0")
 		usedResources[core.V1ResourceByStorageClass(classGold, v1.ResourceRequestsStorage)] = resource.MustParse("0")
 
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 	})
 
-	It("should create a ApplicationsResourceQuota and capture the life of a custom resource(the applicationsResourceQuota crd itself).", func(ctx context.Context) {
+	It("should create a ApplicationAwareResourceQuota and capture the life of a custom resource(the ApplicationAwareResourceQuota crd itself).", func(ctx context.Context) {
 		testcrd := extv1.CustomResourceDefinition{}
-		_ = k8syaml.NewYAMLToJSONDecoder(strings.NewReader(resources.AAQCRDs["applicationsresourcequota"])).Decode(&testcrd)
+		_ = k8syaml.NewYAMLToJSONDecoder(strings.NewReader(resources.AAQCRDs["applicationawareresourcequota"])).Decode(&testcrd)
 		countResourceName := "count/" + testcrd.Spec.Names.Plural + "." + testcrd.Spec.Group
 		quotaName := "quota-for-" + testcrd.Spec.Names.Plural
-		_, err := createApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, &v1alpha1.ApplicationsResourceQuota{
+		_, err := createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, &v1alpha1.ApplicationAwareResourceQuota{
 			ObjectMeta: metav1.ObjectMeta{Name: quotaName},
-			Spec: v1alpha1.ApplicationsResourceQuotaSpec{ResourceQuotaSpec: v1.ResourceQuotaSpec{
+			Spec: v1alpha1.ApplicationAwareResourceQuotaSpec{ResourceQuotaSpec: v1.ResourceQuotaSpec{
 				Hard: v1.ResourceList{
 					v1.ResourceName(countResourceName): resource.MustParse("1"),
 				},
@@ -542,39 +542,39 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 			},
 		})
 		Expect(err).ToNot(HaveOccurred())
-		err = updateApplicationsResourceQuotaUntilUsageAppears(ctx, f.AaqClient, f.Namespace.Name, quotaName, v1.ResourceName(countResourceName))
+		err = updateApplicationAwareResourceQuotaUntilUsageAppears(ctx, f.AaqClient, f.Namespace.Name, quotaName, v1.ResourceName(countResourceName))
 		Expect(err).ToNot(HaveOccurred())
-		err = f.AaqClient.AaqV1alpha1().ApplicationsResourceQuotas(f.Namespace.Name).Delete(ctx, quotaName, metav1.DeleteOptions{})
-		Expect(err).ToNot(HaveOccurred())
-
-		By("Counting existing ApplicationsResourceQuota")
-		c, err := countApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
+		err = f.AaqClient.AaqV1alpha1().ApplicationAwareResourceQuotas(f.Namespace.Name).Delete(ctx, quotaName, metav1.DeleteOptions{})
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Creating a ApplicationsResourceQuota")
+		By("Counting existing ApplicationAwareResourceQuota")
+		c, err := countApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
+		Expect(err).ToNot(HaveOccurred())
+
+		By("Creating a ApplicationAwareResourceQuota")
 		quotaName = "test-quota"
-		ApplicationsResourceQuota := newTestApplicationsResourceQuota(quotaName)
-		ApplicationsResourceQuota.Spec.Hard[v1.ResourceName(countResourceName)] = resource.MustParse("1")
-		_, err = createApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, ApplicationsResourceQuota)
+		ApplicationAwareResourceQuota := newTestApplicationAwareResourceQuota(quotaName)
+		ApplicationAwareResourceQuota.Spec.Hard[v1.ResourceName(countResourceName)] = resource.MustParse("1")
+		_, err = createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, ApplicationAwareResourceQuota)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status is calculated since the managed quota should be created")
+		By("Ensuring Application Aware Resource Quota status is calculated since the managed quota should be created")
 		usedResources := v1.ResourceList{}
 		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
 		usedResources[v1.ResourceName(countResourceName)] = resource.MustParse("1")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status captures custom resource creation")
+		By("Ensuring Application Aware Resource Quota status captures custom resource creation")
 		usedResources = v1.ResourceList{}
 		usedResources[v1.ResourceName(countResourceName)] = resource.MustParse("1")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a second instance of the resource")
-		_, err = createApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, &v1alpha1.ApplicationsResourceQuota{
+		_, err = createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, &v1alpha1.ApplicationAwareResourceQuota{
 			ObjectMeta: metav1.ObjectMeta{Name: quotaName + "2"},
-			Spec: v1alpha1.ApplicationsResourceQuotaSpec{ResourceQuotaSpec: v1.ResourceQuotaSpec{
+			Spec: v1alpha1.ApplicationAwareResourceQuotaSpec{ResourceQuotaSpec: v1.ResourceQuotaSpec{
 				Hard: v1.ResourceList{
 					v1.ResourceName(countResourceName): resource.MustParse("10"),
 				},
@@ -585,25 +585,25 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		Expect(err).To(HaveOccurred())
 	})
 
-	It("should verify ApplicationsResourceQuota with terminating scopes.", func(ctx context.Context) {
-		By("Creating a ApplicationsResourceQuota with terminating scope")
+	It("should verify ApplicationAwareResourceQuota with terminating scopes.", func(ctx context.Context) {
+		By("Creating a ApplicationAwareResourceQuota with terminating scope")
 		quotaTerminatingName := "quota-terminating"
-		resourceQuotaTerminating, err := createApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, newTestApplicationsResourceQuotaWithScope(quotaTerminatingName, v1.ResourceQuotaScopeTerminating))
+		resourceQuotaTerminating, err := createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, newTestApplicationAwareResourceQuotaWithScope(quotaTerminatingName, v1.ResourceQuotaScopeTerminating))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring ApplicationsResourceQuota status is calculated")
+		By("Ensuring ApplicationAwareResourceQuota status is calculated")
 		usedResources := v1.ResourceList{}
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaTerminating.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaTerminating.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Creating a ApplicationsResourceQuota with not terminating scope")
+		By("Creating a ApplicationAwareResourceQuota with not terminating scope")
 		quotaNotTerminatingName := "quota-not-terminating"
-		resourceQuotaNotTerminating, err := createApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, newTestApplicationsResourceQuotaWithScope(quotaNotTerminatingName, v1.ResourceQuotaScopeNotTerminating))
+		resourceQuotaNotTerminating, err := createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, newTestApplicationAwareResourceQuotaWithScope(quotaNotTerminatingName, v1.ResourceQuotaScopeNotTerminating))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring ApplicationsResourceQuota status is calculated")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotTerminating.Name, usedResources)
+		By("Ensuring ApplicationAwareResourceQuota status is calculated")
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotTerminating.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a long running pod")
@@ -619,35 +619,35 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		Expect(err).ToNot(HaveOccurred())
 		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
-		By("Ensuring Applications Resource Quota with not terminating scope captures the pod usage")
+		By("Ensuring Application Aware Resource Quota with not terminating scope captures the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("1")
 		usedResources[v1.ResourceRequestsCPU] = requests[v1.ResourceCPU]
 		usedResources[v1.ResourceRequestsMemory] = requests[v1.ResourceMemory]
 		usedResources[v1.ResourceLimitsCPU] = limits[v1.ResourceCPU]
 		usedResources[v1.ResourceLimitsMemory] = limits[v1.ResourceMemory]
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotTerminating.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotTerminating.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota with terminating scope ignored the pod usage")
+		By("Ensuring Application Aware Resource Quota with terminating scope ignored the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
 		usedResources[v1.ResourceRequestsCPU] = resource.MustParse("0")
 		usedResources[v1.ResourceRequestsMemory] = resource.MustParse("0")
 		usedResources[v1.ResourceLimitsCPU] = resource.MustParse("0")
 		usedResources[v1.ResourceLimitsMemory] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaTerminating.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaTerminating.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Deleting the pod")
 		err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Delete(ctx, podName, *metav1.NewDeleteOptions(0))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status released the pod usage")
+		By("Ensuring Application Aware Resource Quota status released the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
 		usedResources[v1.ResourceRequestsCPU] = resource.MustParse("0")
 		usedResources[v1.ResourceRequestsMemory] = resource.MustParse("0")
 		usedResources[v1.ResourceLimitsCPU] = resource.MustParse("0")
 		usedResources[v1.ResourceLimitsMemory] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotTerminating.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotTerminating.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a terminating pod")
@@ -659,55 +659,55 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		Expect(err).ToNot(HaveOccurred())
 		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
-		By("Ensuring Applications Resource Quota with terminating scope captures the pod usage")
+		By("Ensuring Application Aware Resource Quota with terminating scope captures the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("1")
 		usedResources[v1.ResourceRequestsCPU] = requests[v1.ResourceCPU]
 		usedResources[v1.ResourceRequestsMemory] = requests[v1.ResourceMemory]
 		usedResources[v1.ResourceLimitsCPU] = limits[v1.ResourceCPU]
 		usedResources[v1.ResourceLimitsMemory] = limits[v1.ResourceMemory]
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaTerminating.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaTerminating.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota with not terminating scope ignored the pod usage")
+		By("Ensuring Application Aware Resource Quota with not terminating scope ignored the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
 		usedResources[v1.ResourceRequestsCPU] = resource.MustParse("0")
 		usedResources[v1.ResourceRequestsMemory] = resource.MustParse("0")
 		usedResources[v1.ResourceLimitsCPU] = resource.MustParse("0")
 		usedResources[v1.ResourceLimitsMemory] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotTerminating.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotTerminating.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Deleting the pod")
 		err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Delete(ctx, podName, *metav1.NewDeleteOptions(0))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status released the pod usage")
+		By("Ensuring Application Aware Resource Quota status released the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
 		usedResources[v1.ResourceRequestsCPU] = resource.MustParse("0")
 		usedResources[v1.ResourceRequestsMemory] = resource.MustParse("0")
 		usedResources[v1.ResourceLimitsCPU] = resource.MustParse("0")
 		usedResources[v1.ResourceLimitsMemory] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaTerminating.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaTerminating.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 	})
 
-	It("should verify ApplicationsResourceQuota with best effort scope.", func(ctx context.Context) {
-		By("Creating a ApplicationsResourceQuota with best effort scope")
-		resourceQuotaBestEffort, err := createApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, newTestApplicationsResourceQuotaWithScope("quota-besteffort", v1.ResourceQuotaScopeBestEffort))
+	It("should verify ApplicationAwareResourceQuota with best effort scope.", func(ctx context.Context) {
+		By("Creating a ApplicationAwareResourceQuota with best effort scope")
+		resourceQuotaBestEffort, err := createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, newTestApplicationAwareResourceQuotaWithScope("quota-besteffort", v1.ResourceQuotaScopeBestEffort))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring ApplicationsResourceQuota status is calculated")
+		By("Ensuring ApplicationAwareResourceQuota status is calculated")
 		usedResources := v1.ResourceList{}
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaBestEffort.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaBestEffort.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Creating a ApplicationsResourceQuota with not best effort scope")
-		resourceQuotaNotBestEffort, err := createApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, newTestApplicationsResourceQuotaWithScope("quota-not-besteffort", v1.ResourceQuotaScopeNotBestEffort))
+		By("Creating a ApplicationAwareResourceQuota with not best effort scope")
+		resourceQuotaNotBestEffort, err := createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, newTestApplicationAwareResourceQuotaWithScope("quota-not-besteffort", v1.ResourceQuotaScopeNotBestEffort))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring ApplicationsResourceQuota status is calculated")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotBestEffort.Name, usedResources)
+		By("Ensuring ApplicationAwareResourceQuota status is calculated")
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotBestEffort.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a best-effort pod")
@@ -716,23 +716,23 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		Expect(err).ToNot(HaveOccurred())
 		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
-		By("Ensuring Applications Resource Quota with best effort scope captures the pod usage")
+		By("Ensuring Application Aware Resource Quota with best effort scope captures the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("1")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaBestEffort.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaBestEffort.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota with not best effort ignored the pod usage")
+		By("Ensuring Application Aware Resource Quota with not best effort ignored the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotBestEffort.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotBestEffort.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Deleting the pod")
 		err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Delete(ctx, pod.Name, *metav1.NewDeleteOptions(0))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status released the pod usage")
+		By("Ensuring Application Aware Resource Quota status released the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaBestEffort.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaBestEffort.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a not best-effort pod")
@@ -747,33 +747,33 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		Expect(err).ToNot(HaveOccurred())
 		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
-		By("Ensuring Applications Resource Quota with not best effort scope captures the pod usage")
+		By("Ensuring Application Aware Resource Quota with not best effort scope captures the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("1")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotBestEffort.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotBestEffort.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota with best effort scope ignored the pod usage")
+		By("Ensuring Application Aware Resource Quota with best effort scope ignored the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaBestEffort.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaBestEffort.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Deleting the pod")
 		err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Delete(ctx, pod.Name, *metav1.NewDeleteOptions(0))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status released the pod usage")
+		By("Ensuring Application Aware Resource Quota status released the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotBestEffort.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotBestEffort.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 	})
 
-	It("should be able to update and delete ApplicationsResourceQuota.", func(ctx context.Context) {
+	It("should be able to update and delete ApplicationAwareResourceQuota.", func(ctx context.Context) {
 		ns := f.Namespace.Name
 
-		By("Creating a ApplicationsResourceQuota")
+		By("Creating a ApplicationAwareResourceQuota")
 		quotaName := "test-quota"
-		arq := &v1alpha1.ApplicationsResourceQuota{
-			Spec: v1alpha1.ApplicationsResourceQuotaSpec{ResourceQuotaSpec: v1.ResourceQuotaSpec{
+		arq := &v1alpha1.ApplicationAwareResourceQuota{
+			Spec: v1alpha1.ApplicationAwareResourceQuotaSpec{ResourceQuotaSpec: v1.ResourceQuotaSpec{
 				Hard: v1.ResourceList{},
 			},
 			},
@@ -781,97 +781,97 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		arq.ObjectMeta.Name = quotaName
 		arq.Spec.Hard[v1.ResourceCPU] = resource.MustParse("1")
 		arq.Spec.Hard[v1.ResourceMemory] = resource.MustParse("500Mi")
-		arq, err := createApplicationsResourceQuota(ctx, f.AaqClient, ns, arq)
+		arq, err := createApplicationAwareResourceQuota(ctx, f.AaqClient, ns, arq)
 		Expect(err).ToNot(HaveOccurred())
 
-		var resourceQuotaResult *v1alpha1.ApplicationsResourceQuota
+		var resourceQuotaResult *v1alpha1.ApplicationAwareResourceQuota
 		Eventually(func() error {
-			By("Getting a ApplicationsResourceQuota")
-			resourceQuotaResult, err = f.AaqClient.AaqV1alpha1().ApplicationsResourceQuotas(ns).Get(ctx, quotaName, metav1.GetOptions{})
+			By("Getting a ApplicationAwareResourceQuota")
+			resourceQuotaResult, err = f.AaqClient.AaqV1alpha1().ApplicationAwareResourceQuotas(ns).Get(ctx, quotaName, metav1.GetOptions{})
 			if err != nil {
 				return err
 			}
 			Expect(resourceQuotaResult.Spec.Hard).To(HaveKeyWithValue(v1.ResourceCPU, resource.MustParse("1")))
 			Expect(resourceQuotaResult.Spec.Hard).To(HaveKeyWithValue(v1.ResourceMemory, resource.MustParse("500Mi")))
 
-			By("Updating a ApplicationsResourceQuota")
+			By("Updating a ApplicationAwareResourceQuota")
 			resourceQuotaResult.Spec.Hard[v1.ResourceCPU] = resource.MustParse("2")
 			resourceQuotaResult.Spec.Hard[v1.ResourceMemory] = resource.MustParse("1Gi")
-			resourceQuotaResult, err = f.AaqClient.AaqV1alpha1().ApplicationsResourceQuotas(ns).Update(ctx, resourceQuotaResult, metav1.UpdateOptions{})
+			resourceQuotaResult, err = f.AaqClient.AaqV1alpha1().ApplicationAwareResourceQuotas(ns).Update(ctx, resourceQuotaResult, metav1.UpdateOptions{})
 			return err
 		}, 2*time.Minute, 1*time.Second).Should(BeNil())
 		Expect(resourceQuotaResult.Spec.Hard).To(HaveKeyWithValue(v1.ResourceCPU, resource.MustParse("2")))
 		Expect(resourceQuotaResult.Spec.Hard).To(HaveKeyWithValue(v1.ResourceMemory, resource.MustParse("1Gi")))
 
-		By("Verifying a ApplicationsResourceQuota was modified")
-		resourceQuotaResult, err = f.AaqClient.AaqV1alpha1().ApplicationsResourceQuotas(ns).Get(ctx, quotaName, metav1.GetOptions{})
+		By("Verifying a ApplicationAwareResourceQuota was modified")
+		resourceQuotaResult, err = f.AaqClient.AaqV1alpha1().ApplicationAwareResourceQuotas(ns).Get(ctx, quotaName, metav1.GetOptions{})
 		Expect(err).ToNot(HaveOccurred())
 		Expect(resourceQuotaResult.Spec.Hard).To(HaveKeyWithValue(v1.ResourceCPU, resource.MustParse("2")))
 		Expect(resourceQuotaResult.Spec.Hard).To(HaveKeyWithValue(v1.ResourceMemory, resource.MustParse("1Gi")))
 
-		By("Deleting a ApplicationsResourceQuota")
-		err = deleteApplicationsResourceQuota(ctx, f.AaqClient, ns, quotaName)
+		By("Deleting a ApplicationAwareResourceQuota")
+		err = deleteApplicationAwareResourceQuota(ctx, f.AaqClient, ns, quotaName)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Verifying the deleted ApplicationsResourceQuota")
-		_, err = f.AaqClient.AaqV1alpha1().ApplicationsResourceQuotas(ns).Get(ctx, quotaName, metav1.GetOptions{})
+		By("Verifying the deleted ApplicationAwareResourceQuota")
+		_, err = f.AaqClient.AaqV1alpha1().ApplicationAwareResourceQuotas(ns).Get(ctx, quotaName, metav1.GetOptions{})
 		Expect(apierrors.IsNotFound(err)).To(BeTrue(), fmt.Sprintf("Expected `not found` error, got: %v", err))
 	})
 
-	It("should manage the lifecycle of a ApplicationsResourceQuota", func(ctx context.Context) {
+	It("should manage the lifecycle of a ApplicationAwareResourceQuota", func(ctx context.Context) {
 		ns := f.Namespace.Name
 
 		rqName := "e2e-quota-" + utilrand.String(5)
 		label := map[string]string{"e2e-rq-label": rqName}
 		labelSelector := labels.SelectorFromSet(label).String()
 
-		By("Creating a ApplicationsResourceQuota")
-		arq := &v1alpha1.ApplicationsResourceQuota{
+		By("Creating a ApplicationAwareResourceQuota")
+		arq := &v1alpha1.ApplicationAwareResourceQuota{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   rqName,
 				Labels: label,
 			},
-			Spec: v1alpha1.ApplicationsResourceQuotaSpec{ResourceQuotaSpec: v1.ResourceQuotaSpec{
+			Spec: v1alpha1.ApplicationAwareResourceQuotaSpec{ResourceQuotaSpec: v1.ResourceQuotaSpec{
 				Hard: v1.ResourceList{},
 			},
 			},
 		}
 		arq.Spec.Hard[v1.ResourceCPU] = resource.MustParse("1")
 		arq.Spec.Hard[v1.ResourceMemory] = resource.MustParse("500Mi")
-		_, err := createApplicationsResourceQuota(ctx, f.AaqClient, ns, arq)
+		_, err := createApplicationAwareResourceQuota(ctx, f.AaqClient, ns, arq)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Getting a ApplicationsResourceQuota")
-		resourceQuotaResult, err := f.AaqClient.AaqV1alpha1().ApplicationsResourceQuotas(ns).Get(ctx, rqName, metav1.GetOptions{})
+		By("Getting a ApplicationAwareResourceQuota")
+		resourceQuotaResult, err := f.AaqClient.AaqV1alpha1().ApplicationAwareResourceQuotas(ns).Get(ctx, rqName, metav1.GetOptions{})
 		Expect(err).ToNot(HaveOccurred())
 		Expect(resourceQuotaResult.Spec.Hard[v1.ResourceCPU]).To(Equal(resource.MustParse("1")))
 		Expect(resourceQuotaResult.Spec.Hard[v1.ResourceMemory]).To(Equal(resource.MustParse("500Mi")))
 
-		By("Listing all ApplicationsResourceQuota with LabelSelector")
-		rq, err := f.AaqClient.AaqV1alpha1().ApplicationsResourceQuotas("").List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
+		By("Listing all ApplicationAwareResourceQuota with LabelSelector")
+		rq, err := f.AaqClient.AaqV1alpha1().ApplicationAwareResourceQuotas("").List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
 		Expect(err).ToNot(HaveOccurred())
 		Expect(rq.Items).To(HaveLen(1), "Failed to find ResourceQuotes %v", rqName)
 
-		By("Patching the ApplicationsResourceQuota")
+		By("Patching the ApplicationAwareResourceQuota")
 		payload := "{\"metadata\":{\"labels\":{\"" + rqName + "\":\"patched\"}},\"spec\":{\"hard\":{ \"memory\":\"750Mi\"}}}"
-		patchedArq, err := f.AaqClient.AaqV1alpha1().ApplicationsResourceQuotas(ns).Patch(ctx, rqName, types.MergePatchType, []byte(payload), metav1.PatchOptions{})
-		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to patch ApplicationsResourceQuota %s in namespace %s", rqName, ns))
+		patchedArq, err := f.AaqClient.AaqV1alpha1().ApplicationAwareResourceQuotas(ns).Patch(ctx, rqName, types.MergePatchType, []byte(payload), metav1.PatchOptions{})
+		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to patch ApplicationAwareResourceQuota %s in namespace %s", rqName, ns))
 
-		Expect(patchedArq.Labels[rqName]).To(Equal("patched"), "Failed to find the label for this ApplicationsResourceQuota. Current labels: %v", patchedArq.Labels)
-		Expect(*patchedArq.Spec.Hard.Memory()).To(Equal(resource.MustParse("750Mi")), "Hard memory value for ApplicationsResourceQuota %q is %s not 750Mi.", patchedArq.ObjectMeta.Name, patchedArq.Spec.Hard.Memory().String())
+		Expect(patchedArq.Labels[rqName]).To(Equal("patched"), "Failed to find the label for this ApplicationAwareResourceQuota. Current labels: %v", patchedArq.Labels)
+		Expect(*patchedArq.Spec.Hard.Memory()).To(Equal(resource.MustParse("750Mi")), "Hard memory value for ApplicationAwareResourceQuota %q is %s not 750Mi.", patchedArq.ObjectMeta.Name, patchedArq.Spec.Hard.Memory().String())
 
-		By("Deleting a Collection of ApplicationsResourceQuota")
-		err = f.AaqClient.AaqV1alpha1().ApplicationsResourceQuotas(ns).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{LabelSelector: labelSelector})
+		By("Deleting a Collection of ApplicationAwareResourceQuota")
+		err = f.AaqClient.AaqV1alpha1().ApplicationAwareResourceQuotas(ns).DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{LabelSelector: labelSelector})
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Verifying the deleted ApplicationsResourceQuota")
-		_, err = f.AaqClient.AaqV1alpha1().ApplicationsResourceQuotas(ns).Get(ctx, rqName, metav1.GetOptions{})
+		By("Verifying the deleted ApplicationAwareResourceQuota")
+		_, err = f.AaqClient.AaqV1alpha1().ApplicationAwareResourceQuotas(ns).Get(ctx, rqName, metav1.GetOptions{})
 		Expect(apierrors.IsNotFound(err)).To(BeTrue(), fmt.Sprintf("Expected `not found` error, got: %v", err))
 	})
 
-	It("should apply changes to a ApplicationsResourceQuota status", func(ctx context.Context) {
+	It("should apply changes to a ApplicationAwareResourceQuota status", func(ctx context.Context) {
 		ns := f.Namespace.Name
-		arqClient := f.AaqClient.AaqV1alpha1().ApplicationsResourceQuotas(ns)
+		arqClient := f.AaqClient.AaqV1alpha1().ApplicationAwareResourceQuotas(ns)
 		rqName := "e2e-rq-status-" + utilrand.String(5)
 		label := map[string]string{"e2e-rq-label": rqName}
 		labelSelector := labels.SelectorFromSet(label).String()
@@ -883,16 +883,16 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 			},
 		}
 
-		rqList, err := f.AaqClient.AaqV1alpha1().ApplicationsResourceQuotas("").List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
+		rqList, err := f.AaqClient.AaqV1alpha1().ApplicationAwareResourceQuotas("").List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
 		Expect(err).ToNot(HaveOccurred())
 
-		By(fmt.Sprintf("Creating ApplicationsResourceQuota %q", rqName))
-		ApplicationsResourceQuota := &v1alpha1.ApplicationsResourceQuota{
+		By(fmt.Sprintf("Creating ApplicationAwareResourceQuota %q", rqName))
+		ApplicationAwareResourceQuota := &v1alpha1.ApplicationAwareResourceQuota{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   rqName,
 				Labels: label,
 			},
-			Spec: v1alpha1.ApplicationsResourceQuotaSpec{ResourceQuotaSpec: v1.ResourceQuotaSpec{
+			Spec: v1alpha1.ApplicationAwareResourceQuotaSpec{ResourceQuotaSpec: v1.ResourceQuotaSpec{
 				Hard: v1.ResourceList{
 					v1.ResourceCPU:    resource.MustParse("500m"),
 					v1.ResourceMemory: resource.MustParse("500Mi"),
@@ -900,24 +900,24 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 			},
 			},
 		}
-		_, err = createApplicationsResourceQuota(ctx, f.AaqClient, ns, ApplicationsResourceQuota)
+		_, err = createApplicationAwareResourceQuota(ctx, f.AaqClient, ns, ApplicationAwareResourceQuota)
 		Expect(err).ToNot(HaveOccurred())
 
 		initialResourceQuota, err := arqClient.Get(ctx, rqName, metav1.GetOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		Expect(*initialResourceQuota.Spec.Hard.Cpu()).To(Equal(resource.MustParse("500m")), "Hard cpu value for ApplicationsResourceQuota %q is %s not 500m.", initialResourceQuota.Name, initialResourceQuota.Spec.Hard.Cpu().String())
-		fmt.Printf("Applications Resource Quota %q reports spec: hard cpu limit of %s", rqName, initialResourceQuota.Spec.Hard.Cpu())
-		Expect(*initialResourceQuota.Spec.Hard.Memory()).To(Equal(resource.MustParse("500Mi")), "Hard memory value for ApplicationsResourceQuota %q is %s not 500Mi.", initialResourceQuota.Name, initialResourceQuota.Spec.Hard.Memory().String())
-		fmt.Printf("Applications Resource Quota %q reports spec: hard memory limit of %s", rqName, initialResourceQuota.Spec.Hard.Memory())
+		Expect(*initialResourceQuota.Spec.Hard.Cpu()).To(Equal(resource.MustParse("500m")), "Hard cpu value for ApplicationAwareResourceQuota %q is %s not 500m.", initialResourceQuota.Name, initialResourceQuota.Spec.Hard.Cpu().String())
+		fmt.Printf("Application Aware Resource Quota %q reports spec: hard cpu limit of %s", rqName, initialResourceQuota.Spec.Hard.Cpu())
+		Expect(*initialResourceQuota.Spec.Hard.Memory()).To(Equal(resource.MustParse("500Mi")), "Hard memory value for ApplicationAwareResourceQuota %q is %s not 500Mi.", initialResourceQuota.Name, initialResourceQuota.Spec.Hard.Memory().String())
+		fmt.Printf("Application Aware Resource Quota %q reports spec: hard memory limit of %s", rqName, initialResourceQuota.Spec.Hard.Memory())
 
-		By(fmt.Sprintf("Updating ApplicationsResourceQuota %q /status", rqName))
-		var updatedResourceQuota *v1alpha1.ApplicationsResourceQuota
+		By(fmt.Sprintf("Updating ApplicationAwareResourceQuota %q /status", rqName))
+		var updatedResourceQuota *v1alpha1.ApplicationAwareResourceQuota
 		hardLimits := quota.Add(v1.ResourceList{}, initialResourceQuota.Spec.Hard)
 
 		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			updateStatus, err := arqClient.Get(ctx, rqName, metav1.GetOptions{})
 			Expect(err).ToNot(HaveOccurred())
-			updateStatus.Status = v1alpha1.ApplicationsResourceQuotaStatus{ResourceQuotaStatus: v1.ResourceQuotaStatus{
+			updateStatus.Status = v1alpha1.ApplicationAwareResourceQuotaStatus{ResourceQuotaStatus: v1.ResourceQuotaStatus{
 				Hard: hardLimits,
 			},
 			}
@@ -926,30 +926,30 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		})
 		Expect(err).ToNot(HaveOccurred())
 
-		By(fmt.Sprintf("Confirm /status for %q ApplicationsResourceQuota via watch", rqName))
+		By(fmt.Sprintf("Confirm /status for %q ApplicationAwareResourceQuota via watch", rqName))
 		ctxUntil, cancel := context.WithTimeout(ctx, 2*time.Minute)
 		defer cancel()
 
 		_, err = watchtools.Until(ctxUntil, rqList.ResourceVersion, w, func(event watch.Event) (bool, error) {
-			if rq, ok := event.Object.(*v1alpha1.ApplicationsResourceQuota); ok {
+			if rq, ok := event.Object.(*v1alpha1.ApplicationAwareResourceQuota); ok {
 				found := rq.Name == updatedResourceQuota.Name &&
 					rq.Namespace == ns &&
 					apiequality.Semantic.DeepEqual(rq.Status.Hard, updatedResourceQuota.Spec.Hard)
 				if !found {
-					fmt.Printf("observed ApplicationsResourceQuota %q in namespace %q with hard status: %#v", rq.Name, rq.Namespace, rq.Status.Hard)
+					fmt.Printf("observed ApplicationAwareResourceQuota %q in namespace %q with hard status: %#v", rq.Name, rq.Namespace, rq.Status.Hard)
 					return false, nil
 				}
-				fmt.Printf("Found ApplicationsResourceQuota %q in namespace %q with hard status: %#v", rq.Name, rq.Namespace, rq.Status.Hard)
+				fmt.Printf("Found ApplicationAwareResourceQuota %q in namespace %q with hard status: %#v", rq.Name, rq.Namespace, rq.Status.Hard)
 				return found, nil
 			}
 			fmt.Printf("Observed event: %+v", event.Object)
 			return false, nil
 		})
 		Expect(err).ToNot(HaveOccurred())
-		fmt.Printf("ApplicationsResourceQuota %q /status was updated", updatedResourceQuota.Name)
+		fmt.Printf("ApplicationAwareResourceQuota %q /status was updated", updatedResourceQuota.Name)
 
-		// Sync ApplicationsResourceQuota list before patching /status
-		rqList, err = f.AaqClient.AaqV1alpha1().ApplicationsResourceQuotas("").List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
+		// Sync ApplicationAwareResourceQuota list before patching /status
+		rqList, err = f.AaqClient.AaqV1alpha1().ApplicationAwareResourceQuotas("").List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Patching hard spec values for cpu & memory")
@@ -957,8 +957,8 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 			[]byte(`{"spec":{"hard":{"cpu":"1","memory":"1Gi"}}}`),
 			metav1.PatchOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		fmt.Printf("Applications Resource Quota %q reports spec: hard cpu limit of %s", rqName, xResourceQuota.Spec.Hard.Cpu())
-		fmt.Printf("Applications Resource Quota %q reports spec: hard memory limit of %s", rqName, xResourceQuota.Spec.Hard.Memory())
+		fmt.Printf("Application Aware Resource Quota %q reports spec: hard cpu limit of %s", rqName, xResourceQuota.Spec.Hard.Cpu())
+		fmt.Printf("Application Aware Resource Quota %q reports spec: hard memory limit of %s", rqName, xResourceQuota.Spec.Hard.Memory())
 
 		By(fmt.Sprintf("Patching %q /status", rqName))
 		hardLimits = quota.Add(v1.ResourceList{}, xResourceQuota.Spec.Hard)
@@ -970,17 +970,17 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 			metav1.PatchOptions{}, "status")
 		Expect(err).ToNot(HaveOccurred())
 
-		By(fmt.Sprintf("Confirm /status for %q ApplicationsResourceQuota via watch", rqName))
+		By(fmt.Sprintf("Confirm /status for %q ApplicationAwareResourceQuota via watch", rqName))
 		ctxUntil, cancel = context.WithTimeout(ctx, 2*time.Minute)
 		defer cancel()
 
 		_, err = watchtools.Until(ctxUntil, rqList.ResourceVersion, w, func(event watch.Event) (bool, error) {
-			if rq, ok := event.Object.(*v1alpha1.ApplicationsResourceQuota); ok {
+			if rq, ok := event.Object.(*v1alpha1.ApplicationAwareResourceQuota); ok {
 				found := rq.Name == patchedResourceQuota.Name &&
 					rq.Namespace == ns &&
 					apiequality.Semantic.DeepEqual(rq.Status.Hard, patchedResourceQuota.Spec.Hard)
 				if !found {
-					fmt.Printf("observed ApplicationsResourceQuota %q in namespace %q with hard status: %#v", rq.Name, rq.Namespace, rq.Status.Hard)
+					fmt.Printf("observed ApplicationAwareResourceQuota %q in namespace %q with hard status: %#v", rq.Name, rq.Namespace, rq.Status.Hard)
 					return false, nil
 				}
 				return found, nil
@@ -989,24 +989,24 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 			return false, nil
 		})
 		Expect(err).ToNot(HaveOccurred())
-		fmt.Printf("ApplicationsResourceQuota %q /status was patched", patchedResourceQuota.Name)
+		fmt.Printf("ApplicationAwareResourceQuota %q /status was patched", patchedResourceQuota.Name)
 
 		By(fmt.Sprintf("Get %q /status", rqName))
 
-		rqResource := schema.GroupVersionResource{Group: "aaq.kubevirt.io", Version: "v1alpha1", Resource: "applicationsresourcequotas"}
-		unstruct, err := f.DynamicClient.Resource(rqResource).Namespace(ns).Get(ctx, ApplicationsResourceQuota.Name, metav1.GetOptions{}, "status")
+		rqResource := schema.GroupVersionResource{Group: "aaq.kubevirt.io", Version: "v1alpha1", Resource: "applicationawareresourcequotas"}
+		unstruct, err := f.DynamicClient.Resource(rqResource).Namespace(ns).Get(ctx, ApplicationAwareResourceQuota.Name, metav1.GetOptions{}, "status")
 		Expect(err).ToNot(HaveOccurred())
 
-		rq, err := unstructuredToApplicationsResourceQuota(unstruct)
+		rq, err := unstructuredToApplicationAwareResourceQuota(unstruct)
 		Expect(err).ToNot(HaveOccurred())
 
-		Expect(*rq.Status.Hard.Cpu()).To(Equal(resource.MustParse("1")), "Hard cpu value for ApplicationsResourceQuota %q is %s not 1.", rq.Name, rq.Status.Hard.Cpu().String())
+		Expect(*rq.Status.Hard.Cpu()).To(Equal(resource.MustParse("1")), "Hard cpu value for ApplicationAwareResourceQuota %q is %s not 1.", rq.Name, rq.Status.Hard.Cpu().String())
 		fmt.Printf("Resourcequota %q reports status: hard cpu of %s", rqName, rq.Status.Hard.Cpu())
-		Expect(*rq.Status.Hard.Memory()).To(Equal(resource.MustParse("1Gi")), "Hard memory value for ApplicationsResourceQuota %q is %s not 1Gi.", rq.Name, rq.Status.Hard.Memory().String())
+		Expect(*rq.Status.Hard.Memory()).To(Equal(resource.MustParse("1Gi")), "Hard memory value for ApplicationAwareResourceQuota %q is %s not 1Gi.", rq.Name, rq.Status.Hard.Memory().String())
 		fmt.Printf("Resourcequota %q reports status: hard memory of %s", rqName, rq.Status.Hard.Memory())
 
-		// Sync ApplicationsResourceQuota list before repatching /status
-		rqList, err = f.AaqClient.AaqV1alpha1().ApplicationsResourceQuotas("").List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
+		// Sync ApplicationAwareResourceQuota list before repatching /status
+		rqList, err = f.AaqClient.AaqV1alpha1().ApplicationAwareResourceQuotas("").List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
 		Expect(err).ToNot(HaveOccurred())
 
 		By(fmt.Sprintf("Repatching %q /status before checking Spec is unchanged", rqName))
@@ -1022,13 +1022,13 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 			metav1.PatchOptions{}, "status")
 		Expect(err).ToNot(HaveOccurred())
 
-		Expect(*repatchedResourceQuota.Status.Hard.Cpu()).To(Equal(resource.MustParse("2")), "Hard cpu value for ApplicationsResourceQuota %q is %s not 2.", repatchedResourceQuota.Name, repatchedResourceQuota.Status.Hard.Cpu().String())
+		Expect(*repatchedResourceQuota.Status.Hard.Cpu()).To(Equal(resource.MustParse("2")), "Hard cpu value for ApplicationAwareResourceQuota %q is %s not 2.", repatchedResourceQuota.Name, repatchedResourceQuota.Status.Hard.Cpu().String())
 		fmt.Printf("Resourcequota %q reports status: hard cpu of %s", repatchedResourceQuota.Name, repatchedResourceQuota.Status.Hard.Cpu())
-		Expect(*repatchedResourceQuota.Status.Hard.Memory()).To(Equal(resource.MustParse("2Gi")), "Hard memory value for ApplicationsResourceQuota %q is %s not 2Gi.", repatchedResourceQuota.Name, repatchedResourceQuota.Status.Hard.Memory().String())
+		Expect(*repatchedResourceQuota.Status.Hard.Memory()).To(Equal(resource.MustParse("2Gi")), "Hard memory value for ApplicationAwareResourceQuota %q is %s not 2Gi.", repatchedResourceQuota.Name, repatchedResourceQuota.Status.Hard.Memory().String())
 		fmt.Printf("Resourcequota %q reports status: hard memory of %s", repatchedResourceQuota.Name, repatchedResourceQuota.Status.Hard.Memory())
 
 		_, err = watchtools.Until(ctxUntil, rqList.ResourceVersion, w, func(event watch.Event) (bool, error) {
-			if rq, ok := event.Object.(*v1alpha1.ApplicationsResourceQuota); ok {
+			if rq, ok := event.Object.(*v1alpha1.ApplicationAwareResourceQuota); ok {
 				found := rq.Name == patchedResourceQuota.Name &&
 					rq.Namespace == ns && rq.Status.Hard != nil &&
 					*rq.Status.Hard.Cpu() == resource.MustParse("2") &&
@@ -1045,9 +1045,9 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			if apiequality.Semantic.DeepEqual(resourceQuotaResult.Spec.Hard.Cpu(), resourceQuotaResult.Status.Hard.Cpu()) {
-				Expect(*resourceQuotaResult.Status.Hard.Cpu()).To(Equal(resource.MustParse("1")), "Hard cpu value for ApplicationsResourceQuota %q is %s not 1.", repatchedResourceQuota.Name, repatchedResourceQuota.Status.Hard.Cpu().String())
-				Expect(*resourceQuotaResult.Status.Hard.Memory()).To(Equal(resource.MustParse("1Gi")), "Hard memory value for ApplicationsResourceQuota %q is %s not 1Gi.", repatchedResourceQuota.Name, repatchedResourceQuota.Status.Hard.Memory().String())
-				fmt.Printf("ApplicationsResourceQuota %q Spec was unchanged and /status reset", resourceQuotaResult.Name)
+				Expect(*resourceQuotaResult.Status.Hard.Cpu()).To(Equal(resource.MustParse("1")), "Hard cpu value for ApplicationAwareResourceQuota %q is %s not 1.", repatchedResourceQuota.Name, repatchedResourceQuota.Status.Hard.Cpu().String())
+				Expect(*resourceQuotaResult.Status.Hard.Memory()).To(Equal(resource.MustParse("1Gi")), "Hard memory value for ApplicationAwareResourceQuota %q is %s not 1Gi.", repatchedResourceQuota.Name, repatchedResourceQuota.Status.Hard.Memory().String())
+				fmt.Printf("ApplicationAwareResourceQuota %q Spec was unchanged and /status reset", resourceQuotaResult.Name)
 
 				return true, nil
 			}
@@ -1058,25 +1058,25 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 	})
 })
 
-var _ = Describe("ApplicationsResourceQuota", func() {
+var _ = Describe("ApplicationAwareResourceQuota", func() {
 	f := framework.NewFramework("scope-selectors")
-	It("should verify ApplicationsResourceQuota with best effort scope using scope-selectors.", func(ctx context.Context) {
-		By("Creating a ApplicationsResourceQuota with best effort scope")
-		resourceQuotaBestEffort, err := createApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, newTestResourceQuotaWithScopeSelector("quota-besteffort", v1.ResourceQuotaScopeBestEffort))
+	It("should verify ApplicationAwareResourceQuota with best effort scope using scope-selectors.", func(ctx context.Context) {
+		By("Creating a ApplicationAwareResourceQuota with best effort scope")
+		resourceQuotaBestEffort, err := createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, newTestResourceQuotaWithScopeSelector("quota-besteffort", v1.ResourceQuotaScopeBestEffort))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring ApplicationsResourceQuota status is calculated")
+		By("Ensuring ApplicationAwareResourceQuota status is calculated")
 		usedResources := v1.ResourceList{}
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaBestEffort.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaBestEffort.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Creating a ApplicationsResourceQuota with not best effort scope")
-		resourceQuotaNotBestEffort, err := createApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, newTestResourceQuotaWithScopeSelector("quota-not-besteffort", v1.ResourceQuotaScopeNotBestEffort))
+		By("Creating a ApplicationAwareResourceQuota with not best effort scope")
+		resourceQuotaNotBestEffort, err := createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, newTestResourceQuotaWithScopeSelector("quota-not-besteffort", v1.ResourceQuotaScopeNotBestEffort))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring ApplicationsResourceQuota status is calculated")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotBestEffort.Name, usedResources)
+		By("Ensuring ApplicationAwareResourceQuota status is calculated")
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotBestEffort.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a best-effort pod")
@@ -1085,23 +1085,23 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		Expect(err).ToNot(HaveOccurred())
 		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
-		By("Ensuring Applications Resource Quota with best effort scope captures the pod usage")
+		By("Ensuring Application Aware Resource Quota with best effort scope captures the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("1")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaBestEffort.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaBestEffort.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota with not best effort ignored the pod usage")
+		By("Ensuring Application Aware Resource Quota with not best effort ignored the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotBestEffort.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotBestEffort.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Deleting the pod")
 		err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Delete(ctx, pod.Name, *metav1.NewDeleteOptions(0))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status released the pod usage")
+		By("Ensuring Application Aware Resource Quota status released the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaBestEffort.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaBestEffort.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a not best-effort pod")
@@ -1116,44 +1116,44 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		Expect(err).ToNot(HaveOccurred())
 		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
-		By("Ensuring Applications Resource Quota with not best effort scope captures the pod usage")
+		By("Ensuring Application Aware Resource Quota with not best effort scope captures the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("1")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotBestEffort.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotBestEffort.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota with best effort scope ignored the pod usage")
+		By("Ensuring Application Aware Resource Quota with best effort scope ignored the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaBestEffort.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaBestEffort.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Deleting the pod")
 		err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Delete(ctx, pod.Name, *metav1.NewDeleteOptions(0))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status released the pod usage")
+		By("Ensuring Application Aware Resource Quota status released the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotBestEffort.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotBestEffort.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 	})
-	It("should verify ApplicationsResourceQuota with terminating scopes through scope selectors.", func(ctx context.Context) {
-		By("Creating a ApplicationsResourceQuota with terminating scope")
+	It("should verify ApplicationAwareResourceQuota with terminating scopes through scope selectors.", func(ctx context.Context) {
+		By("Creating a ApplicationAwareResourceQuota with terminating scope")
 		quotaTerminatingName := "quota-terminating"
-		resourceQuotaTerminating, err := createApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, newTestResourceQuotaWithScopeSelector(quotaTerminatingName, v1.ResourceQuotaScopeTerminating))
+		resourceQuotaTerminating, err := createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, newTestResourceQuotaWithScopeSelector(quotaTerminatingName, v1.ResourceQuotaScopeTerminating))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring ApplicationsResourceQuota status is calculated")
+		By("Ensuring ApplicationAwareResourceQuota status is calculated")
 		usedResources := v1.ResourceList{}
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaTerminating.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaTerminating.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Creating a ApplicationsResourceQuota with not terminating scope")
+		By("Creating a ApplicationAwareResourceQuota with not terminating scope")
 		quotaNotTerminatingName := "quota-not-terminating"
-		resourceQuotaNotTerminating, err := createApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, newTestResourceQuotaWithScopeSelector(quotaNotTerminatingName, v1.ResourceQuotaScopeNotTerminating))
+		resourceQuotaNotTerminating, err := createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, newTestResourceQuotaWithScopeSelector(quotaNotTerminatingName, v1.ResourceQuotaScopeNotTerminating))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring ApplicationsResourceQuota status is calculated")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotTerminating.Name, usedResources)
+		By("Ensuring ApplicationAwareResourceQuota status is calculated")
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotTerminating.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a long running pod")
@@ -1169,35 +1169,35 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		Expect(err).ToNot(HaveOccurred())
 		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
-		By("Ensuring Applications Resource Quota with not terminating scope captures the pod usage")
+		By("Ensuring Application Aware Resource Quota with not terminating scope captures the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("1")
 		usedResources[v1.ResourceRequestsCPU] = requests[v1.ResourceCPU]
 		usedResources[v1.ResourceRequestsMemory] = requests[v1.ResourceMemory]
 		usedResources[v1.ResourceLimitsCPU] = limits[v1.ResourceCPU]
 		usedResources[v1.ResourceLimitsMemory] = limits[v1.ResourceMemory]
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotTerminating.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotTerminating.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota with terminating scope ignored the pod usage")
+		By("Ensuring Application Aware Resource Quota with terminating scope ignored the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
 		usedResources[v1.ResourceRequestsCPU] = resource.MustParse("0")
 		usedResources[v1.ResourceRequestsMemory] = resource.MustParse("0")
 		usedResources[v1.ResourceLimitsCPU] = resource.MustParse("0")
 		usedResources[v1.ResourceLimitsMemory] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaTerminating.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaTerminating.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Deleting the pod")
 		err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Delete(ctx, podName, *metav1.NewDeleteOptions(0))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status released the pod usage")
+		By("Ensuring Application Aware Resource Quota status released the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
 		usedResources[v1.ResourceRequestsCPU] = resource.MustParse("0")
 		usedResources[v1.ResourceRequestsMemory] = resource.MustParse("0")
 		usedResources[v1.ResourceLimitsCPU] = resource.MustParse("0")
 		usedResources[v1.ResourceLimitsMemory] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotTerminating.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotTerminating.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a terminating pod")
@@ -1209,56 +1209,56 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		Expect(err).ToNot(HaveOccurred())
 		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
-		By("Ensuring Applications Resource Quota with terminating scope captures the pod usage")
+		By("Ensuring Application Aware Resource Quota with terminating scope captures the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("1")
 		usedResources[v1.ResourceRequestsCPU] = requests[v1.ResourceCPU]
 		usedResources[v1.ResourceRequestsMemory] = requests[v1.ResourceMemory]
 		usedResources[v1.ResourceLimitsCPU] = limits[v1.ResourceCPU]
 		usedResources[v1.ResourceLimitsMemory] = limits[v1.ResourceMemory]
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaTerminating.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaTerminating.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota with not terminating scope ignored the pod usage")
+		By("Ensuring Application Aware Resource Quota with not terminating scope ignored the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
 		usedResources[v1.ResourceRequestsCPU] = resource.MustParse("0")
 		usedResources[v1.ResourceRequestsMemory] = resource.MustParse("0")
 		usedResources[v1.ResourceLimitsCPU] = resource.MustParse("0")
 		usedResources[v1.ResourceLimitsMemory] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotTerminating.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaNotTerminating.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Deleting the pod")
 		err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Delete(ctx, podName, *metav1.NewDeleteOptions(0))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status released the pod usage")
+		By("Ensuring Application Aware Resource Quota status released the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
 		usedResources[v1.ResourceRequestsCPU] = resource.MustParse("0")
 		usedResources[v1.ResourceRequestsMemory] = resource.MustParse("0")
 		usedResources[v1.ResourceLimitsCPU] = resource.MustParse("0")
 		usedResources[v1.ResourceLimitsMemory] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaTerminating.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaTerminating.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 	})
 })
 
-var _ = Describe("ApplicationsResourceQuota", func() {
+var _ = Describe("ApplicationAwareResourceQuota", func() {
 	f := framework.NewFramework("make-room-for-pods")
-	It("should be able to create a ApplicationsResourceQuota and gated a pod, increase quota and release pod", func(ctx context.Context) {
-		By("Counting existing applicationsResourceQuota")
-		c, err := countApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
+	It("should be able to create a ApplicationAwareResourceQuota and gated a pod, increase quota and release pod", func(ctx context.Context) {
+		By("Counting existing ApplicationAwareResourceQuota")
+		c, err := countApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Creating a applicationsResourceQuota")
+		By("Creating a ApplicationAwareResourceQuota")
 		quotaName := "test-quota"
-		applicationsResourceQuota := newTestApplicationsResourceQuota(quotaName)
-		applicationsResourceQuota, err = createApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, applicationsResourceQuota)
+		ApplicationAwareResourceQuota := newTestApplicationAwareResourceQuota(quotaName)
+		ApplicationAwareResourceQuota, err = createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, ApplicationAwareResourceQuota)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status is calculated")
+		By("Ensuring Application Aware Resource Quota status is calculated")
 		usedResources := v1.ResourceList{}
 		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a Pod that doesn't fits quota")
@@ -1273,32 +1273,32 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 
 		By("Update arq to fit pod")
 		Eventually(func() error {
-			currApplicationsResourceQuota, err := f.AaqClient.AaqV1alpha1().ApplicationsResourceQuotas(f.Namespace.Name).Get(ctx, applicationsResourceQuota.Name, metav1.GetOptions{})
+			currApplicationAwareResourceQuota, err := f.AaqClient.AaqV1alpha1().ApplicationAwareResourceQuotas(f.Namespace.Name).Get(ctx, ApplicationAwareResourceQuota.Name, metav1.GetOptions{})
 			if err != nil {
 				return err
 			}
-			currApplicationsResourceQuota.Spec.Hard[v1.ResourceMemory] = resource.MustParse("600Mi")
-			_, err = f.AaqClient.AaqV1alpha1().ApplicationsResourceQuotas(f.Namespace.Name).Update(ctx, currApplicationsResourceQuota, metav1.UpdateOptions{})
+			currApplicationAwareResourceQuota.Spec.Hard[v1.ResourceMemory] = resource.MustParse("600Mi")
+			_, err = f.AaqClient.AaqV1alpha1().ApplicationAwareResourceQuotas(f.Namespace.Name).Update(ctx, currApplicationAwareResourceQuota, metav1.UpdateOptions{})
 			return err
 		}, 2*time.Minute, 1*time.Second).Should(BeNil())
 		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 	})
 
-	It("should be able to create a ApplicationsResourceQuota and gated pod, delete another pod release first pod", func(ctx context.Context) {
-		By("Counting existing applicationsResourceQuota")
-		c, err := countApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
+	It("should be able to create a ApplicationAwareResourceQuota and gated pod, delete another pod release first pod", func(ctx context.Context) {
+		By("Counting existing ApplicationAwareResourceQuota")
+		c, err := countApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Creating a applicationsResourceQuota")
+		By("Creating a ApplicationAwareResourceQuota")
 		quotaName := "test-quota"
-		applicationsResourceQuota := newTestApplicationsResourceQuota(quotaName)
-		applicationsResourceQuota, err = createApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, applicationsResourceQuota)
+		ApplicationAwareResourceQuota := newTestApplicationAwareResourceQuota(quotaName)
+		ApplicationAwareResourceQuota, err = createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, ApplicationAwareResourceQuota)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status is calculated")
+		By("Ensuring Application Aware Resource Quota status is calculated")
 		usedResources := v1.ResourceList{}
 		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a Pod that fits quota")
@@ -1323,21 +1323,21 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod2.Name)
 	})
 
-	It("should be able to create a ApplicationsResourceQuota and a pod with different gate and release the pod by removing the other gate", func(ctx context.Context) {
-		By("Counting existing applicationsResourceQuota")
-		c, err := countApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
+	It("should be able to create a ApplicationAwareResourceQuota and a pod with different gate and release the pod by removing the other gate", func(ctx context.Context) {
+		By("Counting existing ApplicationAwareResourceQuota")
+		c, err := countApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Creating a applicationsResourceQuota")
+		By("Creating a ApplicationAwareResourceQuota")
 		quotaName := "test-quota"
-		applicationsResourceQuota := newTestApplicationsResourceQuota(quotaName)
-		applicationsResourceQuota, err = createApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, applicationsResourceQuota)
+		ApplicationAwareResourceQuota := newTestApplicationAwareResourceQuota(quotaName)
+		ApplicationAwareResourceQuota, err = createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, ApplicationAwareResourceQuota)
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status is calculated")
+		By("Ensuring Application Aware Resource Quota status is calculated")
 		usedResources := v1.ResourceList{}
 		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a Pod that fits quota")
@@ -1365,10 +1365,10 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 	})
 })
 
-var _ = Describe("ApplicationsResourceQuota", func() {
+var _ = Describe("ApplicationAwareResourceQuota", func() {
 	f := framework.NewFramework("resourcequota-priorityclass")
 
-	It("should verify ApplicationsResourceQuota's priority class scope (quota set to pod count: 1) against a pod with same priority class.", func(ctx context.Context) {
+	It("should verify ApplicationAwareResourceQuota's priority class scope (quota set to pod count: 1) against a pod with same priority class.", func(ctx context.Context) {
 
 		_, err := f.K8sClient.SchedulingV1().PriorityClasses().Create(ctx, &schedulingv1.PriorityClass{ObjectMeta: metav1.ObjectMeta{Name: "pclass1"}, Value: int32(1000)}, metav1.CreateOptions{})
 		if err != nil {
@@ -1378,14 +1378,14 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		hard := v1.ResourceList{}
 		hard[v1.ResourcePods] = resource.MustParse("1")
 
-		By("Creating a ApplicationsResourceQuota with priority class scope")
-		resourceQuotaPriorityClass, err := createApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, newTestResourceQuotaWithScopeForPriorityClass("quota-priorityclass", hard, v1.ScopeSelectorOpIn, []string{"pclass1"}))
+		By("Creating a ApplicationAwareResourceQuota with priority class scope")
+		resourceQuotaPriorityClass, err := createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, newTestResourceQuotaWithScopeForPriorityClass("quota-priorityclass", hard, v1.ScopeSelectorOpIn, []string{"pclass1"}))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring ApplicationsResourceQuota status is calculated")
+		By("Ensuring ApplicationAwareResourceQuota status is calculated")
 		usedResources := v1.ResourceList{}
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a pod with priority class")
@@ -1395,22 +1395,22 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		Expect(err).ToNot(HaveOccurred())
 		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
-		By("Ensuring Applications Resource Quota with priority class scope captures the pod usage")
+		By("Ensuring Application Aware Resource Quota with priority class scope captures the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("1")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Deleting the pod")
 		err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Delete(ctx, pod.Name, *metav1.NewDeleteOptions(0))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status released the pod usage")
+		By("Ensuring Application Aware Resource Quota status released the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 	})
 
-	It("should verify ApplicationsResourceQuota's priority class scope (quota set to pod count: 1) against 2 pods with same priority class.", func(ctx context.Context) {
+	It("should verify ApplicationAwareResourceQuota's priority class scope (quota set to pod count: 1) against 2 pods with same priority class.", func(ctx context.Context) {
 
 		_, err := f.K8sClient.SchedulingV1().PriorityClasses().Create(ctx, &schedulingv1.PriorityClass{ObjectMeta: metav1.ObjectMeta{Name: "pclass2"}, Value: int32(1000)}, metav1.CreateOptions{})
 
@@ -1421,14 +1421,14 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		hard := v1.ResourceList{}
 		hard[v1.ResourcePods] = resource.MustParse("1")
 
-		By("Creating a ApplicationsResourceQuota with priority class scope")
-		resourceQuotaPriorityClass, err := createApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, newTestResourceQuotaWithScopeForPriorityClass("quota-priorityclass", hard, v1.ScopeSelectorOpIn, []string{"pclass2"}))
+		By("Creating a ApplicationAwareResourceQuota with priority class scope")
+		resourceQuotaPriorityClass, err := createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, newTestResourceQuotaWithScopeForPriorityClass("quota-priorityclass", hard, v1.ScopeSelectorOpIn, []string{"pclass2"}))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring ApplicationsResourceQuota status is calculated")
+		By("Ensuring ApplicationAwareResourceQuota status is calculated")
 		usedResources := v1.ResourceList{}
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating first pod with priority class should pass")
@@ -1438,9 +1438,9 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		Expect(err).ToNot(HaveOccurred())
 		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
-		By("Ensuring Applications Resource Quota with priority class scope captures the pod usage")
+		By("Ensuring Application Aware Resource Quota with priority class scope captures the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("1")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating 2nd pod with priority class should fail")
@@ -1455,13 +1455,13 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Delete(ctx, pod.Name, *metav1.NewDeleteOptions(0))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status released the pod usage")
+		By("Ensuring Application Aware Resource Quota status released the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 	})
 
-	It("should verify ApplicationsResourceQuota's priority class scope (quota set to pod count: 1) against 2 pods with different priority class.", func(ctx context.Context) {
+	It("should verify ApplicationAwareResourceQuota's priority class scope (quota set to pod count: 1) against 2 pods with different priority class.", func(ctx context.Context) {
 
 		_, err := f.K8sClient.SchedulingV1().PriorityClasses().Create(ctx, &schedulingv1.PriorityClass{ObjectMeta: metav1.ObjectMeta{Name: "pclass3"}, Value: int32(1000)}, metav1.CreateOptions{})
 
@@ -1472,14 +1472,14 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		hard := v1.ResourceList{}
 		hard[v1.ResourcePods] = resource.MustParse("1")
 
-		By("Creating a ApplicationsResourceQuota with priority class scope")
-		resourceQuotaPriorityClass, err := createApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, newTestResourceQuotaWithScopeForPriorityClass("quota-priorityclass", hard, v1.ScopeSelectorOpIn, []string{"pclass4"}))
+		By("Creating a ApplicationAwareResourceQuota with priority class scope")
+		resourceQuotaPriorityClass, err := createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, newTestResourceQuotaWithScopeForPriorityClass("quota-priorityclass", hard, v1.ScopeSelectorOpIn, []string{"pclass4"}))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring ApplicationsResourceQuota status is calculated")
+		By("Ensuring ApplicationAwareResourceQuota status is calculated")
 		usedResources := v1.ResourceList{}
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a pod with priority class with pclass3")
@@ -1489,9 +1489,9 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		Expect(err).ToNot(HaveOccurred())
 		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
-		By("Ensuring Applications Resource Quota with priority class scope remains same")
+		By("Ensuring Application Aware Resource Quota with priority class scope remains same")
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a 2nd pod with priority class pclass3")
@@ -1501,9 +1501,9 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		Expect(err).ToNot(HaveOccurred())
 		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
-		By("Ensuring Applications Resource Quota with priority class scope remains same")
+		By("Ensuring Application Aware Resource Quota with priority class scope remains same")
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Deleting both pods")
@@ -1513,7 +1513,7 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		Expect(err).ToNot(HaveOccurred())
 	})
 
-	It("should verify ApplicationsResourceQuota's multiple priority class scope (quota set to pod count: 2) against 2 pods with same priority classes.", func(ctx context.Context) {
+	It("should verify ApplicationAwareResourceQuota's multiple priority class scope (quota set to pod count: 2) against 2 pods with same priority classes.", func(ctx context.Context) {
 		_, err := f.K8sClient.SchedulingV1().PriorityClasses().Create(ctx, &schedulingv1.PriorityClass{ObjectMeta: metav1.ObjectMeta{Name: "pclass5"}, Value: int32(1000)}, metav1.CreateOptions{})
 		if err != nil {
 			Expect(apierrors.IsAlreadyExists(err)).To(BeTrue(), fmt.Sprintf("unexpected error while creating priority class: %v", err))
@@ -1527,14 +1527,14 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		hard := v1.ResourceList{}
 		hard[v1.ResourcePods] = resource.MustParse("2")
 
-		By("Creating a ApplicationsResourceQuota with priority class scope")
-		resourceQuotaPriorityClass, err := createApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, newTestResourceQuotaWithScopeForPriorityClass("quota-priorityclass", hard, v1.ScopeSelectorOpIn, []string{"pclass5", "pclass6"}))
+		By("Creating a ApplicationAwareResourceQuota with priority class scope")
+		resourceQuotaPriorityClass, err := createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, newTestResourceQuotaWithScopeForPriorityClass("quota-priorityclass", hard, v1.ScopeSelectorOpIn, []string{"pclass5", "pclass6"}))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring ApplicationsResourceQuota status is calculated")
+		By("Ensuring ApplicationAwareResourceQuota status is calculated")
 		usedResources := v1.ResourceList{}
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a pod with priority class pclass5")
@@ -1544,9 +1544,9 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		Expect(err).ToNot(HaveOccurred())
 		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
-		By("Ensuring Applications Resource Quota with priority class is updated with the pod usage")
+		By("Ensuring Application Aware Resource Quota with priority class is updated with the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("1")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating 2nd pod with priority class pclass6")
@@ -1556,9 +1556,9 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		Expect(err).ToNot(HaveOccurred())
 		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
-		By("Ensuring Applications Resource Quota with priority class scope is updated with the pod usage")
+		By("Ensuring Application Aware Resource Quota with priority class scope is updated with the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("2")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Deleting both pods")
@@ -1567,13 +1567,13 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Delete(ctx, pod2.Name, *metav1.NewDeleteOptions(0))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status released the pod usage")
+		By("Ensuring Application Aware Resource Quota status released the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 	})
 
-	It("should verify ApplicationsResourceQuota's priority class scope (quota set to pod count: 1) against a pod with different priority class (ScopeSelectorOpNotIn).", func(ctx context.Context) {
+	It("should verify ApplicationAwareResourceQuota's priority class scope (quota set to pod count: 1) against a pod with different priority class (ScopeSelectorOpNotIn).", func(ctx context.Context) {
 
 		_, err := f.K8sClient.SchedulingV1().PriorityClasses().Create(ctx, &schedulingv1.PriorityClass{ObjectMeta: metav1.ObjectMeta{Name: "pclass7"}, Value: int32(1000)}, metav1.CreateOptions{})
 		if err != nil {
@@ -1583,14 +1583,14 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		hard := v1.ResourceList{}
 		hard[v1.ResourcePods] = resource.MustParse("1")
 
-		By("Creating a ApplicationsResourceQuota with priority class scope")
-		resourceQuotaPriorityClass, err := createApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, newTestResourceQuotaWithScopeForPriorityClass("quota-priorityclass", hard, v1.ScopeSelectorOpNotIn, []string{"pclass7"}))
+		By("Creating a ApplicationAwareResourceQuota with priority class scope")
+		resourceQuotaPriorityClass, err := createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, newTestResourceQuotaWithScopeForPriorityClass("quota-priorityclass", hard, v1.ScopeSelectorOpNotIn, []string{"pclass7"}))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring ApplicationsResourceQuota status is calculated")
+		By("Ensuring ApplicationAwareResourceQuota status is calculated")
 		usedResources := v1.ResourceList{}
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a pod with priority class pclass7")
@@ -1600,9 +1600,9 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		Expect(err).ToNot(HaveOccurred())
 		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
-		By("Ensuring Applications Resource Quota with priority class is not used")
+		By("Ensuring Application Aware Resource Quota with priority class is not used")
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Deleting the pod")
@@ -1610,7 +1610,7 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		Expect(err).ToNot(HaveOccurred())
 	})
 
-	It("should verify ApplicationsResourceQuota's priority class scope (quota set to pod count: 1) against a pod with different priority class (ScopeSelectorOpExists).", func(ctx context.Context) {
+	It("should verify ApplicationAwareResourceQuota's priority class scope (quota set to pod count: 1) against a pod with different priority class (ScopeSelectorOpExists).", func(ctx context.Context) {
 
 		_, err := f.K8sClient.SchedulingV1().PriorityClasses().Create(ctx, &schedulingv1.PriorityClass{ObjectMeta: metav1.ObjectMeta{Name: "pclass8"}, Value: int32(1000)}, metav1.CreateOptions{})
 		if err != nil {
@@ -1620,14 +1620,14 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		hard := v1.ResourceList{}
 		hard[v1.ResourcePods] = resource.MustParse("1")
 
-		By("Creating a ApplicationsResourceQuota with priority class scope")
-		resourceQuotaPriorityClass, err := createApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, newTestResourceQuotaWithScopeForPriorityClass("quota-priorityclass", hard, v1.ScopeSelectorOpExists, []string{}))
+		By("Creating a ApplicationAwareResourceQuota with priority class scope")
+		resourceQuotaPriorityClass, err := createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, newTestResourceQuotaWithScopeForPriorityClass("quota-priorityclass", hard, v1.ScopeSelectorOpExists, []string{}))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring ApplicationsResourceQuota status is calculated")
+		By("Ensuring ApplicationAwareResourceQuota status is calculated")
 		usedResources := v1.ResourceList{}
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a pod with priority class pclass8")
@@ -1637,22 +1637,22 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		Expect(err).ToNot(HaveOccurred())
 		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
-		By("Ensuring Applications Resource Quota with priority class is updated with the pod usage")
+		By("Ensuring Application Aware Resource Quota with priority class is updated with the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("1")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Deleting the pod")
 		err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Delete(ctx, pod.Name, *metav1.NewDeleteOptions(0))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status released the pod usage")
+		By("Ensuring Application Aware Resource Quota status released the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 	})
 
-	It("should verify ApplicationsResourceQuota's priority class scope (cpu, memory quota set) against a pod with same priority class.", func(ctx context.Context) {
+	It("should verify ApplicationAwareResourceQuota's priority class scope (cpu, memory quota set) against a pod with same priority class.", func(ctx context.Context) {
 
 		_, err := f.K8sClient.SchedulingV1().PriorityClasses().Create(ctx, &schedulingv1.PriorityClass{ObjectMeta: metav1.ObjectMeta{Name: "pclass9"}, Value: int32(1000)}, metav1.CreateOptions{})
 		if err != nil {
@@ -1666,18 +1666,18 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		hard[v1.ResourceLimitsCPU] = resource.MustParse("3")
 		hard[v1.ResourceLimitsMemory] = resource.MustParse("3Gi")
 
-		By("Creating a ApplicationsResourceQuota with priority class scope")
-		resourceQuotaPriorityClass, err := createApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, newTestResourceQuotaWithScopeForPriorityClass("quota-priorityclass", hard, v1.ScopeSelectorOpIn, []string{"pclass9"}))
+		By("Creating a ApplicationAwareResourceQuota with priority class scope")
+		resourceQuotaPriorityClass, err := createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, newTestResourceQuotaWithScopeForPriorityClass("quota-priorityclass", hard, v1.ScopeSelectorOpIn, []string{"pclass9"}))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring ApplicationsResourceQuota status is calculated")
+		By("Ensuring ApplicationAwareResourceQuota status is calculated")
 		usedResources := v1.ResourceList{}
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
 		usedResources[v1.ResourceRequestsCPU] = resource.MustParse("0")
 		usedResources[v1.ResourceRequestsMemory] = resource.MustParse("0Gi")
 		usedResources[v1.ResourceLimitsCPU] = resource.MustParse("0")
 		usedResources[v1.ResourceLimitsMemory] = resource.MustParse("0Gi")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a pod with priority class")
@@ -1694,43 +1694,43 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		Expect(err).ToNot(HaveOccurred())
 		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
-		By("Ensuring Applications Resource Quota with priority class scope captures the pod usage")
+		By("Ensuring Application Aware Resource Quota with priority class scope captures the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("1")
 		usedResources[v1.ResourceRequestsCPU] = resource.MustParse("1")
 		usedResources[v1.ResourceRequestsMemory] = resource.MustParse("1Gi")
 		usedResources[v1.ResourceLimitsCPU] = resource.MustParse("2")
 		usedResources[v1.ResourceLimitsMemory] = resource.MustParse("2Gi")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Deleting the pod")
 		err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Delete(ctx, pod.Name, *metav1.NewDeleteOptions(0))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status released the pod usage")
+		By("Ensuring Application Aware Resource Quota status released the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
 		usedResources[v1.ResourceRequestsCPU] = resource.MustParse("0")
 		usedResources[v1.ResourceRequestsMemory] = resource.MustParse("0Gi")
 		usedResources[v1.ResourceLimitsCPU] = resource.MustParse("0")
 		usedResources[v1.ResourceLimitsMemory] = resource.MustParse("0Gi")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, resourceQuotaPriorityClass.Name, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 	})
 
 })
 
-var _ = Describe("ApplicationsResourceQuota", func() {
+var _ = Describe("ApplicationAwareResourceQuota", func() {
 	f := framework.NewFramework("cross-namespace-pod-affinity")
 
-	It("should verify ApplicationsResourceQuota with cross namespace pod affinity scope using scope-selectors.", func(ctx context.Context) {
-		By("Creating a ApplicationsResourceQuota with cross namespace pod affinity scope")
-		quota, err := createApplicationsResourceQuota(
+	It("should verify ApplicationAwareResourceQuota with cross namespace pod affinity scope using scope-selectors.", func(ctx context.Context) {
+		By("Creating a ApplicationAwareResourceQuota with cross namespace pod affinity scope")
+		quota, err := createApplicationAwareResourceQuota(
 			ctx, f.AaqClient, f.Namespace.Name, newTestResourceQuotaWithScopeSelector("quota-cross-namespace-pod-affinity", v1.ResourceQuotaScopeCrossNamespacePodAffinity))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring ApplicationsResourceQuota status is calculated")
+		By("Ensuring ApplicationAwareResourceQuota status is calculated")
 		wantUsedResources := v1.ResourceList{v1.ResourcePods: resource.MustParse("0")}
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quota.Name, wantUsedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quota.Name, wantUsedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a pod that does not use cross namespace affinity")
@@ -1754,9 +1754,9 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		Expect(err).ToNot(HaveOccurred())
 		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
-		By("Ensuring Applications Resource Quota captures podWithNamespaces usage")
+		By("Ensuring Application Aware Resource Quota captures podWithNamespaces usage")
 		wantUsedResources[v1.ResourcePods] = resource.MustParse("1")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quota.Name, wantUsedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quota.Name, wantUsedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a pod that uses namespaceSelector field")
@@ -1777,9 +1777,9 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		Expect(err).ToNot(HaveOccurred())
 		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
-		By("Ensuring Applications Resource Quota captures podWithNamespaceSelector usage")
+		By("Ensuring Application Aware Resource Quota captures podWithNamespaceSelector usage")
 		wantUsedResources[v1.ResourcePods] = resource.MustParse("2")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quota.Name, wantUsedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quota.Name, wantUsedResources)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Deleting the pods")
@@ -1790,15 +1790,15 @@ var _ = Describe("ApplicationsResourceQuota", func() {
 		err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Delete(ctx, podWithNamespaceSelector.Name, *metav1.NewDeleteOptions(0))
 		Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring Applications Resource Quota status released the pod usage")
+		By("Ensuring Application Aware Resource Quota status released the pod usage")
 		wantUsedResources[v1.ResourcePods] = resource.MustParse("0")
-		err = waitForApplicationsResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quota.Name, wantUsedResources)
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quota.Name, wantUsedResources)
 		Expect(err).ToNot(HaveOccurred())
 	})
 })
 
 // newTestResourceQuotaWithScopeSelector returns a quota that enforces default constraints for testing with scopeSelectors
-func newTestResourceQuotaWithScopeSelector(name string, scope v1.ResourceQuotaScope) *v1alpha1.ApplicationsResourceQuota {
+func newTestResourceQuotaWithScopeSelector(name string, scope v1.ResourceQuotaScope) *v1alpha1.ApplicationAwareResourceQuota {
 	hard := v1.ResourceList{}
 	hard[v1.ResourcePods] = resource.MustParse("5")
 	switch scope {
@@ -1808,9 +1808,9 @@ func newTestResourceQuotaWithScopeSelector(name string, scope v1.ResourceQuotaSc
 		hard[v1.ResourceLimitsCPU] = resource.MustParse("2")
 		hard[v1.ResourceLimitsMemory] = resource.MustParse("1Gi")
 	}
-	return &v1alpha1.ApplicationsResourceQuota{
+	return &v1alpha1.ApplicationAwareResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
-		Spec: v1alpha1.ApplicationsResourceQuotaSpec{ResourceQuotaSpec: v1.ResourceQuotaSpec{Hard: hard,
+		Spec: v1alpha1.ApplicationAwareResourceQuotaSpec{ResourceQuotaSpec: v1.ResourceQuotaSpec{Hard: hard,
 			ScopeSelector: &v1.ScopeSelector{
 				MatchExpressions: []v1.ScopedResourceSelectorRequirement{
 					{
@@ -1823,8 +1823,8 @@ func newTestResourceQuotaWithScopeSelector(name string, scope v1.ResourceQuotaSc
 	}
 }
 
-// newTestApplicationsResourceQuotaWithScope returns a quota that enforces default constraints for testing with scopes
-func newTestApplicationsResourceQuotaWithScope(name string, scope v1.ResourceQuotaScope) *v1alpha1.ApplicationsResourceQuota {
+// newTestApplicationAwareResourceQuotaWithScope returns a quota that enforces default constraints for testing with scopes
+func newTestApplicationAwareResourceQuotaWithScope(name string, scope v1.ResourceQuotaScope) *v1alpha1.ApplicationAwareResourceQuota {
 	hard := v1.ResourceList{}
 	hard[v1.ResourcePods] = resource.MustParse("5")
 	switch scope {
@@ -1834,18 +1834,18 @@ func newTestApplicationsResourceQuotaWithScope(name string, scope v1.ResourceQuo
 		hard[v1.ResourceLimitsCPU] = resource.MustParse("2")
 		hard[v1.ResourceLimitsMemory] = resource.MustParse("1Gi")
 	}
-	return &v1alpha1.ApplicationsResourceQuota{
+	return &v1alpha1.ApplicationAwareResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
-		Spec:       v1alpha1.ApplicationsResourceQuotaSpec{ResourceQuotaSpec: v1.ResourceQuotaSpec{Hard: hard, Scopes: []v1.ResourceQuotaScope{scope}}},
+		Spec:       v1alpha1.ApplicationAwareResourceQuotaSpec{ResourceQuotaSpec: v1.ResourceQuotaSpec{Hard: hard, Scopes: []v1.ResourceQuotaScope{scope}}},
 	}
 }
 
 // newTestResourceQuotaWithScopeForPriorityClass returns a quota
 // that enforces default constraints for testing with ResourceQuotaScopePriorityClass scope
-func newTestResourceQuotaWithScopeForPriorityClass(name string, hard v1.ResourceList, op v1.ScopeSelectorOperator, values []string) *v1alpha1.ApplicationsResourceQuota {
-	return &v1alpha1.ApplicationsResourceQuota{
+func newTestResourceQuotaWithScopeForPriorityClass(name string, hard v1.ResourceList, op v1.ScopeSelectorOperator, values []string) *v1alpha1.ApplicationAwareResourceQuota {
+	return &v1alpha1.ApplicationAwareResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
-		Spec: v1alpha1.ApplicationsResourceQuotaSpec{v1.ResourceQuotaSpec{Hard: hard,
+		Spec: v1alpha1.ApplicationAwareResourceQuotaSpec{v1.ResourceQuotaSpec{Hard: hard,
 			ScopeSelector: &v1.ScopeSelector{
 				MatchExpressions: []v1.ScopedResourceSelectorRequirement{
 					{
@@ -1860,8 +1860,8 @@ func newTestResourceQuotaWithScopeForPriorityClass(name string, hard v1.Resource
 	}
 }
 
-// newTestApplicationsResourceQuota returns a quota that enforces default constraints for testing
-func newTestApplicationsResourceQuota(name string) *v1alpha1.ApplicationsResourceQuota {
+// newTestApplicationAwareResourceQuota returns a quota that enforces default constraints for testing
+func newTestApplicationAwareResourceQuota(name string) *v1alpha1.ApplicationAwareResourceQuota {
 	hard := v1.ResourceList{}
 	hard[v1.ResourcePods] = resource.MustParse("5")
 	hard[v1.ResourceServices] = resource.MustParse("10")
@@ -1882,9 +1882,9 @@ func newTestApplicationsResourceQuota(name string) *v1alpha1.ApplicationsResourc
 	hard[v1.ResourceName("count/replicasets.apps")] = resource.MustParse("5")
 	// test quota on extended resource
 	hard[v1.ResourceName(v1.DefaultResourceRequestsPrefix+extendedResourceName)] = resource.MustParse("3")
-	return &v1alpha1.ApplicationsResourceQuota{
+	return &v1alpha1.ApplicationAwareResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
-		Spec:       v1alpha1.ApplicationsResourceQuotaSpec{ResourceQuotaSpec: v1.ResourceQuotaSpec{Hard: hard}},
+		Spec:       v1alpha1.ApplicationAwareResourceQuotaSpec{ResourceQuotaSpec: v1.ResourceQuotaSpec{Hard: hard}},
 	}
 }
 
@@ -2091,26 +2091,26 @@ func newTestSecretForQuota(name string) *v1.Secret {
 	}
 }
 
-// createApplicationsResourceQuota in the specified namespace
-func createApplicationsResourceQuota(ctx context.Context, c *aaqclientset.Clientset, namespace string, applicationsResourceQuota *v1alpha1.ApplicationsResourceQuota) (*v1alpha1.ApplicationsResourceQuota, error) {
-	return c.AaqV1alpha1().ApplicationsResourceQuotas(namespace).Create(ctx, applicationsResourceQuota, metav1.CreateOptions{})
+// createApplicationAwareResourceQuota in the specified namespace
+func createApplicationAwareResourceQuota(ctx context.Context, c *aaqclientset.Clientset, namespace string, ApplicationAwareResourceQuota *v1alpha1.ApplicationAwareResourceQuota) (*v1alpha1.ApplicationAwareResourceQuota, error) {
+	return c.AaqV1alpha1().ApplicationAwareResourceQuotas(namespace).Create(ctx, ApplicationAwareResourceQuota, metav1.CreateOptions{})
 }
 
-// deleteApplicationsResourceQuota with the specified name
-func deleteApplicationsResourceQuota(ctx context.Context, c *aaqclientset.Clientset, namespace, name string) error {
-	return c.AaqV1alpha1().ApplicationsResourceQuotas(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+// deleteApplicationAwareResourceQuota with the specified name
+func deleteApplicationAwareResourceQuota(ctx context.Context, c *aaqclientset.Clientset, namespace, name string) error {
+	return c.AaqV1alpha1().ApplicationAwareResourceQuotas(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 }
 
-// countApplicationsResourceQuota counts the number of ApplicationsResourceQuota in the specified namespace
+// countApplicationAwareResourceQuota counts the number of ApplicationAwareResourceQuota in the specified namespace
 // On contended servers the service account controller can slow down, leading to the count changing during a run.
 // Wait up to 5s for the count to stabilize, assuming that updates come at a consistent rate, and are not held indefinitely.
-func countApplicationsResourceQuota(ctx context.Context, c *aaqclientset.Clientset, namespace string) (int, error) {
+func countApplicationAwareResourceQuota(ctx context.Context, c *aaqclientset.Clientset, namespace string) (int, error) {
 	found, unchanged := 0, 0
 	return found, wait.PollWithContext(ctx, 1*time.Second, 30*time.Second, func(ctx context.Context) (bool, error) {
-		arqs, err := c.AaqV1alpha1().ApplicationsResourceQuotas(namespace).List(ctx, metav1.ListOptions{})
+		arqs, err := c.AaqV1alpha1().ApplicationAwareResourceQuotas(namespace).List(ctx, metav1.ListOptions{})
 		Expect(err).ToNot(HaveOccurred())
 		if len(arqs.Items) == found {
-			// loop until the number of Applications Resource Quotas has stabilized for 5 seconds
+			// loop until the number of Application Aware Resource Quotas has stabilized for 5 seconds
 			unchanged++
 			return unchanged > 4, nil
 		}
@@ -2120,20 +2120,20 @@ func countApplicationsResourceQuota(ctx context.Context, c *aaqclientset.Clients
 	})
 }
 
-// wait for Applications Resource Quota status to show the expected used resources value
-func waitForApplicationsResourceQuota(ctx context.Context, c *aaqclientset.Clientset, ns, quotaName string, used v1.ResourceList) error {
+// wait for Application Aware Resource Quota status to show the expected used resources value
+func waitForApplicationAwareResourceQuota(ctx context.Context, c *aaqclientset.Clientset, ns, quotaName string, used v1.ResourceList) error {
 	return wait.PollWithContext(ctx, 2*time.Second, resourceQuotaTimeout, func(ctx context.Context) (bool, error) {
-		ApplicationsResourceQuota, err := c.AaqV1alpha1().ApplicationsResourceQuotas(ns).Get(ctx, quotaName, metav1.GetOptions{})
+		ApplicationAwareResourceQuota, err := c.AaqV1alpha1().ApplicationAwareResourceQuotas(ns).Get(ctx, quotaName, metav1.GetOptions{})
 		if err != nil {
 			return false, err
 		}
 		// used may not yet be calculated
-		if ApplicationsResourceQuota.Status.Used == nil {
+		if ApplicationAwareResourceQuota.Status.Used == nil {
 			return false, nil
 		}
 		// verify that the quota shows the expected used resource values
 		for k, v := range used {
-			if actualValue, found := ApplicationsResourceQuota.Status.Used[k]; !found || (actualValue.Cmp(v) != 0) {
+			if actualValue, found := ApplicationAwareResourceQuota.Status.Used[k]; !found || (actualValue.Cmp(v) != 0) {
 				fmt.Printf(fmt.Sprintf("resource %s, expected %s, actual %s\n", k, v.String(), actualValue.String()))
 				return false, nil
 			}
@@ -2142,11 +2142,11 @@ func waitForApplicationsResourceQuota(ctx context.Context, c *aaqclientset.Clien
 	})
 }
 
-// updateApplicationsResourceQuotaUntilUsageAppears updates the Applications Resource Quota object until the usage is populated
+// updateApplicationAwareResourceQuotaUntilUsageAppears updates the Application Aware Resource Quota object until the usage is populated
 // for the specific resource name.
-func updateApplicationsResourceQuotaUntilUsageAppears(ctx context.Context, c *aaqclientset.Clientset, ns, quotaName string, resourceName v1.ResourceName) error {
+func updateApplicationAwareResourceQuotaUntilUsageAppears(ctx context.Context, c *aaqclientset.Clientset, ns, quotaName string, resourceName v1.ResourceName) error {
 	return wait.PollWithContext(ctx, 2*time.Second, resourceQuotaTimeout, func(ctx context.Context) (bool, error) {
-		arq, err := c.AaqV1alpha1().ApplicationsResourceQuotas(ns).Get(ctx, quotaName, metav1.GetOptions{})
+		arq, err := c.AaqV1alpha1().ApplicationAwareResourceQuotas(ns).Get(ctx, quotaName, metav1.GetOptions{})
 		if err != nil {
 			return false, err
 		}
@@ -2159,7 +2159,7 @@ func updateApplicationsResourceQuotaUntilUsageAppears(ctx context.Context, c *aa
 		current := arq.Spec.Hard[resourceName]
 		current.Add(resource.MustParse("1"))
 		arq.Spec.Hard[resourceName] = current
-		_, err = c.AaqV1alpha1().ApplicationsResourceQuotas(ns).Update(ctx, arq, metav1.UpdateOptions{})
+		_, err = c.AaqV1alpha1().ApplicationAwareResourceQuotas(ns).Update(ctx, arq, metav1.UpdateOptions{})
 		// ignoring conflicts since someone else may already updated it.
 		if apierrors.IsConflict(err) {
 			return false, nil
@@ -2168,12 +2168,12 @@ func updateApplicationsResourceQuotaUntilUsageAppears(ctx context.Context, c *aa
 	})
 }
 
-func unstructuredToApplicationsResourceQuota(obj *unstructured.Unstructured) (*v1alpha1.ApplicationsResourceQuota, error) {
+func unstructuredToApplicationAwareResourceQuota(obj *unstructured.Unstructured) (*v1alpha1.ApplicationAwareResourceQuota, error) {
 	json, err := runtime.Encode(unstructured.UnstructuredJSONScheme, obj)
 	if err != nil {
 		return nil, err
 	}
-	rq := &v1alpha1.ApplicationsResourceQuota{}
+	rq := &v1alpha1.ApplicationAwareResourceQuota{}
 	err = runtime.DecodeInto(clientscheme.Codecs.LegacyCodec(v1.SchemeGroupVersion), json, rq)
 
 	return rq, err

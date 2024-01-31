@@ -81,7 +81,7 @@ const (
 	// ConfigMapName is the name of the aaq configmap that own aaq resources
 	ConfigMapName                                            = "aaq-config"
 	OperatorServiceAccountName                               = "aaq-operator"
-	AAQGate                                                  = "ApplicationsAwareQuotaGate"
+	AAQGate                                                  = "ApplicationAwareQuotaGate"
 	ControllerResourceName                                   = ControllerPodName
 	SecretResourceName                                       = "aaq-server-cert"
 	AaqServerResourceName                                    = "aaq-server"

@@ -21,7 +21,7 @@ import (
 	v1 "kubevirt.io/api/core/v1"
 	generatedclient "kubevirt.io/applications-aware-quota/pkg/generated/aaq/clientset/versioned"
 	kubevirtclient "kubevirt.io/applications-aware-quota/pkg/generated/kubevirt/clientset/versioned"
-	applicationsResourceQuota "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core"
+	applicationAwareResourceQuota "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core"
 	v1alpha13 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 )
 
@@ -48,10 +48,10 @@ func init() {
 	registerVersion := os.Getenv(v1.KubeVirtClientGoSchemeRegistrationVersionEnvVar)
 	if registerVersion != "" {
 		SchemeBuilder = runtime.NewSchemeBuilder(v1.AddKnownTypesGenerator([]schema.GroupVersion{schema.GroupVersion{Group: core.GroupName, Version: registerVersion}}),
-			v1alpha13.AddKnownTypesGenerator([]schema.GroupVersion{{Group: applicationsResourceQuota.GroupName, Version: applicationsResourceQuota.LatestVersion}}))
+			v1alpha13.AddKnownTypesGenerator([]schema.GroupVersion{{Group: applicationAwareResourceQuota.GroupName, Version: applicationAwareResourceQuota.LatestVersion}}))
 	} else {
 		SchemeBuilder = runtime.NewSchemeBuilder(v1.AddKnownTypesGenerator(v1.GroupVersions),
-			v1alpha13.AddKnownTypesGenerator([]schema.GroupVersion{{Group: applicationsResourceQuota.GroupName, Version: applicationsResourceQuota.LatestVersion}}))
+			v1alpha13.AddKnownTypesGenerator([]schema.GroupVersion{{Group: applicationAwareResourceQuota.GroupName, Version: applicationAwareResourceQuota.LatestVersion}}))
 	}
 	Scheme = runtime.NewScheme()
 	AddToScheme := SchemeBuilder.AddToScheme

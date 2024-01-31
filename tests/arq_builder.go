@@ -8,13 +8,13 @@ import (
 
 // QuotaBuilder is a builder for creating a ResourceQuota.
 type ArqBuilder struct {
-	arq *v1alpha1.ApplicationsResourceQuota
+	arq *v1alpha1.ApplicationAwareResourceQuota
 }
 
 // NewQuotaBuilder creates a new instance of QuotaBuilder.
 func NewArqBuilder() *ArqBuilder {
 	return &ArqBuilder{
-		arq: &v1alpha1.ApplicationsResourceQuota{},
+		arq: &v1alpha1.ApplicationAwareResourceQuota{},
 	}
 }
 
@@ -58,6 +58,6 @@ func (qb *ArqBuilder) WithSyncStatusHardEmptyStatusUsed() *ArqBuilder {
 }
 
 // Build creates and returns the ResourceQuota.
-func (qb *ArqBuilder) Build() *v1alpha1.ApplicationsResourceQuota {
+func (qb *ArqBuilder) Build() *v1alpha1.ApplicationAwareResourceQuota {
 	return qb.arq
 }

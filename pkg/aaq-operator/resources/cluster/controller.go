@@ -143,7 +143,7 @@ func getControllerClusterPolicyRules() []rbacv1.PolicyRule {
 				"aaq.kubevirt.io",
 			},
 			Resources: []string{
-				"applicationsresourcequotas",
+				"applicationawareresourcequotas",
 			},
 			Verbs: []string{
 				"get",
@@ -157,7 +157,7 @@ func getControllerClusterPolicyRules() []rbacv1.PolicyRule {
 				"aaq.kubevirt.io",
 			},
 			Resources: []string{
-				"clusterappsresourcequotas",
+				"applicationawareclusterresourcequotas",
 			},
 			Verbs: []string{
 				"get",
@@ -170,7 +170,7 @@ func getControllerClusterPolicyRules() []rbacv1.PolicyRule {
 				"aaq.kubevirt.io",
 			},
 			Resources: []string{
-				"clusterappsresourcequotas/finalizers",
+				"applicationawareclusterresourcequotas/finalizers",
 			},
 			Verbs: []string{
 				"create",
@@ -182,7 +182,7 @@ func getControllerClusterPolicyRules() []rbacv1.PolicyRule {
 				"aaq.kubevirt.io",
 			},
 			Resources: []string{
-				"applicationsresourcequotas/finalizers",
+				"applicationawareresourcequotas/finalizers",
 			},
 			Verbs: []string{
 				"create",
@@ -194,7 +194,7 @@ func getControllerClusterPolicyRules() []rbacv1.PolicyRule {
 				"aaq.kubevirt.io",
 			},
 			Resources: []string{
-				"applicationsresourcequotas/status",
+				"applicationawareresourcequotas/status",
 			},
 			Verbs: []string{
 				"update",
@@ -205,7 +205,7 @@ func getControllerClusterPolicyRules() []rbacv1.PolicyRule {
 				"aaq.kubevirt.io",
 			},
 			Resources: []string{
-				"clusterappsresourcequotas/status",
+				"applicationawareclusterresourcequotas/status",
 			},
 			Verbs: []string{
 				"update",

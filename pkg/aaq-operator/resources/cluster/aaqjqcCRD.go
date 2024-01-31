@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// createApplicationsResourceQuotaCRD creates the ARQ schema
+// createAaqJobQueueConfigsCRD creates the ARQ schema
 func createAaqJobQueueConfigsCRD() *extv1.CustomResourceDefinition {
 	crd := extv1.CustomResourceDefinition{}
 	_ = k8syaml.NewYAMLToJSONDecoder(strings.NewReader(resources.AAQCRDs["aaqjobqueueconfig"])).Decode(&crd)

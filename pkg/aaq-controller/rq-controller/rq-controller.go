@@ -71,9 +71,9 @@ func NewRQController(aaqCli client.AAQClient,
 	return &ctrl
 }
 
-// When a ApplicationsResourceQuotas is deleted, enqueue all gated pods for revaluation
+// When a ApplicationAwareResourceQuota is deleted, enqueue all gated pods for revaluation
 func (ctrl *RQController) deleteArq(obj interface{}) {
-	arq := obj.(*v1alpha12.ApplicationsResourceQuota)
+	arq := obj.(*v1alpha12.ApplicationAwareResourceQuota)
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(arq)
 	if err != nil {
 		return
@@ -82,9 +82,9 @@ func (ctrl *RQController) deleteArq(obj interface{}) {
 	return
 }
 
-// When a ApplicationsResourceQuotas is updated, enqueue all gated pods for revaluation
+// When a ApplicationAwareResourceQuota is updated, enqueue all gated pods for revaluation
 func (ctrl *RQController) addArq(obj interface{}) {
-	arq := obj.(*v1alpha12.ApplicationsResourceQuota)
+	arq := obj.(*v1alpha12.ApplicationAwareResourceQuota)
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(arq)
 	if err != nil {
 		return
@@ -93,10 +93,10 @@ func (ctrl *RQController) addArq(obj interface{}) {
 	return
 }
 
-// When a ApplicationsResourceQuotas is updated, enqueue all gated pods for revaluation
+// When a ApplicationAwareResourceQuota is updated, enqueue all gated pods for revaluation
 func (ctrl *RQController) updateArq(old, cur interface{}) {
-	curArq := cur.(*v1alpha12.ApplicationsResourceQuota)
-	oldArq := old.(*v1alpha12.ApplicationsResourceQuota)
+	curArq := cur.(*v1alpha12.ApplicationAwareResourceQuota)
+	oldArq := old.(*v1alpha12.ApplicationAwareResourceQuota)
 
 	if !quota.Equals(curArq.Spec.Hard, oldArq.Spec.Hard) {
 		key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(curArq)
@@ -111,7 +111,7 @@ func (ctrl *RQController) updateArq(old, cur interface{}) {
 
 func (ctrl *RQController) deleteRQ(obj interface{}) {
 	rq := obj.(*v1.ResourceQuota)
-	arq := &v1alpha12.ApplicationsResourceQuota{
+	arq := &v1alpha12.ApplicationAwareResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: strings.TrimSuffix(rq.Name, RQSuffix), Namespace: rq.Namespace},
 	}
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(arq)
@@ -126,7 +126,7 @@ func (ctrl *RQController) updateRQ(old, curr interface{}) {
 	curRq := curr.(*v1.ResourceQuota)
 	oldRq := old.(*v1.ResourceQuota)
 	if !quota.Equals(curRq.Spec.Hard, oldRq.Spec.Hard) || !labels.Equals(curRq.Labels, oldRq.Labels) {
-		arq := &v1alpha12.ApplicationsResourceQuota{
+		arq := &v1alpha12.ApplicationAwareResourceQuota{
 			ObjectMeta: metav1.ObjectMeta{Name: strings.TrimSuffix(curRq.Name, RQSuffix), Namespace: curRq.Namespace},
 		}
 		key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(arq)
@@ -180,7 +180,7 @@ func (ctrl *RQController) execute(key string) (error, enqueueState) {
 		}
 	}
 
-	arq := arqObj.(*v1alpha12.ApplicationsResourceQuota).DeepCopy()
+	arq := arqObj.(*v1alpha12.ApplicationAwareResourceQuota).DeepCopy()
 	nonSchedulableResourcesLimitations := util.FilterNonScheduableResources(arq.Spec.Hard)
 	if len(nonSchedulableResourcesLimitations) == 0 {
 		err = ctrl.aaqCli.CoreV1().ResourceQuotas(arqNS).Delete(context.Background(), arqName+RQSuffix, metav1.DeleteOptions{})
@@ -202,7 +202,7 @@ func (ctrl *RQController) execute(key string) (error, enqueueState) {
 					util.AAQLabel: "true",
 				},
 				OwnerReferences: []metav1.OwnerReference{
-					*metav1.NewControllerRef(arq, v1alpha12.ApplicationsResourceQuotaGroupVersionKind),
+					*metav1.NewControllerRef(arq, v1alpha12.ApplicationAwareResourceQuotaGroupVersionKind),
 				},
 			},
 			Spec: v1.ResourceQuotaSpec{

@@ -1,4 +1,4 @@
-package carq_controller
+package acrq_controller
 
 import (
 	"context"
@@ -43,12 +43,12 @@ const (
 	BackOff   enqueueState = "BackOff"
 )
 
-type CarqController struct {
+type AcrqController struct {
 	podInformer    cache.SharedIndexInformer
 	aaqjqcInformer cache.SharedIndexInformer
 	aaqCli         client.AAQClient
 
-	carqInformer cache.SharedIndexInformer
+	AcrqInformer cache.SharedIndexInformer
 	crqInformer  cache.SharedIndexInformer
 
 	clusterQuotaMapper clusterquotamapping.ClusterQuotaMapper
@@ -75,18 +75,18 @@ type workItem struct {
 	forceRecalculation bool
 }
 
-func NewCarqController(aaqCli client.AAQClient,
+func NewAcrqController(aaqCli client.AAQClient,
 	clusterQuotaMapper clusterquotamapping.ClusterQuotaMapper,
-	carqInformer cache.SharedIndexInformer,
+	AcrqInformer cache.SharedIndexInformer,
 	crqInformer cache.SharedIndexInformer,
 	podInformer cache.SharedIndexInformer,
 	aaqjqcInformer cache.SharedIndexInformer,
 	calcRegistry *aaq_evaluator.AaqCalculatorsRegistry,
 	stop <-chan struct{},
 	collectCrqsData bool,
-) *CarqController {
-	ctrl := &CarqController{
-		carqInformer:       carqInformer,
+) *AcrqController {
+	ctrl := &AcrqController{
+		AcrqInformer:       AcrqInformer,
 		clusterQuotaMapper: clusterQuotaMapper,
 		aaqCli:             aaqCli,
 		aaqjqcInformer:     aaqjqcInformer,
@@ -100,9 +100,9 @@ func NewCarqController(aaqCli client.AAQClient,
 		collectCrqsData:    collectCrqsData,
 	}
 
-	carqInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    ctrl.addCarq,
-		UpdateFunc: ctrl.updateCarq,
+	AcrqInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    ctrl.addAcrq,
+		UpdateFunc: ctrl.updateAcrq,
 	})
 
 	_, err := ctrl.podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -134,10 +134,10 @@ func NewCarqController(aaqCli client.AAQClient,
 }
 
 // Run begins quota controller using the specified number of workers
-func (c *CarqController) Run(ctx context.Context, workers int) {
+func (c *AcrqController) Run(ctx context.Context, workers int) {
 	defer utilruntime.HandleCrash()
-	klog.Info("Starting Carq controller")
-	defer klog.Info("Shutting Carq Controller")
+	klog.Info("Starting acrq controller")
+	defer klog.Info("Shutting acrq Controller")
 	defer utilruntime.HandleCrash()
 
 	klog.Infof("Starting the cluster quota reconciliation controller")
@@ -157,7 +157,7 @@ func (c *CarqController) Run(ctx context.Context, workers int) {
 	c.queue.ShutDown()
 }
 
-func (c *CarqController) calculate(quotaName string, namespaceNames ...string) {
+func (c *AcrqController) calculate(quotaName string, namespaceNames ...string) {
 	if len(namespaceNames) == 0 {
 		klog.V(2).Infof("no namespace is passed for quota %s", quotaName)
 		return
@@ -171,7 +171,7 @@ func (c *CarqController) calculate(quotaName string, namespaceNames ...string) {
 	c.queue.AddWithData(quotaName, items...)
 }
 
-func (c *CarqController) forceCalculation(quotaName string, namespaceNames ...string) {
+func (c *AcrqController) forceCalculation(quotaName string, namespaceNames ...string) {
 	if len(namespaceNames) == 0 {
 		return
 	}
@@ -184,11 +184,11 @@ func (c *CarqController) forceCalculation(quotaName string, namespaceNames ...st
 	c.queue.AddWithData(quotaName, items...)
 }
 
-func (ctrl *CarqController) calculateAll(queue util.BucketingWorkQueue) {
-	quotaObjs := ctrl.carqInformer.GetIndexer().List()
+func (ctrl *AcrqController) calculateAll(queue util.BucketingWorkQueue) {
+	quotaObjs := ctrl.AcrqInformer.GetIndexer().List()
 
 	for _, quotaObj := range quotaObjs {
-		quota := quotaObj.(*v1alpha1.ClusterAppsResourceQuota)
+		quota := quotaObj.(*v1alpha1.ApplicationAwareClusterResourceQuota)
 		// If we have namespaces we map to, force calculating those namespaces
 		namespaces, _ := ctrl.clusterQuotaMapper.GetNamespacesFor(quota.Name)
 		if len(namespaces) > 0 {
@@ -208,7 +208,7 @@ func (ctrl *CarqController) calculateAll(queue util.BucketingWorkQueue) {
 
 // worker runs a worker thread that just dequeues items, processes them, and marks them done.
 // It enforces that the syncHandler is never invoked concurrently with the same key.
-func (c *CarqController) worker() {
+func (c *AcrqController) worker() {
 	workFunc := func() bool {
 		uncastKey, uncastData, quit := c.queue.GetWithData()
 		if quit {
@@ -221,7 +221,7 @@ func (c *CarqController) worker() {
 
 		quotaName := uncastKey.(string)
 
-		quotaObj, exists, err := c.carqInformer.GetIndexer().GetByKey(quotaName)
+		quotaObj, exists, err := c.AcrqInformer.GetIndexer().GetByKey(quotaName)
 
 		if !exists || apierrors.IsNotFound(err) {
 			klog.V(4).Infof("queued quota %s not found in quota lister", quotaName)
@@ -238,7 +238,7 @@ func (c *CarqController) worker() {
 		for _, dataElement := range uncastData {
 			workItems = append(workItems, dataElement.(workItem))
 		}
-		err, retryItems := c.syncQuotaForNamespaces(quotaObj.(*v1alpha1.ClusterAppsResourceQuota), workItems)
+		err, retryItems := c.syncQuotaForNamespaces(quotaObj.(*v1alpha1.ApplicationAwareClusterResourceQuota), workItems)
 		if err == nil {
 			c.queue.Forget(uncastKey)
 			return false
@@ -262,7 +262,7 @@ func (c *CarqController) worker() {
 }
 
 // syncResourceQuotaFromKey syncs a quota key
-func (ctrl *CarqController) syncQuotaForNamespaces(originalQuota *v1alpha1.ClusterAppsResourceQuota, workItems []workItem) (error, []workItem /* to retry */) {
+func (ctrl *AcrqController) syncQuotaForNamespaces(originalQuota *v1alpha1.ApplicationAwareClusterResourceQuota, workItems []workItem) (error, []workItem /* to retry */) {
 	quota := originalQuota.DeepCopy()
 
 	// get the list of namespaces that match this cluster quota
@@ -345,14 +345,14 @@ func (ctrl *CarqController) syncQuotaForNamespaces(originalQuota *v1alpha1.Clust
 		return kutilerrors.NewAggregate(reconcilationErrors), retryItems
 	}
 
-	if _, err := ctrl.aaqCli.ClusterAppsResourceQuotas().UpdateStatus(context.TODO(), quota, metav1.UpdateOptions{}); err != nil {
+	if _, err := ctrl.aaqCli.ApplicationAwareClusterResourceQuotas().UpdateStatus(context.TODO(), quota, metav1.UpdateOptions{}); err != nil {
 		return kutilerrors.NewAggregate(append(reconcilationErrors, err)), workItems
 	}
 
 	return kutilerrors.NewAggregate(reconcilationErrors), retryItems
 }
 
-func (ctrl *CarqController) addAllCarqsAppliedToNamespace(namespace string) {
+func (ctrl *AcrqController) addAllAcrqsAppliedToNamespace(namespace string) {
 	quotaNames, _ := ctrl.clusterQuotaMapper.GetClusterQuotasFor(namespace)
 	if len(quotaNames) > 0 {
 		klog.V(2).Infof("replenish quotas %v for namespace %s", quotaNames, namespace)
@@ -362,81 +362,81 @@ func (ctrl *CarqController) addAllCarqsAppliedToNamespace(namespace string) {
 	}
 }
 
-func (ctrl *CarqController) updateCRQ(old, curr interface{}) {
+func (ctrl *AcrqController) updateCRQ(old, curr interface{}) {
 	crq := curr.(*quotav1.ClusterResourceQuota)
-	carq := &v1alpha1.ClusterAppsResourceQuota{
+	acrq := &v1alpha1.ApplicationAwareClusterResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: strings.TrimSuffix(crq.Name, crq_controller.CRQSuffix), Namespace: crq.Namespace},
 	}
-	namespaces, _ := ctrl.clusterQuotaMapper.GetNamespacesFor(carq.Name)
-	ctrl.forceCalculation(carq.Name, namespaces...)
+	namespaces, _ := ctrl.clusterQuotaMapper.GetNamespacesFor(acrq.Name)
+	ctrl.forceCalculation(acrq.Name, namespaces...)
 }
 
-func (ctrl *CarqController) deleteCRQ(obj interface{}) {
+func (ctrl *AcrqController) deleteCRQ(obj interface{}) {
 	crq := obj.(*quotav1.ClusterResourceQuota)
-	carq := &v1alpha1.ClusterAppsResourceQuota{
+	acrq := &v1alpha1.ApplicationAwareClusterResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: strings.TrimSuffix(crq.Name, crq_controller.CRQSuffix), Namespace: crq.Namespace},
 	}
-	namespaces, _ := ctrl.clusterQuotaMapper.GetNamespacesFor(carq.Name)
-	ctrl.forceCalculation(carq.Name, namespaces...)
+	namespaces, _ := ctrl.clusterQuotaMapper.GetNamespacesFor(acrq.Name)
+	ctrl.forceCalculation(acrq.Name, namespaces...)
 }
 
-func (ctrl *CarqController) addCRQ(obj interface{}) {
+func (ctrl *AcrqController) addCRQ(obj interface{}) {
 	crq := obj.(*quotav1.ClusterResourceQuota)
-	carq := &v1alpha1.ClusterAppsResourceQuota{
+	acrq := &v1alpha1.ApplicationAwareClusterResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: strings.TrimSuffix(crq.Name, crq_controller.CRQSuffix), Namespace: crq.Namespace},
 	}
-	namespaces, _ := ctrl.clusterQuotaMapper.GetNamespacesFor(carq.Name)
-	ctrl.forceCalculation(carq.Name, namespaces...)
+	namespaces, _ := ctrl.clusterQuotaMapper.GetNamespacesFor(acrq.Name)
+	ctrl.forceCalculation(acrq.Name, namespaces...)
 }
 
-// When a ApplicationsResourceQuotaaqjqc.Status.PodsInJobQueuea is updated, enqueue all gated pods for revaluation
-func (ctrl *CarqController) updateAaqjqc(old, cur interface{}) {
+// When a ApplicationAwareResourceQuota.Status.PodsInJobQueuea is updated, enqueue all gated pods for revaluation
+func (ctrl *AcrqController) updateAaqjqc(old, cur interface{}) {
 	aaqjqc := cur.(*v1alpha1.AAQJobQueueConfig)
-	if aaqjqc.Status.ControllerLock[arq_controller.ClusterAppsResourceQuotaLockName] {
+	if aaqjqc.Status.ControllerLock[arq_controller.ApplicationAwareClusterResourceQuotaLockName] {
 		ctrl.nsQueue.Add(aaqjqc.Namespace)
 	}
 	return
 }
 
-// When a ApplicationsResourceQuotaaqjqc.Status.PodsInJobQueuea is updated, enqueue all gated pods for revaluation
-func (ctrl *CarqController) addAaqjqc(obj interface{}) {
+// When a ApplicationAwareResourceQuota.Status.PodsInJobQueuea is updated, enqueue all gated pods for revaluation
+func (ctrl *AcrqController) addAaqjqc(obj interface{}) {
 	aaqjqc := obj.(*v1alpha1.AAQJobQueueConfig)
-	if aaqjqc.Status.ControllerLock[arq_controller.ClusterAppsResourceQuotaLockName] {
+	if aaqjqc.Status.ControllerLock[arq_controller.ApplicationAwareClusterResourceQuotaLockName] {
 		ctrl.nsQueue.Add(aaqjqc.Namespace)
 	}
 	return
 }
 
-func (ctrl *CarqController) updatePod(old, curr interface{}) {
+func (ctrl *AcrqController) updatePod(old, curr interface{}) {
 	currPod := curr.(*v1.Pod)
 	oldPod := old.(*v1.Pod)
 	if len(oldPod.Spec.SchedulingGates) == 0 && len(currPod.Spec.SchedulingGates) == 0 {
-		ctrl.addAllCarqsAppliedToNamespace(currPod.Namespace)
+		ctrl.addAllAcrqsAppliedToNamespace(currPod.Namespace)
 	}
 }
 
-func (ctrl *CarqController) addPod(obj interface{}) {
+func (ctrl *AcrqController) addPod(obj interface{}) {
 	pod := obj.(*v1.Pod)
-	ctrl.addAllCarqsAppliedToNamespace(pod.Namespace)
+	ctrl.addAllAcrqsAppliedToNamespace(pod.Namespace)
 }
 
-func (ctrl *CarqController) deletePod(obj interface{}) {
+func (ctrl *AcrqController) deletePod(obj interface{}) {
 	pod := obj.(*v1.Pod)
-	ctrl.addAllCarqsAppliedToNamespace(pod.Namespace)
+	ctrl.addAllAcrqsAppliedToNamespace(pod.Namespace)
 }
 
-func (ctrl *CarqController) addCarq(cur interface{}) {
+func (ctrl *AcrqController) addAcrq(cur interface{}) {
 	ctrl.enqueueClusterQuota(cur)
 }
 
-func (ctrl *CarqController) updateCarq(old, cur interface{}) {
+func (ctrl *AcrqController) updateAcrq(old, cur interface{}) {
 	ctrl.enqueueClusterQuota(cur)
 }
 
-func (c *CarqController) enqueueClusterQuota(obj interface{}) {
-	quota, ok := obj.(*v1alpha1.ClusterAppsResourceQuota)
+func (c *AcrqController) enqueueClusterQuota(obj interface{}) {
+	quota, ok := obj.(*v1alpha1.ApplicationAwareClusterResourceQuota)
 	if !ok {
-		utilruntime.HandleError(fmt.Errorf("not a ClusterAppsResourceQuota %v", obj))
+		utilruntime.HandleError(fmt.Errorf("not a ApplicationAwareClusterResourceQuota %v", obj))
 		return
 	}
 
@@ -444,11 +444,11 @@ func (c *CarqController) enqueueClusterQuota(obj interface{}) {
 	c.calculate(quota.Name, namespaces...)
 }
 
-func (c *CarqController) AddMapping(quotaName, namespaceName string) {
+func (c *AcrqController) AddMapping(quotaName, namespaceName string) {
 	c.calculate(quotaName, namespaceName)
 
 }
-func (c *CarqController) RemoveMapping(quotaName, namespaceName string) {
+func (c *AcrqController) RemoveMapping(quotaName, namespaceName string) {
 	c.calculate(quotaName, namespaceName)
 }
 
@@ -472,12 +472,12 @@ func includeUsageFromClusterResourceQuota(rl corev1.ResourceList, crq *quotav1.C
 	return result
 }
 
-func (ctrl *CarqController) runGateWatcherWorker() {
+func (ctrl *AcrqController) runGateWatcherWorker() {
 	for ctrl.Execute() {
 	}
 }
 
-func (ctrl *CarqController) Execute() bool {
+func (ctrl *AcrqController) Execute() bool {
 	ns, quit := ctrl.nsQueue.Get()
 	if quit {
 		return false
@@ -500,7 +500,7 @@ func (ctrl *CarqController) Execute() bool {
 	return true
 }
 
-func (ctrl *CarqController) execute(ns string) (error, enqueueState) {
+func (ctrl *AcrqController) execute(ns string) (error, enqueueState) {
 	var aaqjqc *v1alpha1.AAQJobQueueConfig
 	aaqjqcObj, exists, err := ctrl.aaqjqcInformer.GetIndexer().GetByKey(ns + "/" + arq_controller.AaqjqcName)
 	if err != nil {
@@ -509,27 +509,27 @@ func (ctrl *CarqController) execute(ns string) (error, enqueueState) {
 		aaqjqc = aaqjqcObj.(*v1alpha1.AAQJobQueueConfig).DeepCopy()
 	}
 
-	if aaqjqc != nil && aaqjqc.Status.ControllerLock != nil && aaqjqc.Status.ControllerLock[arq_controller.ClusterAppsResourceQuotaLockName] {
+	if aaqjqc != nil && aaqjqc.Status.ControllerLock != nil && aaqjqc.Status.ControllerLock[arq_controller.ApplicationAwareClusterResourceQuotaLockName] {
 		if res, err := util.VerifyPodsWithOutSchedulingGates(ctrl.aaqCli, ctrl.podInformer, ns, aaqjqc.Status.PodsInJobQueue); err != nil || !res {
 			return err, Immediate //wait until gate controller remove the scheduling gates
 		}
 
 	}
 
-	carqs, _ := ctrl.clusterQuotaMapper.GetClusterQuotasFor(ns)
-	for _, carq := range carqs {
-		quotaObj, exists, err := ctrl.carqInformer.GetIndexer().GetByKey(carq)
+	acrqs, _ := ctrl.clusterQuotaMapper.GetClusterQuotasFor(ns)
+	for _, acrq := range acrqs {
+		quotaObj, exists, err := ctrl.AcrqInformer.GetIndexer().GetByKey(acrq)
 		if !exists || err != nil {
 			return err, Immediate
 		}
-		err, retryItems := ctrl.syncQuotaForNamespaces(quotaObj.(*v1alpha1.ClusterAppsResourceQuota), []workItem{{namespaceName: ns, forceRecalculation: true}})
+		err, retryItems := ctrl.syncQuotaForNamespaces(quotaObj.(*v1alpha1.ApplicationAwareClusterResourceQuota), []workItem{{namespaceName: ns, forceRecalculation: true}})
 		if err != nil || len(retryItems) != 0 {
 			return err, Immediate
 		}
 	}
 
-	if aaqjqc != nil && aaqjqc.Status.ControllerLock != nil && aaqjqc.Status.ControllerLock[arq_controller.ClusterAppsResourceQuotaLockName] {
-		aaqjqc.Status.ControllerLock[arq_controller.ClusterAppsResourceQuotaLockName] = false
+	if aaqjqc != nil && aaqjqc.Status.ControllerLock != nil && aaqjqc.Status.ControllerLock[arq_controller.ApplicationAwareClusterResourceQuotaLockName] {
+		aaqjqc.Status.ControllerLock[arq_controller.ApplicationAwareClusterResourceQuotaLockName] = false
 		_, err = ctrl.aaqCli.AAQJobQueueConfigs(ns).UpdateStatus(context.Background(), aaqjqc, metav1.UpdateOptions{})
 		if err != nil {
 			return err, Immediate

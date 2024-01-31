@@ -22,14 +22,14 @@ func GetMigrationInformer(aaqCli client.AAQClient) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(listWatcher, &k6tv1.VirtualMachineInstanceMigration{}, 1*time.Hour, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 }
 
-func GetApplicationsResourceQuotaInformer(aaqCli client.AAQClient) cache.SharedIndexInformer {
-	listWatcher := NewListWatchFromClient(aaqCli.RestClient(), "applicationsresourcequotas", metav1.NamespaceAll, fields.Everything(), labels.Everything())
-	return cache.NewSharedIndexInformer(listWatcher, &v1alpha13.ApplicationsResourceQuota{}, 1*time.Hour, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+func GetApplicationAwareResourceQuotaInformer(aaqCli client.AAQClient) cache.SharedIndexInformer {
+	listWatcher := NewListWatchFromClient(aaqCli.RestClient(), "applicationawareresourcequotas", metav1.NamespaceAll, fields.Everything(), labels.Everything())
+	return cache.NewSharedIndexInformer(listWatcher, &v1alpha13.ApplicationAwareResourceQuota{}, 1*time.Hour, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 }
 
-func GetClusterAppsResourceQuotaInformer(aaqCli client.AAQClient) cache.SharedIndexInformer {
-	listWatcher := NewListWatchFromClient(aaqCli.RestClient(), "clusterappsresourcequotas", metav1.NamespaceAll, fields.Everything(), labels.Everything())
-	return cache.NewSharedIndexInformer(listWatcher, &v1alpha13.ClusterAppsResourceQuota{}, 1*time.Hour, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+func GetApplicationAwareClusterResourceQuotaInformer(aaqCli client.AAQClient) cache.SharedIndexInformer {
+	listWatcher := NewListWatchFromClient(aaqCli.RestClient(), "applicationawareclusterresourcequotas", metav1.NamespaceAll, fields.Everything(), labels.Everything())
+	return cache.NewSharedIndexInformer(listWatcher, &v1alpha13.ApplicationAwareClusterResourceQuota{}, 1*time.Hour, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 }
 
 func GetAAQJobQueueConfig(aaqCli client.AAQClient) cache.SharedIndexInformer {

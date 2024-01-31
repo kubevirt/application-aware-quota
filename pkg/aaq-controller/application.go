@@ -38,7 +38,7 @@ import (
 	"k8s.io/utils/clock"
 	aaq_evaluator "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-evaluator"
 	arq_controller2 "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-gate-controller"
-	carq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/additional-cluster-quota-controllers/carq-controller"
+	acrq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/additional-cluster-quota-controllers/acrq-controller"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-controller/additional-cluster-quota-controllers/clusterquotamapping"
 	crq_controller "kubevirt.io/applications-aware-quota/pkg/aaq-controller/additional-cluster-quota-controllers/crq-controller"
 	"kubevirt.io/applications-aware-quota/pkg/aaq-controller/arq-controller"
@@ -66,7 +66,7 @@ type AaqControllerApp struct {
 	LeaderElection                leaderelectionconfig.Configuration
 	aaqCli                        client.AAQClient
 	arqController                 *arq_controller.ArqController
-	carqController                *carq_controller.CarqController
+	acrqController                *acrq_controller.AcrqController
 	clusterQuotaMappingController *clusterquotamapping.ClusterQuotaMappingController
 	aaqGateController             *arq_controller2.AaqGateController
 	rqController                  *rq_controller.RQController
@@ -77,7 +77,7 @@ type AaqControllerApp struct {
 	rqInformer                    cache.SharedIndexInformer
 	aaqjqcInformer                cache.SharedIndexInformer
 	crqInformer                   cache.SharedIndexInformer
-	carqInformer                  cache.SharedIndexInformer
+	acrqInformer                  cache.SharedIndexInformer
 	nsInformer                    cache.SharedIndexInformer
 	calcRegistry                  *aaq_evaluator.AaqCalculatorsRegistry
 	readyChan                     chan bool
@@ -123,7 +123,7 @@ func Execute() {
 	if err != nil {
 		golog.Fatalf("AAQClient: %v", err)
 	}
-	app.arqInformer = informers.GetApplicationsResourceQuotaInformer(app.aaqCli)
+	app.arqInformer = informers.GetApplicationAwareResourceQuotaInformer(app.aaqCli)
 	app.rqInformer = informers.GetResourceQuotaInformer(app.aaqCli)
 	app.aaqjqcInformer = informers.GetAAQJobQueueConfig(app.aaqCli)
 	app.podInformer = informers.GetPodInformer(app.aaqCli)
@@ -131,21 +131,21 @@ func Execute() {
 
 	stop := ctx.Done()
 	app.calcRegistry = aaq_evaluator.NewAaqCalculatorsRegistry(10, clock.RealClock{}).AddBuiltInCalculator(util.LauncherConfig, built_in_usage_calculators.NewVirtLauncherCalculator(stop, alpha1.VmiCalcConfigName(*launcherConfig)))
-	var clusterQuotaLister v1alpha1.ClusterAppsResourceQuotaLister
+	var clusterQuotaLister v1alpha1.ApplicationAwareClusterResourceQuotaLister
 	var namespaceLister v12.NamespaceLister
 	var clusterQuotaMapper clusterquotamapping.ClusterQuotaMapper
 
 	if app.enableClusterQuota {
-		app.carqInformer = informers.GetClusterAppsResourceQuotaInformer(app.aaqCli)
+		app.acrqInformer = informers.GetApplicationAwareClusterResourceQuotaInformer(app.aaqCli)
 		app.nsInformer = informers.GetNamespaceInformer(app.aaqCli)
 		if app.onOpenshift {
 			app.crqInformer = informers.GetClusterResourceQuotaInformer(app.aaqCli)
 			app.initCRQController(stop)
 		}
 		app.initClusterQuotaMappingController(stop)
-		app.initCarqController(stop, app.clusterQuotaMappingController.GetClusterQuotaMapper())
-		app.clusterQuotaMappingController.GetClusterQuotaMapper().AddListener(app.carqController)
-		clusterQuotaLister = v1alpha1.NewClusterAppsResourceQuotaLister(app.carqInformer.GetIndexer())
+		app.initAcrqController(stop, app.clusterQuotaMappingController.GetClusterQuotaMapper())
+		app.clusterQuotaMappingController.GetClusterQuotaMapper().AddListener(app.acrqController)
+		clusterQuotaLister = v1alpha1.NewApplicationAwareClusterResourceQuotaLister(app.acrqInformer.GetIndexer())
 		namespaceLister = v12.NewNamespaceLister(app.nsInformer.GetIndexer())
 		clusterQuotaMapper = app.clusterQuotaMappingController.GetClusterQuotaMapper()
 	}
@@ -190,10 +190,10 @@ func (mca *AaqControllerApp) initArqController(stop <-chan struct{}) {
 	)
 }
 
-func (mca *AaqControllerApp) initCarqController(stop <-chan struct{}, clusterQuotaMapper clusterquotamapping.ClusterQuotaMapper) {
-	mca.carqController = carq_controller.NewCarqController(mca.aaqCli,
+func (mca *AaqControllerApp) initAcrqController(stop <-chan struct{}, clusterQuotaMapper clusterquotamapping.ClusterQuotaMapper) {
+	mca.acrqController = acrq_controller.NewAcrqController(mca.aaqCli,
 		clusterQuotaMapper,
-		mca.carqInformer,
+		mca.acrqInformer,
 		mca.crqInformer,
 		mca.podInformer,
 		mca.aaqjqcInformer,
@@ -206,13 +206,13 @@ func (mca *AaqControllerApp) initCarqController(stop <-chan struct{}, clusterQuo
 func (mca *AaqControllerApp) initClusterQuotaMappingController(stop <-chan struct{}) {
 	mca.clusterQuotaMappingController = clusterquotamapping.NewClusterQuotaMappingController(
 		mca.nsInformer,
-		mca.carqInformer,
+		mca.acrqInformer,
 		stop,
 	)
 }
 
 func (mca *AaqControllerApp) initAaqGateController(stop <-chan struct{},
-	clusterQuotaLister v1alpha1.ClusterAppsResourceQuotaLister,
+	clusterQuotaLister v1alpha1.ApplicationAwareClusterResourceQuotaLister,
 	namespaceLister v12.NamespaceLister,
 	clusterQuotaMapper clusterquotamapping.ClusterQuotaMapper,
 ) {
@@ -220,7 +220,7 @@ func (mca *AaqControllerApp) initAaqGateController(stop <-chan struct{},
 		mca.podInformer,
 		mca.arqInformer,
 		mca.aaqjqcInformer,
-		mca.carqInformer,
+		mca.acrqInformer,
 		mca.calcRegistry,
 		clusterQuotaLister,
 		namespaceLister,
@@ -241,7 +241,7 @@ func (mca *AaqControllerApp) initRQController(stop <-chan struct{}) {
 func (mca *AaqControllerApp) initCRQController(stop <-chan struct{}) {
 	mca.crqController = crq_controller.NewCRQController(mca.aaqCli,
 		mca.crqInformer,
-		mca.carqInformer,
+		mca.acrqInformer,
 		stop,
 	)
 }
@@ -336,10 +336,10 @@ func (mca *AaqControllerApp) onStartedLeading() func(ctx context.Context) {
 			klog.Warningf("failed to wait for caches to sync")
 		}
 		if mca.enableClusterQuota {
-			go mca.carqInformer.Run(stop)
+			go mca.acrqInformer.Run(stop)
 			go mca.nsInformer.Run(stop)
 			if !cache.WaitForCacheSync(stop,
-				mca.carqInformer.HasSynced,
+				mca.acrqInformer.HasSynced,
 				mca.nsInformer.HasSynced,
 			) {
 				klog.Warningf("failed to wait for caches to sync")
@@ -359,7 +359,7 @@ func (mca *AaqControllerApp) onStartedLeading() func(ctx context.Context) {
 				mca.clusterQuotaMappingController.Run(3)
 			}()
 			go func() {
-				mca.carqController.Run(context.Background(), 3)
+				mca.acrqController.Run(context.Background(), 3)
 			}()
 		}
 

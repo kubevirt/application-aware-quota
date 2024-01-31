@@ -1,5 +1,5 @@
 apiVersion: aaq.kubevirt.io/v1alpha1
-kind: ApplicationsResourceQuota
+kind: ApplicationAwareResourceQuota
 metadata:
   name: example-resource-quota
 spec:
