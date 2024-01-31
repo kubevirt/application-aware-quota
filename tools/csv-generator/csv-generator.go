@@ -16,8 +16,8 @@ import (
 	"flag"
 	"os"
 
-	aaqoperator "kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/operator"
-	"kubevirt.io/applications-aware-quota/tools/util"
+	aaqoperator "kubevirt.io/application-aware-quota/pkg/aaq-operator/resources/operator"
+	"kubevirt.io/application-aware-quota/tools/util"
 )
 
 var (

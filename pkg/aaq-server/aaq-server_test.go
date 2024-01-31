@@ -12,9 +12,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
-	"kubevirt.io/applications-aware-quota/pkg/certificates/bootstrap"
-	"kubevirt.io/applications-aware-quota/pkg/client"
-	"kubevirt.io/applications-aware-quota/pkg/util"
+	"kubevirt.io/application-aware-quota/pkg/certificates/bootstrap"
+	"kubevirt.io/application-aware-quota/pkg/client"
+	"kubevirt.io/application-aware-quota/pkg/util"
 	"net/http"
 	"net/http/httptest"
 )

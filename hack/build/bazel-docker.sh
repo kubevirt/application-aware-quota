@@ -46,9 +46,9 @@ fi
 
 # Make sure that the output directory exists
 echo "Making sure output directory exists..."
-${AAQ_CRI} run -v "${BUILDER_VOLUME}:/root:rw,z" --security-opt label=disable $DISABLE_SECCOMP --rm --entrypoint "/entrypoint-bazel.sh" ${BUILDER_IMAGE} mkdir -p /root/go/src/kubevirt.io/applications-aware-quota/_out
+${AAQ_CRI} run -v "${BUILDER_VOLUME}:/root:rw,z" --security-opt label=disable $DISABLE_SECCOMP --rm --entrypoint "/entrypoint-bazel.sh" ${BUILDER_IMAGE} mkdir -p /root/go/src/kubevirt.io/application-aware-quota/_out
 
-${AAQ_CRI} run -v "${BUILDER_VOLUME}:/root:rw,z" --security-opt label=disable $DISABLE_SECCOMP --rm --entrypoint "/entrypoint-bazel.sh" ${BUILDER_IMAGE} git config --global --add safe.directory /root/go/src/kubevirt.io/applications-aware-quota
+${AAQ_CRI} run -v "${BUILDER_VOLUME}:/root:rw,z" --security-opt label=disable $DISABLE_SECCOMP --rm --entrypoint "/entrypoint-bazel.sh" ${BUILDER_IMAGE} git config --global --add safe.directory /root/go/src/kubevirt.io/application-aware-quota
 echo "Starting rsyncd"
 # Start an rsyncd instance and make sure it gets stopped after the script exits
 RSYNC_CID_AAQ=$(${AAQ_CRI} run -d -v "${BUILDER_VOLUME}:/root:rw,z" --security-opt label=disable $DISABLE_SECCOMP --cap-add SYS_CHROOT --expose 873 -P --entrypoint "/entrypoint-bazel.sh" ${BUILDER_IMAGE} /usr/bin/rsync --no-detach --daemon --verbose)
@@ -91,7 +91,7 @@ _rsync \
     --delete \
     --exclude 'bazel-bin' \
     --exclude 'bazel-genfiles' \
-    --exclude 'bazel-applications-aware-quota' \
+    --exclude 'bazel-application-aware-quota' \
     --exclude 'bazel-out' \
     --exclude 'bazel-testlogs' \
     --exclude 'cluster-up/cluster/**/.kubectl' \
@@ -122,7 +122,7 @@ if [ -n "$DOCKER_CA_CERT_FILE" ]; then
 fi
 
 if [ -z "$(${AAQ_CRI} ps --format '{{.Names}}' | grep ${BAZEL_BUILDER_SERVER})" ]; then
-   ${AAQ_CRI} run --ulimit nofile=10000:10000 $DISABLE_SECCOMP --network host -d ${volumes} --security-opt label=disable --rm --name ${BAZEL_BUILDER_SERVER} -e "GOPATH=/root/go" -w "/root/go/src/kubevirt.io/applications-aware-quota"  ${BUILDER_IMAGE} hack/build/bazel-server.sh
+   ${AAQ_CRI} run --ulimit nofile=10000:10000 $DISABLE_SECCOMP --network host -d ${volumes} --security-opt label=disable --rm --name ${BAZEL_BUILDER_SERVER} -e "GOPATH=/root/go" -w "/root/go/src/kubevirt.io/application-aware-quota"  ${BUILDER_IMAGE} hack/build/bazel-server.sh
 fi
 
 echo "Starting bazel server"
@@ -130,11 +130,11 @@ echo "Starting bazel server"
 test -t 1 && USE_TTY="-it"
 ${AAQ_CRI} exec ${USE_TTY} ${BAZEL_BUILDER_SERVER} /entrypoint-bazel.sh "$@"
 
-# Copy the whole applications-aware-quota data out to get generated sources and formatting changes
+# Copy the whole application-aware-quota data out to get generated sources and formatting changes
 _rsync \
     --exclude 'bazel-bin' \
     --exclude 'bazel-genfiles' \
-    --exclude 'bazel-applications-aware-quota' \
+    --exclude 'bazel-application-aware-quota' \
     --exclude 'bazel-out' \
     --exclude 'bazel-testlogs' \
     --exclude 'cluster-up/cluster/**/.kubectl' \

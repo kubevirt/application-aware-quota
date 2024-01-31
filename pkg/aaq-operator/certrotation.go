@@ -16,7 +16,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	listerscorev1 "k8s.io/client-go/listers/core/v1"
 	toolscache "k8s.io/client-go/tools/cache"
-	aaqcerts "kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/cert"
+	aaqcerts "kubevirt.io/application-aware-quota/pkg/aaq-operator/resources/cert"
 
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"time"

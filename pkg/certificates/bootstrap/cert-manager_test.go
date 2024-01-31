@@ -14,8 +14,8 @@ import (
 
 	v1 "kubevirt.io/api/core/v1"
 
-	"kubevirt.io/applications-aware-quota/pkg/certificates/triple"
-	"kubevirt.io/applications-aware-quota/pkg/certificates/triple/cert"
+	"kubevirt.io/application-aware-quota/pkg/certificates/triple"
+	"kubevirt.io/application-aware-quota/pkg/certificates/triple/cert"
 )
 
 var _ = Describe("cert-manager", func() {

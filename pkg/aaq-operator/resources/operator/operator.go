@@ -5,8 +5,8 @@ import (
 	"github.com/coreos/go-semver/semver"
 	csvv1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources"
-	utils2 "kubevirt.io/applications-aware-quota/pkg/util"
+	"kubevirt.io/application-aware-quota/pkg/aaq-operator/resources"
+	utils2 "kubevirt.io/application-aware-quota/pkg/util"
 	"strings"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -17,7 +17,7 @@ import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
-	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/cluster"
+	"kubevirt.io/application-aware-quota/pkg/aaq-operator/resources/cluster"
 )
 
 const (

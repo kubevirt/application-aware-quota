@@ -6,8 +6,8 @@ import (
 	"io"
 	"k8s.io/client-go/util/certificate"
 	"k8s.io/klog/v2"
-	"kubevirt.io/applications-aware-quota/pkg/client"
-	"kubevirt.io/applications-aware-quota/pkg/util"
+	"kubevirt.io/application-aware-quota/pkg/client"
+	"kubevirt.io/application-aware-quota/pkg/util"
 	"net/http"
 )
 

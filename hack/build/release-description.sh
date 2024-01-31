@@ -28,7 +28,7 @@ summary() {
 
 downloads() {
     log "Adding download urls"
-    local GHRELURL="https://github.com/kubevirt/applications-aware-quota/releases/tag/"
+    local GHRELURL="https://github.com/kubevirt/application-aware-quota/releases/tag/"
     local RELURL="$GHRELURL$RELREF"
     cat <<EOF
 The source code and selected binaries are available for download at:
@@ -73,7 +73,7 @@ Additional Resources
 - Mailing list: <https://groups.google.com/forum/#!forum/kubevirt-dev>
 - [License][license]
 
-[license]: https://github.com/kubevirt/applications-aware-quota/blob/main/LICENSE
+[license]: https://github.com/kubevirt/application-aware-quota/blob/main/LICENSE
 EOF
 }
 

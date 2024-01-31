@@ -22,7 +22,7 @@ package utils
 import (
 	"context"
 	"k8s.io/client-go/kubernetes"
-	"kubevirt.io/applications-aware-quota/pkg/util"
+	"kubevirt.io/application-aware-quota/pkg/util"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

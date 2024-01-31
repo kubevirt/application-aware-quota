@@ -24,9 +24,9 @@ import (
 	"k8s.io/client-go/discovery"
 	fakediscovery "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/testing"
-	clientset "kubevirt.io/applications-aware-quota/pkg/generated/cluster-resource-quota/clientset/versioned"
-	quotav1 "kubevirt.io/applications-aware-quota/pkg/generated/cluster-resource-quota/clientset/versioned/typed/quota/v1"
-	fakequotav1 "kubevirt.io/applications-aware-quota/pkg/generated/cluster-resource-quota/clientset/versioned/typed/quota/v1/fake"
+	clientset "kubevirt.io/application-aware-quota/pkg/generated/cluster-resource-quota/clientset/versioned"
+	quotav1 "kubevirt.io/application-aware-quota/pkg/generated/cluster-resource-quota/clientset/versioned/typed/quota/v1"
+	fakequotav1 "kubevirt.io/application-aware-quota/pkg/generated/cluster-resource-quota/clientset/versioned/typed/quota/v1/fake"
 )
 
 // NewSimpleClientset returns a clientset that will respond with the provided objects.

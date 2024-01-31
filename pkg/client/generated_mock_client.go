@@ -65,10 +65,10 @@ import (
 	v1alpha18 "k8s.io/client-go/kubernetes/typed/storage/v1alpha1"
 	v1beta115 "k8s.io/client-go/kubernetes/typed/storage/v1beta1"
 	rest "k8s.io/client-go/rest"
-	versioned "kubevirt.io/applications-aware-quota/pkg/generated/aaq/clientset/versioned"
-	versioned0 "kubevirt.io/applications-aware-quota/pkg/generated/cluster-resource-quota/clientset/versioned"
-	versioned1 "kubevirt.io/applications-aware-quota/pkg/generated/kubevirt/clientset/versioned"
-	v1alpha19 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
+	versioned "kubevirt.io/application-aware-quota/pkg/generated/aaq/clientset/versioned"
+	versioned0 "kubevirt.io/application-aware-quota/pkg/generated/cluster-resource-quota/clientset/versioned"
+	versioned1 "kubevirt.io/application-aware-quota/pkg/generated/kubevirt/clientset/versioned"
+	v1alpha19 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 )
 
 // MockAAQClient is a mock of AAQClient interface.

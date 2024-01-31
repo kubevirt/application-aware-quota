@@ -13,11 +13,11 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/certificate"
 
-	"kubevirt.io/applications-aware-quota/pkg/certificates/triple"
+	"kubevirt.io/application-aware-quota/pkg/certificates/triple"
 
-	"kubevirt.io/applications-aware-quota/pkg/log"
+	"kubevirt.io/application-aware-quota/pkg/log"
 
-	"kubevirt.io/applications-aware-quota/pkg/certificates/triple/cert"
+	"kubevirt.io/application-aware-quota/pkg/certificates/triple/cert"
 )
 
 const (
