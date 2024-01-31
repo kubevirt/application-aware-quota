@@ -2,7 +2,7 @@ package cluster
 
 import (
 	rbacv1 "k8s.io/api/rbac/v1"
-	utils2 "kubevirt.io/applications-aware-quota/pkg/util"
+	utils2 "kubevirt.io/application-aware-quota/pkg/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

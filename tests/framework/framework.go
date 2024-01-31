@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
-	clientset "kubevirt.io/applications-aware-quota/pkg/generated/aaq/clientset/versioned"
-	virtclientset "kubevirt.io/applications-aware-quota/pkg/generated/kubevirt/clientset/versioned"
+	clientset "kubevirt.io/application-aware-quota/pkg/generated/aaq/clientset/versioned"
+	virtclientset "kubevirt.io/application-aware-quota/pkg/generated/kubevirt/clientset/versioned"
 
 	"net/http"
 
@@ -32,10 +32,10 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
-	aaqclientset "kubevirt.io/applications-aware-quota/pkg/generated/aaq/clientset/versioned"
+	aaqclientset "kubevirt.io/application-aware-quota/pkg/generated/aaq/clientset/versioned"
 	crclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	aaqv1 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
+	aaqv1 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 )
 
 const (

@@ -3,7 +3,7 @@ package aaq_operator
 import (
 	"context"
 	"fmt"
-	"kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
+	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"

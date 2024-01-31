@@ -26,10 +26,10 @@ import (
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
 	cache "k8s.io/client-go/tools/cache"
-	versioned "kubevirt.io/applications-aware-quota/pkg/generated/aaq/clientset/versioned"
-	internalinterfaces "kubevirt.io/applications-aware-quota/pkg/generated/aaq/informers/externalversions/internalinterfaces"
-	v1alpha1 "kubevirt.io/applications-aware-quota/pkg/generated/aaq/listers/core/v1alpha1"
-	corev1alpha1 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
+	versioned "kubevirt.io/application-aware-quota/pkg/generated/aaq/clientset/versioned"
+	internalinterfaces "kubevirt.io/application-aware-quota/pkg/generated/aaq/informers/externalversions/internalinterfaces"
+	v1alpha1 "kubevirt.io/application-aware-quota/pkg/generated/aaq/listers/core/v1alpha1"
+	corev1alpha1 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 )
 
 // ApplicationAwareResourceQuotaInformer provides access to a shared informer and lister for

@@ -13,11 +13,11 @@ import (
 	"k8s.io/kubernetes/pkg/quota/v1/evaluator/core"
 	"k8s.io/utils/clock"
 	v15 "kubevirt.io/api/core/v1"
-	"kubevirt.io/applications-aware-quota/pkg/client"
-	"kubevirt.io/applications-aware-quota/pkg/informers"
-	"kubevirt.io/applications-aware-quota/pkg/log"
-	"kubevirt.io/applications-aware-quota/pkg/util"
-	"kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
+	"kubevirt.io/application-aware-quota/pkg/client"
+	"kubevirt.io/application-aware-quota/pkg/informers"
+	"kubevirt.io/application-aware-quota/pkg/log"
+	"kubevirt.io/application-aware-quota/pkg/util"
+	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 )
 
 const launcherLabel = "virt-launcher"

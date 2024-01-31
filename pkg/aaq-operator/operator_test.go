@@ -19,9 +19,9 @@ import (
 	"context"
 	generrors "errors"
 	"fmt"
-	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/cert"
-	utils "kubevirt.io/applications-aware-quota/pkg/util"
-	"kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
+	"kubevirt.io/application-aware-quota/pkg/aaq-operator/resources/cert"
+	utils "kubevirt.io/application-aware-quota/pkg/util"
+	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	"kubevirt.io/controller-lifecycle-operator-sdk/pkg/sdk/callbacks"
 	"reflect"
 
@@ -46,9 +46,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	clusterResources "kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/cluster"
-	namespaceResources "kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/namespaced"
-	aaqv1 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
+	clusterResources "kubevirt.io/application-aware-quota/pkg/aaq-operator/resources/cluster"
+	namespaceResources "kubevirt.io/application-aware-quota/pkg/aaq-operator/resources/namespaced"
+	aaqv1 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 )
 
 const (

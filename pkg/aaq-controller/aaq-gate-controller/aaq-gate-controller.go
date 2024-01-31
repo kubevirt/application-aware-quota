@@ -20,12 +20,12 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
 	_ "kubevirt.io/api/core/v1"
-	aaq_evaluator "kubevirt.io/applications-aware-quota/pkg/aaq-controller/aaq-evaluator"
-	"kubevirt.io/applications-aware-quota/pkg/aaq-controller/additional-cluster-quota-controllers/clusterquotamapping"
-	"kubevirt.io/applications-aware-quota/pkg/client"
-	"kubevirt.io/applications-aware-quota/pkg/generated/aaq/listers/core/v1alpha1"
-	"kubevirt.io/applications-aware-quota/pkg/util"
-	v1alpha12 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
+	aaq_evaluator "kubevirt.io/application-aware-quota/pkg/aaq-controller/aaq-evaluator"
+	"kubevirt.io/application-aware-quota/pkg/aaq-controller/additional-cluster-quota-controllers/clusterquotamapping"
+	"kubevirt.io/application-aware-quota/pkg/client"
+	"kubevirt.io/application-aware-quota/pkg/generated/aaq/listers/core/v1alpha1"
+	"kubevirt.io/application-aware-quota/pkg/util"
+	v1alpha12 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 	"time"
 )
 

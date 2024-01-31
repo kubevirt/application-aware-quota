@@ -13,9 +13,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
-	"kubevirt.io/applications-aware-quota/pkg/client"
-	"kubevirt.io/applications-aware-quota/pkg/util"
-	"kubevirt.io/applications-aware-quota/tests"
+	"kubevirt.io/application-aware-quota/pkg/client"
+	"kubevirt.io/application-aware-quota/pkg/util"
+	"kubevirt.io/application-aware-quota/tests"
 	"net/http"
 )
 

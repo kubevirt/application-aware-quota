@@ -19,7 +19,7 @@ import (
 	"k8s.io/kubernetes/pkg/util/node"
 	"k8s.io/utils/clock"
 	testingclock "k8s.io/utils/clock/testing"
-	fakeinformers "kubevirt.io/applications-aware-quota/pkg/tests-utils"
+	fakeinformers "kubevirt.io/application-aware-quota/pkg/tests-utils"
 	"time"
 )
 

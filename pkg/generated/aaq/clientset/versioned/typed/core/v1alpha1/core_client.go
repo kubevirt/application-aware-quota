@@ -22,8 +22,8 @@ import (
 	"net/http"
 
 	rest "k8s.io/client-go/rest"
-	"kubevirt.io/applications-aware-quota/pkg/generated/aaq/clientset/versioned/scheme"
-	v1alpha1 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
+	"kubevirt.io/application-aware-quota/pkg/generated/aaq/clientset/versioned/scheme"
+	v1alpha1 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 )
 
 type AaqV1alpha1Interface interface {

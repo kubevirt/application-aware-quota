@@ -3,7 +3,7 @@ package client
 import (
 	"flag"
 	"k8s.io/client-go/discovery"
-	crqclient "kubevirt.io/applications-aware-quota/pkg/generated/cluster-resource-quota/clientset/versioned"
+	crqclient "kubevirt.io/application-aware-quota/pkg/generated/cluster-resource-quota/clientset/versioned"
 	"os"
 	"sync"
 
@@ -19,10 +19,10 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"kubevirt.io/api/core"
 	v1 "kubevirt.io/api/core/v1"
-	generatedclient "kubevirt.io/applications-aware-quota/pkg/generated/aaq/clientset/versioned"
-	kubevirtclient "kubevirt.io/applications-aware-quota/pkg/generated/kubevirt/clientset/versioned"
-	applicationAwareResourceQuota "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core"
-	v1alpha13 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
+	generatedclient "kubevirt.io/application-aware-quota/pkg/generated/aaq/clientset/versioned"
+	kubevirtclient "kubevirt.io/application-aware-quota/pkg/generated/kubevirt/clientset/versioned"
+	applicationAwareResourceQuota "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core"
+	v1alpha13 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 )
 
 var (

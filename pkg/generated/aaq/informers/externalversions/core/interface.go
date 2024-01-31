@@ -19,8 +19,8 @@ limitations under the License.
 package core
 
 import (
-	v1alpha1 "kubevirt.io/applications-aware-quota/pkg/generated/aaq/informers/externalversions/core/v1alpha1"
-	internalinterfaces "kubevirt.io/applications-aware-quota/pkg/generated/aaq/informers/externalversions/internalinterfaces"
+	v1alpha1 "kubevirt.io/application-aware-quota/pkg/generated/aaq/informers/externalversions/core/v1alpha1"
+	internalinterfaces "kubevirt.io/application-aware-quota/pkg/generated/aaq/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to each of this group's versions.

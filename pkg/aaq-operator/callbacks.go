@@ -5,7 +5,7 @@ import (
 	"fmt"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"kubevirt.io/applications-aware-quota/pkg/util"
+	"kubevirt.io/application-aware-quota/pkg/util"
 	"kubevirt.io/controller-lifecycle-operator-sdk/pkg/sdk/callbacks"
 )
 
