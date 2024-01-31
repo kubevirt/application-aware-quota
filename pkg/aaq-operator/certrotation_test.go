@@ -3,7 +3,7 @@ package aaq_operator
 import (
 	"context"
 	"encoding/json"
-	"kubevirt.io/applications-aware-quota/pkg/util"
+	"kubevirt.io/application-aware-quota/pkg/util"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -14,7 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
-	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/cert"
+	"kubevirt.io/application-aware-quota/pkg/aaq-operator/resources/cert"
 )
 
 func newCertManagerForTest(client kubernetes.Interface, namespace string) CertManager {

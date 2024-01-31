@@ -23,7 +23,7 @@ import (
 
 	rest "k8s.io/client-go/rest"
 	v1 "kubevirt.io/api/core/v1"
-	"kubevirt.io/applications-aware-quota/pkg/generated/kubevirt/clientset/versioned/scheme"
+	"kubevirt.io/application-aware-quota/pkg/generated/kubevirt/clientset/versioned/scheme"
 )
 
 type KubevirtV1Interface interface {

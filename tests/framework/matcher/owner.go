@@ -3,7 +3,7 @@ package matcher
 import (
 	"fmt"
 
-	"kubevirt.io/applications-aware-quota/tests/framework/matcher/helper"
+	"kubevirt.io/application-aware-quota/tests/framework/matcher/helper"
 
 	"github.com/onsi/gomega/types"
 )

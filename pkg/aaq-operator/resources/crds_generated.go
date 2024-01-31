@@ -89,13 +89,13 @@ spec:
                     type: boolean
                   vmiCalculatorConfiguration:
                     description: VmiCalculatorConfiguration determine how resource
-                      allocation will be done with ApplicationsResourceQuota
+                      allocation will be done with ApplicationAwareResourceQuota
                     properties:
                       configName:
                         default: DedicatedVirtualResources
                         description: 'ConfigName determine how resource allocation
-                          will be done with ApplicationsResourceQuota. allowed values
-                          are: VmiPodUsage, VirtualResources, DedicatedVirtualResources
+                          will be done with ApplicationAwareResourceQuota. allowed
+                          values are: VmiPodUsage, VirtualResources, DedicatedVirtualResources
                           or IgnoreVmiCalculator'
                         enum:
                         - VmiPodUsage

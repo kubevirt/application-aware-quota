@@ -19,7 +19,7 @@ set -e
 script_dir="$(cd "$(dirname "$0")" && pwd -P)"
 source "${script_dir}"/common.sh
 source "${script_dir}"/config.sh
-WORK_DIR="/go/src/kubevirt.io/applications-aware-quota"
+WORK_DIR="/go/src/kubevirt.io/application-aware-quota"
 
 # Execute the build
 [ -t 1 ] && USE_TTY="-it"

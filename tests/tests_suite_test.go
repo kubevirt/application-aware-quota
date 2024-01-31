@@ -7,7 +7,7 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	ginkgo_reporters "github.com/onsi/ginkgo/v2/reporters"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"kubevirt.io/applications-aware-quota/tests/flags"
+	"kubevirt.io/application-aware-quota/tests/flags"
 	qe_reporters "kubevirt.io/qe-tools/pkg/ginkgo-reporters"
 	"testing"
 	"time"
@@ -16,7 +16,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	corev1 "k8s.io/api/core/v1"
-	"kubevirt.io/applications-aware-quota/tests/framework"
+	"kubevirt.io/application-aware-quota/tests/framework"
 )
 
 const (

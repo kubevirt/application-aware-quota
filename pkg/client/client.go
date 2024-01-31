@@ -15,11 +15,11 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	generatedclient "kubevirt.io/applications-aware-quota/pkg/generated/aaq/clientset/versioned"
-	aaqv1alpha1 "kubevirt.io/applications-aware-quota/pkg/generated/aaq/clientset/versioned/typed/core/v1alpha1"
-	crqclient "kubevirt.io/applications-aware-quota/pkg/generated/cluster-resource-quota/clientset/versioned"
-	kubevirtclient "kubevirt.io/applications-aware-quota/pkg/generated/kubevirt/clientset/versioned"
-	"kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
+	generatedclient "kubevirt.io/application-aware-quota/pkg/generated/aaq/clientset/versioned"
+	aaqv1alpha1 "kubevirt.io/application-aware-quota/pkg/generated/aaq/clientset/versioned/typed/core/v1alpha1"
+	crqclient "kubevirt.io/application-aware-quota/pkg/generated/cluster-resource-quota/clientset/versioned"
+	kubevirtclient "kubevirt.io/application-aware-quota/pkg/generated/kubevirt/clientset/versioned"
+	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 )
 
 type AAQClient interface {

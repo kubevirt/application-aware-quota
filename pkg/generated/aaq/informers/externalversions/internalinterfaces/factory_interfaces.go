@@ -24,7 +24,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	cache "k8s.io/client-go/tools/cache"
-	versioned "kubevirt.io/applications-aware-quota/pkg/generated/aaq/clientset/versioned"
+	versioned "kubevirt.io/application-aware-quota/pkg/generated/aaq/clientset/versioned"
 )
 
 // NewInformerFunc takes versioned.Interface and time.Duration to return a SharedIndexInformer.

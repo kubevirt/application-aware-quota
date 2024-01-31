@@ -26,7 +26,7 @@ CODEGEN_PKG=${CODEGEN_PKG:-$(
 )}
 
 find "${SCRIPT_ROOT}/pkg/" -name "*generated*.go" -exec rm {} -f \;
-find "${SCRIPT_ROOT}/staging/src/kubevirt.io/applications-aware-quota-api/" -name "*generated*.go" -exec rm {} -f \;
+find "${SCRIPT_ROOT}/staging/src/kubevirt.io/application-aware-quota-api/" -name "*generated*.go" -exec rm {} -f \;
 rm -rf "${SCRIPT_ROOT}/pkg/generated"
 
 # generate the code with:
@@ -34,20 +34,20 @@ rm -rf "${SCRIPT_ROOT}/pkg/generated"
 #                  k8s.io/kubernetes. The output-base is needed for the generators to output into the vendor dir
 #                  instead of the $GOPATH directly. For normal projects this can be dropped.
 /bin/bash ${CODEGEN_PKG}/generate-groups.sh  "deepcopy,client,informer,lister" \
-  kubevirt.io/applications-aware-quota/pkg/generated/aaq \
-  kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis  \
+  kubevirt.io/application-aware-quota/pkg/generated/aaq \
+  kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis  \
     "core:v1alpha1 " \
     --go-header-file ${SCRIPT_ROOT}/hack/custom-boilerplate.go.txt
 
 
 /bin/bash ${CODEGEN_PKG}/generate-groups.sh "client" \
-  kubevirt.io/applications-aware-quota/pkg/generated/kubevirt \
+  kubevirt.io/application-aware-quota/pkg/generated/kubevirt \
   kubevirt.io/api  \
     "core:v1 " \
     --go-header-file ${SCRIPT_ROOT}/hack/custom-boilerplate.go.txt
 
 /bin/bash ${CODEGEN_PKG}/generate-groups.sh "client" \
-  kubevirt.io/applications-aware-quota/pkg/generated/cluster-resource-quota \
+  kubevirt.io/application-aware-quota/pkg/generated/cluster-resource-quota \
   github.com/openshift/api  \
     "quota:v1 " \
     --go-header-file ${SCRIPT_ROOT}/hack/custom-boilerplate.go.txt
@@ -56,7 +56,7 @@ echo "************* running controller-gen to generate schema yaml *************
 (
     mkdir -p "${SCRIPT_ROOT}/_out/manifests/schema"
     find "${SCRIPT_ROOT}/_out/manifests/schema/" -type f -exec rm {} -f \;
-    cd ./staging/src/kubevirt.io/applications-aware-quota-api
+    cd ./staging/src/kubevirt.io/application-aware-quota-api
     controller-gen crd:crdVersions=v1 output:dir=${SCRIPT_ROOT}/_out/manifests/schema paths=./pkg/apis/core/...
 )
 

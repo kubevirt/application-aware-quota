@@ -27,7 +27,7 @@ import (
 	watch "k8s.io/apimachinery/pkg/watch"
 	rest "k8s.io/client-go/rest"
 	v1 "kubevirt.io/api/core/v1"
-	scheme "kubevirt.io/applications-aware-quota/pkg/generated/kubevirt/clientset/versioned/scheme"
+	scheme "kubevirt.io/application-aware-quota/pkg/generated/kubevirt/clientset/versioned/scheme"
 )
 
 // VirtualMachineInstanceReplicaSetsGetter has a method to return a VirtualMachineInstanceReplicaSetInterface.
