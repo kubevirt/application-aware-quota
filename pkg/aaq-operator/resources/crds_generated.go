@@ -88,8 +88,8 @@ spec:
                       Defaults to false
                     type: boolean
                   vmiCalculatorConfiguration:
-                    description: VmiCalculatorConfiguration Default is DedicatedVirtualResources
-                      please look for VmiCalculatorConfiguration type for more information.
+                    description: VmiCalculatorConfiguration determine how resource
+                      allocation will be done with ApplicationsResourceQuota
                     properties:
                       configName:
                         default: DedicatedVirtualResources
