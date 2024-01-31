@@ -72,11 +72,11 @@ func createCRDResources(args *FactoryArgs) []client.Object {
 		return nil
 	}
 	objs := []client.Object{
-		createApplicationsResourceQuotaCRD(),
+		createApplicationAwareResourceQuotaCRD(),
 		createAaqJobQueueConfigsCRD(),
 	}
-	if cr.Spec.Configuration.EnableClusterAppsResourceQuota {
-		objs = append(objs, createClusterAppsResourceQuotaCRD())
+	if cr.Spec.Configuration.AllowApplicationAwareClusterResourceQuota {
+		objs = append(objs, createApplicationAwareClusterResourceQuotaCRD())
 	}
 	return objs
 }

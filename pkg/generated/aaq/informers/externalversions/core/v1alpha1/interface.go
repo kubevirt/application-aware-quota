@@ -28,10 +28,10 @@ type Interface interface {
 	AAQs() AAQInformer
 	// AAQJobQueueConfigs returns a AAQJobQueueConfigInformer.
 	AAQJobQueueConfigs() AAQJobQueueConfigInformer
-	// ApplicationsResourceQuotas returns a ApplicationsResourceQuotaInformer.
-	ApplicationsResourceQuotas() ApplicationsResourceQuotaInformer
-	// ClusterAppsResourceQuotas returns a ClusterAppsResourceQuotaInformer.
-	ClusterAppsResourceQuotas() ClusterAppsResourceQuotaInformer
+	// ApplicationAwareClusterResourceQuotas returns a ApplicationAwareClusterResourceQuotaInformer.
+	ApplicationAwareClusterResourceQuotas() ApplicationAwareClusterResourceQuotaInformer
+	// ApplicationAwareResourceQuotas returns a ApplicationAwareResourceQuotaInformer.
+	ApplicationAwareResourceQuotas() ApplicationAwareResourceQuotaInformer
 }
 
 type version struct {
@@ -55,12 +55,12 @@ func (v *version) AAQJobQueueConfigs() AAQJobQueueConfigInformer {
 	return &aAQJobQueueConfigInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// ApplicationsResourceQuotas returns a ApplicationsResourceQuotaInformer.
-func (v *version) ApplicationsResourceQuotas() ApplicationsResourceQuotaInformer {
-	return &applicationsResourceQuotaInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// ApplicationAwareClusterResourceQuotas returns a ApplicationAwareClusterResourceQuotaInformer.
+func (v *version) ApplicationAwareClusterResourceQuotas() ApplicationAwareClusterResourceQuotaInformer {
+	return &applicationAwareClusterResourceQuotaInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
 
-// ClusterAppsResourceQuotas returns a ClusterAppsResourceQuotaInformer.
-func (v *version) ClusterAppsResourceQuotas() ClusterAppsResourceQuotaInformer {
-	return &clusterAppsResourceQuotaInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+// ApplicationAwareResourceQuotas returns a ApplicationAwareResourceQuotaInformer.
+func (v *version) ApplicationAwareResourceQuotas() ApplicationAwareResourceQuotaInformer {
+	return &applicationAwareResourceQuotaInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

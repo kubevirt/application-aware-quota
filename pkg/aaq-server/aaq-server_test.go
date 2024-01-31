@@ -69,7 +69,7 @@ var _ = Describe("Test aaq serve functions", func() {
 			false,
 		)
 
-		// Create a new ApplicationsResourceQuota create request
+		// Create a new ApplicationAwareResourceQuota create request
 		admissionReview := v1.AdmissionReview{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "AdmissionReview",
@@ -78,12 +78,12 @@ var _ = Describe("Test aaq serve functions", func() {
 			Request: &v1.AdmissionRequest{
 				UID: types.UID("<unique-identifier>"),
 				Kind: metav1.GroupVersionKind{
-					Kind: "ApplicationsResourceQuota",
+					Kind: "ApplicationAwareResourceQuota",
 				},
 				Resource: metav1.GroupVersionResource{
 					Group:    "aaq.kubevirt.io",
 					Version:  "v1alpha1",
-					Resource: "applicationsresourcequotas",
+					Resource: "applicationawareresourcequotas",
 				},
 				Name:      "example-resource-quota",
 				Operation: v1.Create,
@@ -91,7 +91,7 @@ var _ = Describe("Test aaq serve functions", func() {
 				Object: runtime.RawExtension{
 					Raw: []byte(`{
                     "apiVersion": "aaq.kubevirt.io/v1alpha1",
-                    "kind": "ApplicationsResourceQuota",
+                    "kind": "ApplicationAwareResourceQuota",
                     "metadata": {
                         "name": "example-resource-quota"
                     },

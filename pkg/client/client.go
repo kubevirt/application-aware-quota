@@ -25,8 +25,8 @@ import (
 type AAQClient interface {
 	RestClient() *rest.RESTClient
 	kubernetes.Interface
-	ApplicationsResourceQuotas(namespace string) ApplicationsResourceQuotaInterface
-	ClusterAppsResourceQuotas() ClusterAppsResourceQuotaInterface
+	ApplicationAwareResourceQuotas(namespace string) ApplicationAwareResourceQuotaInterface
+	ApplicationAwareClusterResourceQuotas() ApplicationAwareClusterResourceQuotaInterface
 	AAQJobQueueConfigs(namespace string) AAQJobQueueConfigInterface
 	AAQ() AAQInterface
 	GeneratedAAQClient() generatedclient.Interface
@@ -69,12 +69,12 @@ func (k aaq) GeneratedAAQClient() generatedclient.Interface {
 	return k.generatedAAQClient
 }
 
-func (k aaq) ApplicationsResourceQuotas(namespace string) ApplicationsResourceQuotaInterface {
-	return k.generatedAAQClient.AaqV1alpha1().ApplicationsResourceQuotas(namespace)
+func (k aaq) ApplicationAwareResourceQuotas(namespace string) ApplicationAwareResourceQuotaInterface {
+	return k.generatedAAQClient.AaqV1alpha1().ApplicationAwareResourceQuotas(namespace)
 }
 
-func (k aaq) ClusterAppsResourceQuotas() ClusterAppsResourceQuotaInterface {
-	return k.generatedAAQClient.AaqV1alpha1().ClusterAppsResourceQuotas()
+func (k aaq) ApplicationAwareClusterResourceQuotas() ApplicationAwareClusterResourceQuotaInterface {
+	return k.generatedAAQClient.AaqV1alpha1().ApplicationAwareClusterResourceQuotas()
 }
 
 func (k aaq) AAQJobQueueConfigs(namespace string) AAQJobQueueConfigInterface {
@@ -92,32 +92,32 @@ func (k aaq) DiscoveryClient() discovery.DiscoveryInterface {
 	return k.discoveryClient
 }
 
-// ApplicationsResourceQuotaInterface has methods to work with ApplicationsResourceQuotas resources.
-type ApplicationsResourceQuotaInterface interface {
-	Create(ctx context.Context, applicationsResourceQuota *v1alpha1.ApplicationsResourceQuota, opts metav1.CreateOptions) (*v1alpha1.ApplicationsResourceQuota, error)
-	Update(ctx context.Context, applicationsResourceQuota *v1alpha1.ApplicationsResourceQuota, opts metav1.UpdateOptions) (*v1alpha1.ApplicationsResourceQuota, error)
-	UpdateStatus(ctx context.Context, applicationsResourceQuota *v1alpha1.ApplicationsResourceQuota, opts metav1.UpdateOptions) (*v1alpha1.ApplicationsResourceQuota, error)
+// ApplicationAwareResourceQuotaInterface has methods to work with ApplicationAwareResourceQuotas resources.
+type ApplicationAwareResourceQuotaInterface interface {
+	Create(ctx context.Context, applicationAwareResourceQuota *v1alpha1.ApplicationAwareResourceQuota, opts metav1.CreateOptions) (*v1alpha1.ApplicationAwareResourceQuota, error)
+	Update(ctx context.Context, applicationAwareResourceQuota *v1alpha1.ApplicationAwareResourceQuota, opts metav1.UpdateOptions) (*v1alpha1.ApplicationAwareResourceQuota, error)
+	UpdateStatus(ctx context.Context, applicationAwareResourceQuota *v1alpha1.ApplicationAwareResourceQuota, opts metav1.UpdateOptions) (*v1alpha1.ApplicationAwareResourceQuota, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
-	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1alpha1.ApplicationsResourceQuota, error)
-	List(ctx context.Context, opts metav1.ListOptions) (*v1alpha1.ApplicationsResourceQuotaList, error)
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1alpha1.ApplicationAwareResourceQuota, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*v1alpha1.ApplicationAwareResourceQuotaList, error)
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1alpha1.ApplicationsResourceQuota, err error)
-	aaqv1alpha1.ApplicationsResourceQuotaExpansion
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1alpha1.ApplicationAwareResourceQuota, err error)
+	aaqv1alpha1.ApplicationAwareResourceQuotaExpansion
 }
 
-// ClusterAppsResourceQuotaInterface has methods to work with ClusterAppsResourceQuota resources.
-type ClusterAppsResourceQuotaInterface interface {
-	Create(ctx context.Context, applicationsResourceQuota *v1alpha1.ClusterAppsResourceQuota, opts metav1.CreateOptions) (*v1alpha1.ClusterAppsResourceQuota, error)
-	Update(ctx context.Context, applicationsResourceQuota *v1alpha1.ClusterAppsResourceQuota, opts metav1.UpdateOptions) (*v1alpha1.ClusterAppsResourceQuota, error)
-	UpdateStatus(ctx context.Context, applicationsResourceQuota *v1alpha1.ClusterAppsResourceQuota, opts metav1.UpdateOptions) (*v1alpha1.ClusterAppsResourceQuota, error)
+// ApplicationAwareClusterResourceQuotaInterface has methods to work with ApplicationAwareClusterResourceQuota resources.
+type ApplicationAwareClusterResourceQuotaInterface interface {
+	Create(ctx context.Context, applicationAwareResourceQuota *v1alpha1.ApplicationAwareClusterResourceQuota, opts metav1.CreateOptions) (*v1alpha1.ApplicationAwareClusterResourceQuota, error)
+	Update(ctx context.Context, applicationAwareResourceQuota *v1alpha1.ApplicationAwareClusterResourceQuota, opts metav1.UpdateOptions) (*v1alpha1.ApplicationAwareClusterResourceQuota, error)
+	UpdateStatus(ctx context.Context, applicationAwareResourceQuota *v1alpha1.ApplicationAwareClusterResourceQuota, opts metav1.UpdateOptions) (*v1alpha1.ApplicationAwareClusterResourceQuota, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
-	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1alpha1.ClusterAppsResourceQuota, error)
-	List(ctx context.Context, opts metav1.ListOptions) (*v1alpha1.ClusterAppsResourceQuotaList, error)
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1alpha1.ApplicationAwareClusterResourceQuota, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*v1alpha1.ApplicationAwareClusterResourceQuotaList, error)
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1alpha1.ClusterAppsResourceQuota, err error)
-	aaqv1alpha1.ClusterAppsResourceQuotaExpansion
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1alpha1.ApplicationAwareClusterResourceQuota, err error)
+	aaqv1alpha1.ApplicationAwareClusterResourceQuotaExpansion
 }
 
 // AAQJobQueueConfigInterface has methods to work with AAQJobQueueConfigs resources.

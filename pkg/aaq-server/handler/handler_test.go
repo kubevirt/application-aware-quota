@@ -169,7 +169,7 @@ var _ = Describe("Test handler of aaq server", func() {
 		v := Handler{
 			request: &admissionv1.AdmissionRequest{
 				Kind: metav1.GroupVersionKind{
-					Kind: "ApplicationsResourceQuota",
+					Kind: "ApplicationAwareResourceQuota",
 				},
 				Object: runtime.RawExtension{
 					Raw:    arqBytes,

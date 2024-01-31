@@ -48,7 +48,7 @@ var _ = Describe("Test rq-controller", func() {
 		})
 
 	})
-	DescribeTable("Test execute when ", func(arq *v1alpha1.ApplicationsResourceQuota, rqsState []metav1.Object, expectedActionSet sets.String, expectedEnqueueState enqueueState) {
+	DescribeTable("Test execute when ", func(arq *v1alpha1.ApplicationAwareResourceQuota, rqsState []metav1.Object, expectedActionSet sets.String, expectedEnqueueState enqueueState) {
 		ctrl := gomock.NewController(GinkgoT())
 		cli := client.NewMockAAQClient(ctrl)
 		arqInformer := testsutils.NewFakeSharedIndexInformer([]metav1.Object{arq})
@@ -111,7 +111,7 @@ func setupRQController(clientSet client.AAQClient, arqInformer cache.SharedIndex
 	kubeInformerFactory := informers.NewSharedInformerFactory(k8sfake.NewSimpleClientset(), 0)
 
 	if arqInformer == nil {
-		arqInformer = informerFactory.Aaq().V1alpha1().ApplicationsResourceQuotas().Informer()
+		arqInformer = informerFactory.Aaq().V1alpha1().ApplicationAwareResourceQuotas().Informer()
 	}
 	if rqInformer == nil {
 		rqInformer = kubeInformerFactory.Core().V1().ResourceQuotas().Informer()

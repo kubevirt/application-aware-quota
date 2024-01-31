@@ -123,7 +123,7 @@ func (ctrl *ArqController) updateRQ(old, curr interface{}) {
 	curRq := curr.(*v1.ResourceQuota)
 	oldRq := old.(*v1.ResourceQuota)
 	if !quota.Equals(curRq.Status.Hard, oldRq.Status.Hard) || !quota.Equals(curRq.Status.Used, oldRq.Status.Used) {
-		arq := &v1alpha12.ApplicationsResourceQuota{
+		arq := &v1alpha12.ApplicationAwareResourceQuota{
 			ObjectMeta: metav1.ObjectMeta{Name: strings.TrimSuffix(curRq.Name, rq_controller.RQSuffix), Namespace: curRq.Namespace},
 		}
 		key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(arq)
@@ -137,7 +137,7 @@ func (ctrl *ArqController) updateRQ(old, curr interface{}) {
 }
 func (ctrl *ArqController) deleteRQ(obj interface{}) {
 	rq := obj.(*v1.ResourceQuota)
-	arq := &v1alpha12.ApplicationsResourceQuota{
+	arq := &v1alpha12.ApplicationAwareResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: strings.TrimSuffix(rq.Name, rq_controller.RQSuffix), Namespace: rq.Namespace},
 	}
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(arq)
@@ -150,7 +150,7 @@ func (ctrl *ArqController) deleteRQ(obj interface{}) {
 
 func (ctrl *ArqController) addRQ(obj interface{}) {
 	rq := obj.(*v1.ResourceQuota)
-	arq := &v1alpha12.ApplicationsResourceQuota{
+	arq := &v1alpha12.ApplicationAwareResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: strings.TrimSuffix(rq.Name, rq_controller.RQSuffix), Namespace: rq.Namespace},
 	}
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(arq)
@@ -161,19 +161,19 @@ func (ctrl *ArqController) addRQ(obj interface{}) {
 	return
 }
 
-// When a ApplicationsResourceQuotaaqjqc.Status.PodsInJobQueuea is updated, enqueue all gated pods for revaluation
+// When a ApplicationAwareResourceQuotAaqjqc.Status.PodsInJobQueuea is updated, enqueue all gated pods for revaluation
 func (ctrl *ArqController) updateAaqjqc(old, cur interface{}) {
 	aaqjqc := cur.(*v1alpha12.AAQJobQueueConfig)
-	if aaqjqc.Status.ControllerLock[arq_controller.ApplicationsResourceQuotaLockName] {
+	if aaqjqc.Status.ControllerLock[arq_controller.ApplicationAwareResourceQuotaLockName] {
 		ctrl.nsQueue.Add(aaqjqc.Namespace)
 	}
 	return
 }
 
-// When a ApplicationsResourceQuotaaqjqc.Status.PodsInJobQueuea is updated, enqueue all gated pods for revaluation
+// When a ApplicationAwareResourceQuotAaqjqc.Status.PodsInJobQueuea is updated, enqueue all gated pods for revaluation
 func (ctrl *ArqController) addAaqjqc(obj interface{}) {
 	aaqjqc := obj.(*v1alpha12.AAQJobQueueConfig)
-	if aaqjqc.Status.ControllerLock[arq_controller.ApplicationsResourceQuotaLockName] {
+	if aaqjqc.Status.ControllerLock[arq_controller.ApplicationAwareResourceQuotaLockName] {
 		ctrl.nsQueue.Add(aaqjqc.Namespace)
 	}
 	return
@@ -183,8 +183,8 @@ func (ctrl *ArqController) addAaqjqc(obj interface{}) {
 func (ctrl *ArqController) enqueueAll() {
 	arqObjs := ctrl.arqInformer.GetIndexer().List()
 	for _, arqObj := range arqObjs {
-		arq := arqObj.(*v1alpha12.ApplicationsResourceQuota)
-		key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(arqObj.(*v1alpha12.ApplicationsResourceQuota))
+		arq := arqObj.(*v1alpha12.ApplicationAwareResourceQuota)
+		key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(arqObj.(*v1alpha12.ApplicationAwareResourceQuota))
 		if err != nil {
 			utilruntime.HandleError(fmt.Errorf("couldn't get key for object %+v: %v", arq, err))
 			continue
@@ -193,8 +193,8 @@ func (ctrl *ArqController) enqueueAll() {
 	}
 }
 func (ctrl *ArqController) updateArq(old, curr interface{}) {
-	oldArq := old.(*v1alpha12.ApplicationsResourceQuota)
-	curArq := curr.(*v1alpha12.ApplicationsResourceQuota)
+	oldArq := old.(*v1alpha12.ApplicationAwareResourceQuota)
+	curArq := curr.(*v1alpha12.ApplicationAwareResourceQuota)
 	if quota.Equals(oldArq.Spec.Hard, curArq.Spec.Hard) {
 		return
 	}
@@ -264,7 +264,7 @@ func (ctrl *ArqController) execute(ns string) (error, enqueueState) {
 		aaqjqc = aaqjqcObj.(*v1alpha12.AAQJobQueueConfig).DeepCopy()
 	}
 
-	if aaqjqc != nil && aaqjqc.Status.ControllerLock != nil && aaqjqc.Status.ControllerLock[arq_controller.ApplicationsResourceQuotaLockName] {
+	if aaqjqc != nil && aaqjqc.Status.ControllerLock != nil && aaqjqc.Status.ControllerLock[arq_controller.ApplicationAwareResourceQuotaLockName] {
 		if res, err := util.VerifyPodsWithOutSchedulingGates(ctrl.aaqCli, ctrl.podInformer, ns, aaqjqc.Status.PodsInJobQueue); err != nil || !res {
 			return err, Immediate //wait until gate controller remove the scheduling gates
 		}
@@ -276,15 +276,15 @@ func (ctrl *ArqController) execute(ns string) (error, enqueueState) {
 	}
 
 	for _, arqObj := range arqObjs {
-		arq := arqObj.(*v1alpha12.ApplicationsResourceQuota).DeepCopy()
+		arq := arqObj.(*v1alpha12.ApplicationAwareResourceQuota).DeepCopy()
 		err := ctrl.syncResourceQuota(arq)
 		if err != nil {
 			return err, Immediate
 		}
 	}
 
-	if aaqjqc != nil && aaqjqc.Status.ControllerLock != nil && aaqjqc.Status.ControllerLock[arq_controller.ApplicationsResourceQuotaLockName] {
-		aaqjqc.Status.ControllerLock[arq_controller.ApplicationsResourceQuotaLockName] = false
+	if aaqjqc != nil && aaqjqc.Status.ControllerLock != nil && aaqjqc.Status.ControllerLock[arq_controller.ApplicationAwareResourceQuotaLockName] {
+		aaqjqc.Status.ControllerLock[arq_controller.ApplicationAwareResourceQuotaLockName] = false
 		_, err = ctrl.aaqCli.AAQJobQueueConfigs(ns).UpdateStatus(context.Background(), aaqjqc, metav1.UpdateOptions{})
 		if err != nil {
 			return err, Immediate
@@ -360,7 +360,7 @@ func (ctrl *ArqController) addQuota(logger klog.Logger, obj interface{}) {
 		return
 	}
 
-	arq := obj.(*v1alpha12.ApplicationsResourceQuota)
+	arq := obj.(*v1alpha12.ApplicationAwareResourceQuota)
 
 	// if we declared an intent that is not yet captured in status (prioritize it)
 	if !apiequality.Semantic.DeepEqual(arq.Spec.Hard, arq.Status.Hard) {
@@ -419,12 +419,12 @@ func (ctrl *ArqController) syncResourceQuotaFromKey(key string) (err error) {
 		logger.Error(err, "Unable to retrieve resource quota from store", "key", key)
 		return err
 	}
-	arq := arqObj.(*v1alpha12.ApplicationsResourceQuota).DeepCopy()
+	arq := arqObj.(*v1alpha12.ApplicationAwareResourceQuota).DeepCopy()
 	return ctrl.syncResourceQuota(arq)
 }
 
 // syncResourceQuota runs a complete sync of resource quota status across all known kinds
-func (ctrl *ArqController) syncResourceQuota(arq *v1alpha12.ApplicationsResourceQuota) (err error) {
+func (ctrl *ArqController) syncResourceQuota(arq *v1alpha12.ApplicationAwareResourceQuota) (err error) {
 	// quota is dirty if any part of spec hard limits differs from the status hard limits
 	statusLimitsDirty := !apiequality.Semantic.DeepEqual(arq.Spec.Hard, arq.Status.Hard)
 
@@ -469,7 +469,7 @@ func (ctrl *ArqController) syncResourceQuota(arq *v1alpha12.ApplicationsResource
 	// Create a usage object that is based on the quota resource version that will handle updates
 	// by default, we preserve the past usage observation, and set hard to the current spec
 	usage := arq.DeepCopy()
-	usage.Status = v1alpha12.ApplicationsResourceQuotaStatus{}
+	usage.Status = v1alpha12.ApplicationAwareResourceQuotaStatus{}
 	usage.Status.Hard = hardLimits
 	usage.Status.Used = used
 
@@ -477,7 +477,7 @@ func (ctrl *ArqController) syncResourceQuota(arq *v1alpha12.ApplicationsResource
 
 	// there was a change observed by this controller that requires we update quota
 	if dirty {
-		_, err = ctrl.aaqCli.ApplicationsResourceQuotas(usage.Namespace).UpdateStatus(context.Background(), usage, metav1.UpdateOptions{})
+		_, err = ctrl.aaqCli.ApplicationAwareResourceQuotas(usage.Namespace).UpdateStatus(context.Background(), usage, metav1.UpdateOptions{})
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -485,7 +485,7 @@ func (ctrl *ArqController) syncResourceQuota(arq *v1alpha12.ApplicationsResource
 	return utilerrors.NewAggregate(errs)
 }
 
-func updateUsageFromResourceQuota(arq *v1alpha12.ApplicationsResourceQuota, rq *v1.ResourceQuota, newUsage map[v1.ResourceName]resource.Quantity) {
+func updateUsageFromResourceQuota(arq *v1alpha12.ApplicationAwareResourceQuota, rq *v1.ResourceQuota, newUsage map[v1.ResourceName]resource.Quantity) {
 	nonSchedulableResourcesHard := util.FilterNonScheduableResources(arq.Status.Hard)
 	if quota.Equals(rq.Spec.Hard, nonSchedulableResourcesHard) && rq.Status.Used != nil {
 		for key, value := range rq.Status.Used {

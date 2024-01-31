@@ -32,59 +32,58 @@ import (
 	corev1alpha1 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
 )
 
-// ApplicationsResourceQuotaInformer provides access to a shared informer and lister for
-// ApplicationsResourceQuotas.
-type ApplicationsResourceQuotaInformer interface {
+// ApplicationAwareClusterResourceQuotaInformer provides access to a shared informer and lister for
+// ApplicationAwareClusterResourceQuotas.
+type ApplicationAwareClusterResourceQuotaInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.ApplicationsResourceQuotaLister
+	Lister() v1alpha1.ApplicationAwareClusterResourceQuotaLister
 }
 
-type applicationsResourceQuotaInformer struct {
+type applicationAwareClusterResourceQuotaInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
-	namespace        string
 }
 
-// NewApplicationsResourceQuotaInformer constructs a new informer for ApplicationsResourceQuota type.
+// NewApplicationAwareClusterResourceQuotaInformer constructs a new informer for ApplicationAwareClusterResourceQuota type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewApplicationsResourceQuotaInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredApplicationsResourceQuotaInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewApplicationAwareClusterResourceQuotaInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredApplicationAwareClusterResourceQuotaInformer(client, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredApplicationsResourceQuotaInformer constructs a new informer for ApplicationsResourceQuota type.
+// NewFilteredApplicationAwareClusterResourceQuotaInformer constructs a new informer for ApplicationAwareClusterResourceQuota type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredApplicationsResourceQuotaInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredApplicationAwareClusterResourceQuotaInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.AaqV1alpha1().ApplicationsResourceQuotas(namespace).List(context.TODO(), options)
+				return client.AaqV1alpha1().ApplicationAwareClusterResourceQuotas().List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.AaqV1alpha1().ApplicationsResourceQuotas(namespace).Watch(context.TODO(), options)
+				return client.AaqV1alpha1().ApplicationAwareClusterResourceQuotas().Watch(context.TODO(), options)
 			},
 		},
-		&corev1alpha1.ApplicationsResourceQuota{},
+		&corev1alpha1.ApplicationAwareClusterResourceQuota{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *applicationsResourceQuotaInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredApplicationsResourceQuotaInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *applicationAwareClusterResourceQuotaInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredApplicationAwareClusterResourceQuotaInformer(client, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *applicationsResourceQuotaInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&corev1alpha1.ApplicationsResourceQuota{}, f.defaultInformer)
+func (f *applicationAwareClusterResourceQuotaInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&corev1alpha1.ApplicationAwareClusterResourceQuota{}, f.defaultInformer)
 }
 
-func (f *applicationsResourceQuotaInformer) Lister() v1alpha1.ApplicationsResourceQuotaLister {
-	return v1alpha1.NewApplicationsResourceQuotaLister(f.Informer().GetIndexer())
+func (f *applicationAwareClusterResourceQuotaInformer) Lister() v1alpha1.ApplicationAwareClusterResourceQuotaLister {
+	return v1alpha1.NewApplicationAwareClusterResourceQuotaLister(f.Informer().GetIndexer())
 }

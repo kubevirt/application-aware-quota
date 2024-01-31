@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Report a bug in Applications Aware Quota
+about: Report a bug in Application Aware Quota
 title: ''
 labels: kind/bug
 assignees: ''
