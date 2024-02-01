@@ -25,7 +25,7 @@ import (
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
-	kubevirtv1 "kubevirt.io/applications-aware-quota/pkg/generated/kubevirt/clientset/versioned/typed/core/v1"
+	kubevirtv1 "kubevirt.io/application-aware-quota/pkg/generated/kubevirt/clientset/versioned/typed/core/v1"
 )
 
 type Interface interface {

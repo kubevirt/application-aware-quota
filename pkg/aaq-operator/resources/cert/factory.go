@@ -3,8 +3,8 @@ package cert
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/cluster"
-	"kubevirt.io/applications-aware-quota/pkg/util"
+	"kubevirt.io/application-aware-quota/pkg/aaq-operator/resources/cluster"
+	"kubevirt.io/application-aware-quota/pkg/util"
 	"time"
 )
 

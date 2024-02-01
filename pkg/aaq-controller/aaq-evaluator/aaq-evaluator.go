@@ -15,8 +15,8 @@ import (
 	"k8s.io/kubernetes/pkg/apis/core/v1/helper/qos"
 	"k8s.io/kubernetes/pkg/quota/v1/evaluator/core"
 	"k8s.io/utils/clock"
-	"kubevirt.io/applications-aware-quota/pkg/log"
-	"kubevirt.io/applications-aware-quota/pkg/util"
+	"kubevirt.io/application-aware-quota/pkg/log"
+	"kubevirt.io/application-aware-quota/pkg/util"
 )
 
 // NewAaqEvaluator returns an evaluator that can evaluate pods with apps consideration

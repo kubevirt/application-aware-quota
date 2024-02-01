@@ -4,7 +4,7 @@ import (
 	"context"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"kubevirt.io/applications-aware-quota/pkg/util"
+	"kubevirt.io/application-aware-quota/pkg/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"

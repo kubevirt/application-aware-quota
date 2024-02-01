@@ -7,8 +7,8 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	matav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"kubevirt.io/applications-aware-quota/pkg/util"
-	"kubevirt.io/applications-aware-quota/tests/framework"
+	"kubevirt.io/application-aware-quota/pkg/util"
+	"kubevirt.io/application-aware-quota/tests/framework"
 	"time"
 )
 

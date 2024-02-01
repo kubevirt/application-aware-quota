@@ -23,7 +23,7 @@ import (
 
 	v1 "github.com/openshift/api/quota/v1"
 	rest "k8s.io/client-go/rest"
-	"kubevirt.io/applications-aware-quota/pkg/generated/cluster-resource-quota/clientset/versioned/scheme"
+	"kubevirt.io/application-aware-quota/pkg/generated/cluster-resource-quota/clientset/versioned/scheme"
 )
 
 type QuotaV1Interface interface {

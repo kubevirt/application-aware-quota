@@ -1,4 +1,4 @@
-module kubevirt.io/applications-aware-quota
+module kubevirt.io/application-aware-quota
 
 go 1.20
 

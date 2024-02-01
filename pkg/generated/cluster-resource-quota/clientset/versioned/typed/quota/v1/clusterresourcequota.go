@@ -27,7 +27,7 @@ import (
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	rest "k8s.io/client-go/rest"
-	scheme "kubevirt.io/applications-aware-quota/pkg/generated/cluster-resource-quota/clientset/versioned/scheme"
+	scheme "kubevirt.io/application-aware-quota/pkg/generated/cluster-resource-quota/clientset/versioned/scheme"
 )
 
 // ClusterResourceQuotasGetter has a method to return a ClusterResourceQuotaInterface.

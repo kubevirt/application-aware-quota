@@ -10,7 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/namespaced"
+	"kubevirt.io/application-aware-quota/pkg/aaq-operator/resources/namespaced"
 	utils "kubevirt.io/controller-lifecycle-operator-sdk/pkg/sdk/resources"
 )
 

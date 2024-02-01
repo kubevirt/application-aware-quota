@@ -27,9 +27,9 @@ import (
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
-	versioned "kubevirt.io/applications-aware-quota/pkg/generated/aaq/clientset/versioned"
-	core "kubevirt.io/applications-aware-quota/pkg/generated/aaq/informers/externalversions/core"
-	internalinterfaces "kubevirt.io/applications-aware-quota/pkg/generated/aaq/informers/externalversions/internalinterfaces"
+	versioned "kubevirt.io/application-aware-quota/pkg/generated/aaq/clientset/versioned"
+	core "kubevirt.io/application-aware-quota/pkg/generated/aaq/informers/externalversions/core"
+	internalinterfaces "kubevirt.io/application-aware-quota/pkg/generated/aaq/informers/externalversions/internalinterfaces"
 )
 
 // SharedInformerOption defines the functional option type for SharedInformerFactory.
