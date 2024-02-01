@@ -28,12 +28,12 @@ if [ "${AAQ_CONTAINER_BUILDCMD}" = "buildah" ]; then
     fi
 fi
 
-#if ! git diff-index --quiet HEAD~1 hack/build/docker; then
+if ! git diff-index --quiet HEAD~1 hack/build/docker; then
     #Since this only runs during the post-submit job, the PR will have squashed into a single
     #commit and we can use HEAD~1 to compare.
 
     BUILDER_SPEC="${BUILD_DIR}/docker/builder"
-    UNTAGGED_BUILDER_IMAGE=quay.io/bmordeha/kubevirt-aaq-bazel-builder
+    UNTAGGED_BUILDER_IMAGE=quay.io/kubevirt/kubevirt-aaq-bazel-builder
     BUILDER_TAG=$(date +"%y%m%d%H%M")-$(git rev-parse --short HEAD)
     BUILDER_MANIFEST=${UNTAGGED_BUILDER_IMAGE}:${BUILDER_TAG}
     echo "$DOCKER_PREFIX:$DOCKER_TAG"
@@ -50,4 +50,4 @@ fi
     DIGEST=$(docker images --digests | grep ${UNTAGGED_BUILDER_IMAGE} | grep ${BUILDER_TAG} | awk '{ print $4 }')
     echo "Image: ${BUILDER_MANIFEST}"
     echo "Digest: ${DIGEST}"
-#fi
+fi
