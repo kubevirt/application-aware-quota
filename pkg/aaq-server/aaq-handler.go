@@ -6,8 +6,8 @@ import (
 	"fmt"
 	admissionv1 "k8s.io/api/admission/v1"
 	"k8s.io/klog/v2"
-	handlerv1 "kubevirt.io/applications-aware-quota/pkg/aaq-server/handler"
-	"kubevirt.io/applications-aware-quota/pkg/client"
+	handlerv1 "kubevirt.io/application-aware-quota/pkg/aaq-server/handler"
+	"kubevirt.io/application-aware-quota/pkg/client"
 	"net/http"
 )
 

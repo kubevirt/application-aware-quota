@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	schedulev1 "k8s.io/api/scheduling/v1"
-	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/cluster"
-	resourcesutils "kubevirt.io/applications-aware-quota/pkg/util"
-	"kubevirt.io/applications-aware-quota/tests/utils"
+	"kubevirt.io/application-aware-quota/pkg/aaq-operator/resources/cluster"
+	resourcesutils "kubevirt.io/application-aware-quota/pkg/util"
+	"kubevirt.io/application-aware-quota/tests/utils"
 	"reflect"
 	"runtime"
 	"time"
@@ -23,8 +23,8 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 
-	aaqv1 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
-	"kubevirt.io/applications-aware-quota/tests/framework"
+	aaqv1 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
+	"kubevirt.io/application-aware-quota/tests/framework"
 	sdkapi "kubevirt.io/controller-lifecycle-operator-sdk/api"
 	"kubevirt.io/controller-lifecycle-operator-sdk/pkg/sdk"
 )

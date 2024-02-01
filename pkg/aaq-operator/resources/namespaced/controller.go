@@ -8,8 +8,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	utils2 "kubevirt.io/applications-aware-quota/pkg/util"
-	"kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
+	utils2 "kubevirt.io/application-aware-quota/pkg/util"
+	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 	sdkapi "kubevirt.io/controller-lifecycle-operator-sdk/api"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )

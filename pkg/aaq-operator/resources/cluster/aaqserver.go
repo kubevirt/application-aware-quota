@@ -7,8 +7,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	aaq_server2 "kubevirt.io/applications-aware-quota/pkg/aaq-server"
-	"kubevirt.io/applications-aware-quota/pkg/util"
+	aaq_server2 "kubevirt.io/application-aware-quota/pkg/aaq-server"
+	"kubevirt.io/application-aware-quota/pkg/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

@@ -1,7 +1,7 @@
 package cluster
 
 import (
-	"kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources"
+	"kubevirt.io/application-aware-quota/pkg/aaq-operator/resources"
 	"strings"
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"

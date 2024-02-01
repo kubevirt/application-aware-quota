@@ -9,7 +9,7 @@ import (
 	k8sv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"kubevirt.io/applications-aware-quota/tests/framework/matcher/helper"
+	"kubevirt.io/application-aware-quota/tests/framework/matcher/helper"
 )
 
 func HaveConditionMissingOrFalse(conditionType interface{}) types.GomegaMatcher {

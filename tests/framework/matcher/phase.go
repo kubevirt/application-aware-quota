@@ -8,7 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"kubevirt.io/applications-aware-quota/tests/framework/matcher/helper"
+	"kubevirt.io/application-aware-quota/tests/framework/matcher/helper"
 )
 
 func BeRunning() types.GomegaMatcher {

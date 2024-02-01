@@ -21,7 +21,7 @@ package fake
 import (
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
-	v1 "kubevirt.io/applications-aware-quota/pkg/generated/cluster-resource-quota/clientset/versioned/typed/quota/v1"
+	v1 "kubevirt.io/application-aware-quota/pkg/generated/cluster-resource-quota/clientset/versioned/typed/quota/v1"
 )
 
 type FakeQuotaV1 struct {

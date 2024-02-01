@@ -2,10 +2,10 @@ package aaq_operator
 
 import (
 	"context"
-	"kubevirt.io/applications-aware-quota/pkg/util"
+	"kubevirt.io/application-aware-quota/pkg/util"
 
-	aaqcluster "kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/cluster"
-	aaqnamespaced "kubevirt.io/applications-aware-quota/pkg/aaq-operator/resources/namespaced"
+	aaqcluster "kubevirt.io/application-aware-quota/pkg/aaq-operator/resources/cluster"
+	aaqnamespaced "kubevirt.io/application-aware-quota/pkg/aaq-operator/resources/namespaced"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -15,7 +15,7 @@ import (
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/types"
-	aaqv1 "kubevirt.io/applications-aware-quota/staging/src/kubevirt.io/applications-aware-quota-api/pkg/apis/core/v1alpha1"
+	aaqv1 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 	sdkapi "kubevirt.io/controller-lifecycle-operator-sdk/api"
 	"kubevirt.io/controller-lifecycle-operator-sdk/pkg/sdk"
 )

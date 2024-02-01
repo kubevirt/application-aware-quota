@@ -25,7 +25,7 @@ import (
 	quotav1 "github.com/openshift/api/quota/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	rest "k8s.io/client-go/rest"
-	scheme "kubevirt.io/applications-aware-quota/pkg/generated/cluster-resource-quota/clientset/versioned/scheme"
+	scheme "kubevirt.io/application-aware-quota/pkg/generated/cluster-resource-quota/clientset/versioned/scheme"
 )
 
 // AppliedClusterResourceQuotasGetter has a method to return a AppliedClusterResourceQuotaInterface.

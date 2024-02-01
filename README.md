@@ -7,9 +7,9 @@ Empower users to customize and manage resource quotas per component in Kubernete
 Deploying the AAQ controller is straightforward.
 
   ```
-  $ export VERSION=$(curl -s https://api.github.com/repos/kubevirt/applications-aware-quota/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-  $ kubectl create -f https://github.com/kubevirt/applications-aware-quota/releases/download/$VERSION/aaq-operator.yaml
-  $ kubectl create -f https://github.com/kubevirt/applications-aware-quota/releases/download/$VERSION/aaq-cr.yaml
+  $ export VERSION=$(curl -s https://api.github.com/repos/kubevirt/application-aware-quota/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+  $ kubectl create -f https://github.com/kubevirt/application-aware-quota/releases/download/$VERSION/aaq-operator.yaml
+  $ kubectl create -f https://github.com/kubevirt/application-aware-quota/releases/download/$VERSION/aaq-cr.yaml
   ```
 
 
@@ -19,7 +19,7 @@ AAQ includes a self contained development and test environment.  We use Docker t
 
 ```bash
 $ mkdir $GOPATH/src/kubevirt.io && cd $GOPATH/src/kubevirt.io
-$ git clone https://github.com/kubevirt/applications-aware-quota && cd applications-aware-quota
+$ git clone https://github.com/kubevirt/application-aware-quota && cd application-aware-quota
 $ make cluster-up
 $ make cluster-sync
 $ ./cluster-up/kubectl.sh .....

@@ -6,7 +6,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"kubevirt.io/applications-aware-quota/pkg/certificates"
+	"kubevirt.io/application-aware-quota/pkg/certificates"
 )
 
 var _ = Describe("Certificates", func() {

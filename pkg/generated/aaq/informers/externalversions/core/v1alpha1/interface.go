@@ -19,7 +19,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	internalinterfaces "kubevirt.io/applications-aware-quota/pkg/generated/aaq/informers/externalversions/internalinterfaces"
+	internalinterfaces "kubevirt.io/application-aware-quota/pkg/generated/aaq/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to all the informers in this group version.

@@ -5,7 +5,7 @@ import (
 	"github.com/go-logr/logr"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"kubevirt.io/applications-aware-quota/pkg/util"
+	"kubevirt.io/application-aware-quota/pkg/util"
 	utils "kubevirt.io/controller-lifecycle-operator-sdk/pkg/sdk/resources"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
