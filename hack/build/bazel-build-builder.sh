@@ -33,7 +33,7 @@ fi
     #commit and we can use HEAD~1 to compare.
 
     BUILDER_SPEC="${BUILD_DIR}/docker/builder"
-    UNTAGGED_BUILDER_IMAGE=quay.io/bmordeha/kubevirt-aaq-bazel-builder
+    UNTAGGED_BUILDER_IMAGE=quay.io/kubevirt/kubevirt-aaq-bazel-builder
     BUILDER_TAG=$(date +"%y%m%d%H%M")-$(git rev-parse --short HEAD)
     BUILDER_MANIFEST=${UNTAGGED_BUILDER_IMAGE}:${BUILDER_TAG}
     echo "$DOCKER_PREFIX:$DOCKER_TAG"
