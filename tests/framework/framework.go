@@ -357,9 +357,9 @@ func (f *Framework) CreatePrometheusServiceInNs(namespace string) (*v1.Service, 
 }
 
 // ExpectEvent polls and fetches events during a defined period of time
-func (f *Framework) ExpectEvent(aaqNamespace string) gomega.AsyncAssertion {
+func (f *Framework) ExpectEvent(ns string) gomega.AsyncAssertion {
 	return gomega.Eventually(func() string {
-		events, err := f.runKubectlCommand("get", "events", "-n", aaqNamespace)
+		events, err := f.runKubectlCommand("get", "events", "-n", ns)
 		if err == nil {
 			fmt.Fprintf(ginkgo.GinkgoWriter, "%s", events)
 			return events
