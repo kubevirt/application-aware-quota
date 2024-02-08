@@ -463,3 +463,7 @@ func verifyPodsWithOutSchedulingGatesWithApiCall(aaqCli client2.AAQClient, names
 
 	return true, nil
 }
+
+func IgnoreRqErr(err string) string {
+	return strings.TrimPrefix(err, strings.Split(err, ":")[0]+": ")
+}

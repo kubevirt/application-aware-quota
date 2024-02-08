@@ -13,7 +13,6 @@ import (
 	"kubevirt.io/application-aware-quota/pkg/util"
 	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 	"net/http"
-	"strings"
 )
 
 const (
@@ -122,7 +121,7 @@ func (v Handler) validateApplicationAwareResourceQuota() (*admissionv1.Admission
 	rq.Spec.Scopes = arq.Spec.Scopes
 	_, err := v.aaqCli.CoreV1().ResourceQuotas(arq.Namespace).Create(context.Background(), rq, metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}})
 	if err != nil {
-		return reviewResponse(v.request.UID, false, http.StatusForbidden, ignoreRqErr(err.Error())), nil
+		return reviewResponse(v.request.UID, false, http.StatusForbidden, util.IgnoreRqErr(err.Error())), nil
 	}
 	return reviewResponse(v.request.UID, true, http.StatusAccepted, allowArqRequest), nil
 
@@ -140,7 +139,7 @@ func (v Handler) validateApplicationAwareClusterResourceQuota() (*admissionv1.Ad
 	rq.Spec.Scopes = acrq.Spec.Quota.Scopes
 	_, err := v.aaqCli.CoreV1().ResourceQuotas(v1.NamespaceDefault).Create(context.Background(), rq, metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}})
 	if err != nil {
-		return reviewResponse(v.request.UID, false, http.StatusForbidden, ignoreRqErr(err.Error())), nil
+		return reviewResponse(v.request.UID, false, http.StatusForbidden, util.IgnoreRqErr(err.Error())), nil
 	}
 	nonSchedulableResourcesHard := util.FilterNonScheduableResources(acrq.Spec.Quota.Hard)
 	if !v.isOnOpenshift && len(nonSchedulableResourcesHard) > 0 {
@@ -193,10 +192,6 @@ func createRQName() string {
 	suffix := make([]byte, 10)
 	rand.Read(suffix)
 	return fmt.Sprintf("%s%x", validatingResourceQuotaPrefix, suffix)
-}
-
-func ignoreRqErr(err string) string {
-	return strings.TrimPrefix(err, strings.Split(err, ":")[0]+": ")
 }
 
 func isAAQControllerServiceAccount(serviceAccount string, aaqNS string) bool {

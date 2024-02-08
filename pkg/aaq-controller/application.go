@@ -79,6 +79,7 @@ type AaqControllerApp struct {
 	crqInformer                   cache.SharedIndexInformer
 	acrqInformer                  cache.SharedIndexInformer
 	nsInformer                    cache.SharedIndexInformer
+	recorder                      record.EventRecorder
 	calcRegistry                  *aaq_evaluator.AaqCalculatorsRegistry
 	readyChan                     chan bool
 	leaderElector                 *leaderelection.LeaderElector
@@ -128,6 +129,10 @@ func Execute() {
 	app.aaqjqcInformer = informers.GetAAQJobQueueConfig(app.aaqCli)
 	app.podInformer = informers.GetPodInformer(app.aaqCli)
 	app.aaqInformer = informers.GetAAQInformer(app.aaqCli)
+	// Create event recorder
+	broadcaster := record.NewBroadcaster()
+	broadcaster.StartRecordingToSink(&v14.EventSinkImpl{Interface: app.aaqCli.CoreV1().Events(v1.NamespaceAll)})
+	app.recorder = broadcaster.NewRecorder(scheme.Scheme, k8sv1.EventSource{Component: "aaq-controller"})
 
 	stop := ctx.Done()
 	app.calcRegistry = aaq_evaluator.NewAaqCalculatorsRegistry(10, clock.RealClock{}).AddBuiltInCalculator(util.LauncherConfig, built_in_usage_calculators.NewVirtLauncherCalculator(stop, alpha1.VmiCalcConfigName(*launcherConfig)))
@@ -225,6 +230,7 @@ func (mca *AaqControllerApp) initAaqGateController(stop <-chan struct{},
 		clusterQuotaLister,
 		namespaceLister,
 		clusterQuotaMapper,
+		mca.recorder,
 		mca.enableClusterQuota,
 		stop,
 	)
