@@ -9,6 +9,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"kubevirt.io/application-aware-quota/pkg/aaq-operator/resources"
 	aaqclientset "kubevirt.io/application-aware-quota/pkg/generated/aaq/clientset/versioned"
+	testsutils "kubevirt.io/application-aware-quota/pkg/tests-utils"
 	"kubevirt.io/application-aware-quota/pkg/util"
 	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 	"kubevirt.io/application-aware-quota/tests/framework"
@@ -1794,6 +1795,40 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		wantUsedResources[v1.ResourcePods] = resource.MustParse("0")
 		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quota.Name, wantUsedResources)
 		Expect(err).ToNot(HaveOccurred())
+	})
+})
+
+var _ = Describe("ApplicationAwareResourceQuota", func() {
+	f := framework.NewFramework("events")
+
+	It("should verify ApplicationAwareResourceQuota pod block result an event creation.", func(ctx context.Context) {
+		c, err := countApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
+		Expect(err).ToNot(HaveOccurred())
+
+		By("Creating a blocking ApplicationAwareResourceQuota ")
+		quotaName := "test-quota"
+		ApplicationAwareResourceQuota := newTestApplicationAwareResourceQuota(quotaName)
+		_, err = createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, ApplicationAwareResourceQuota)
+		Expect(err).ToNot(HaveOccurred())
+
+		By("Ensuring Application Aware Resource Quota status is calculated")
+		usedResources := v1.ResourceList{}
+		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		Expect(err).ToNot(HaveOccurred())
+
+		blockedPod := &v1.Pod{
+			ObjectMeta: metav1.ObjectMeta{Name: "pod-test", Namespace: f.Namespace.Name},
+			Status:     v1.PodStatus{Phase: v1.PodRunning},
+			Spec: v1.PodSpec{
+				Containers: []v1.Container{{Name: "ctr", Image: "image", Resources: testsutils.GetResourceRequirements(testsutils.GetResourceList("500m", "50Gi"), testsutils.GetResourceList("", ""))}},
+			},
+		}
+		blockedPod, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, blockedPod, metav1.CreateOptions{})
+		Expect(err).ToNot(HaveOccurred())
+		verifyPodIsGated(f.K8sClient, f.Namespace.Name, blockedPod.Name)
+		f.ExpectEvent(blockedPod.Namespace).Should(ContainSubstring("exceeded quota"))
+
 	})
 })
 

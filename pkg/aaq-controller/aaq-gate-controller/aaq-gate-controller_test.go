@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/informers"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/record"
 	testingclock "k8s.io/utils/clock/testing"
 	aaq_evaluator "kubevirt.io/application-aware-quota/pkg/aaq-controller/aaq-evaluator"
 	"kubevirt.io/application-aware-quota/pkg/client"
@@ -44,7 +45,8 @@ var _ = Describe("Test aaq-gate-controller", func() {
 			aaqjcInterfaceMock.EXPECT().Create(context.Background(), aaqjqc, metav1.CreateOptions{}).Return(aaqjqc, nil).Times(1)
 			cli.EXPECT().AAQJobQueueConfigs(testNs).Return(aaqjcInterfaceMock).Times(1)
 
-			qc := setupAAQGateController(cli, nil, nil, aaqjcInformer)
+			recorder := record.NewFakeRecorder(100)
+			qc := setupAAQGateController(cli, nil, nil, aaqjcInformer, recorder)
 			err, es := qc.execute(testNs)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(es).To(Equal(Forget))
@@ -62,7 +64,8 @@ var _ = Describe("Test aaq-gate-controller", func() {
 		if expectedActionSet != nil {
 			cli.EXPECT().CoreV1().Times(1).Return(fakek8sCli.CoreV1())
 		}
-		qc := setupAAQGateController(cli, podInformer, arqInformer, aaqjqcInformer)
+		recorder := record.NewFakeRecorder(100)
+		qc := setupAAQGateController(cli, podInformer, arqInformer, aaqjqcInformer, recorder)
 		err, es := qc.execute(testNs)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(es).To(Equal(Immediate))
@@ -99,7 +102,7 @@ var _ = Describe("Test aaq-gate-controller", func() {
 	),
 	)
 
-	DescribeTable("Test execute when aaqjc is empty and", func(expectedAaqjqc *v1alpha1.AAQJobQueueConfig, podsState []metav1.Object, arqsState []metav1.Object, expectedActionSet sets.String) {
+	DescribeTable("Test execute when aaqjc is empty and", func(expectedAaqjqc *v1alpha1.AAQJobQueueConfig, podsState []metav1.Object, arqsState []metav1.Object, expectedActionSet sets.String, shouldReceiveEvent bool) {
 		ctrl := gomock.NewController(GinkgoT())
 		cli := client.NewMockAAQClient(ctrl)
 		podInformer := testsutils.NewFakeSharedIndexInformer(podsState)
@@ -112,7 +115,8 @@ var _ = Describe("Test aaq-gate-controller", func() {
 			aaqjqcInterfaceMock.EXPECT().UpdateStatus(context.Background(), expectedAaqjqc, metav1.UpdateOptions{}).Times(1).Return(expectedAaqjqc, nil)
 			cli.EXPECT().AAQJobQueueConfigs(testNs).Return(aaqjqcInterfaceMock).Times(1)
 		}
-		qc := setupAAQGateController(cli, podInformer, arqInformer, aaqjqcInformer)
+		recorder := record.NewFakeRecorder(100)
+		qc := setupAAQGateController(cli, podInformer, arqInformer, aaqjqcInformer, recorder)
 		err, es := qc.execute(testNs)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(es).To(Equal(Forget))
@@ -121,10 +125,15 @@ var _ = Describe("Test aaq-gate-controller", func() {
 			actionSet.Insert(strings.Join([]string{action.GetVerb(), action.GetResource().Resource}, "-"))
 		}
 		Expect(actionSet.Equal(expectedActionSet)).To(BeTrue(), fmt.Sprintf("Expected actions:\n%v\n but got:\n%v\nDifference:\n%v", expectedActionSet, actionSet, expectedActionSet.Difference(actionSet)))
+
+		if shouldReceiveEvent {
+			ExpectWithOffset(1, recorder.Events).To(Receive(ContainSubstring("exceeded quota")))
+		}
 	}, Entry(" there aren't any pod in the test ns",
 		nil,
 		[]metav1.Object{}, []metav1.Object{},
 		sets.NewString(),
+		false,
 	), Entry(" there is a pod without gate",
 		nil,
 		[]metav1.Object{
@@ -137,6 +146,7 @@ var _ = Describe("Test aaq-gate-controller", func() {
 			},
 		}, []metav1.Object{},
 		sets.NewString(),
+		false,
 	), Entry(" there is a pod with another gate",
 		nil,
 		[]metav1.Object{
@@ -150,6 +160,7 @@ var _ = Describe("Test aaq-gate-controller", func() {
 			},
 		}, []metav1.Object{},
 		sets.NewString(),
+		false,
 	), Entry(" there is a pod with several gates",
 		nil,
 		[]metav1.Object{
@@ -163,6 +174,7 @@ var _ = Describe("Test aaq-gate-controller", func() {
 			},
 		}, []metav1.Object{},
 		sets.NewString(),
+		false,
 	), Entry(" there is a pod with gate that should be ungated without arqs",
 		&v1alpha1.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: AaqjqcName, Namespace: testNs}, Status: v1alpha1.AAQJobQueueConfigStatus{PodsInJobQueue: []string{"pod-test"}, ControllerLock: map[string]bool{ApplicationAwareResourceQuotaLockName: true}}},
 		[]metav1.Object{
@@ -177,6 +189,7 @@ var _ = Describe("Test aaq-gate-controller", func() {
 		}, []metav1.Object{}, sets.NewString(
 			strings.Join([]string{"update", "pods"}, "-"),
 		),
+		false,
 	), Entry(" there is a pod with gate that should be ungated with non-blocking-arqs",
 		&v1alpha1.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: AaqjqcName, Namespace: testNs}, Status: v1alpha1.AAQJobQueueConfigStatus{PodsInJobQueue: []string{"pod-test"}, ControllerLock: map[string]bool{ApplicationAwareResourceQuotaLockName: true}}},
 		[]metav1.Object{
@@ -194,7 +207,8 @@ var _ = Describe("Test aaq-gate-controller", func() {
 		sets.NewString(
 			strings.Join([]string{"update", "pods"}, "-"),
 		),
-	), Entry(" there is a pod with gate that should be ungated with blocking-arqs",
+		false,
+	), Entry(" there is a pod with gate that should not be ungated with blocking-arqs",
 		nil,
 		[]metav1.Object{
 			&corev1.Pod{
@@ -209,6 +223,7 @@ var _ = Describe("Test aaq-gate-controller", func() {
 			tests.NewArqBuilder().WithNamespace(testNs).WithName("testarq").WithResource(corev1.ResourceRequestsMemory, resource.MustParse("2Mi")).WithSyncStatusHardEmptyStatusUsed().Build(),
 		},
 		sets.NewString(),
+		true,
 	), Entry(" there is a pod with gate that should not be ungated with two arqs one of them is blocking",
 		nil,
 		[]metav1.Object{
@@ -225,6 +240,7 @@ var _ = Describe("Test aaq-gate-controller", func() {
 			tests.NewArqBuilder().WithNamespace(testNs).WithName("testarq1").WithResource(corev1.ResourceRequestsMemory, resource.MustParse("2Mi")).WithSyncStatusHardEmptyStatusUsed().Build(),
 		},
 		sets.NewString(),
+		true,
 	), Entry(" there is a pod with gate that should be ungated with two non-blocking arqs",
 		&v1alpha1.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: AaqjqcName, Namespace: testNs}, Status: v1alpha1.AAQJobQueueConfigStatus{PodsInJobQueue: []string{"pod-test"}, ControllerLock: map[string]bool{ApplicationAwareResourceQuotaLockName: true}}},
 		[]metav1.Object{
@@ -243,6 +259,7 @@ var _ = Describe("Test aaq-gate-controller", func() {
 		sets.NewString(
 			strings.Join([]string{"update", "pods"}, "-"),
 		),
+		false,
 	), Entry(" there are two pods with gate with args with enough place just for one of them",
 		&v1alpha1.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: AaqjqcName, Namespace: testNs}, Status: v1alpha1.AAQJobQueueConfigStatus{PodsInJobQueue: []string{"pod-test2"}, ControllerLock: map[string]bool{ApplicationAwareResourceQuotaLockName: true}}},
 		[]metav1.Object{
@@ -269,6 +286,7 @@ var _ = Describe("Test aaq-gate-controller", func() {
 		sets.NewString(
 			strings.Join([]string{"update", "pods"}, "-"),
 		),
+		true,
 	), Entry(" there are two pods with gate with blocking arqs each arq block another pod",
 		nil,
 		[]metav1.Object{
@@ -293,12 +311,13 @@ var _ = Describe("Test aaq-gate-controller", func() {
 			tests.NewArqBuilder().WithNamespace(testNs).WithName("testarq1").WithResource(corev1.ResourceRequestsMemory, resource.MustParse("1Gi")).WithSyncStatusHardEmptyStatusUsed().Build(),
 		},
 		sets.NewString(),
+		true,
 	),
 	)
 
 })
 
-func setupAAQGateController(clientSet client.AAQClient, podInformer cache.SharedIndexInformer, arqInformer cache.SharedIndexInformer, aaqjcInformer cache.SharedIndexInformer) *AaqGateController {
+func setupAAQGateController(clientSet client.AAQClient, podInformer cache.SharedIndexInformer, arqInformer cache.SharedIndexInformer, aaqjcInformer cache.SharedIndexInformer, recorder *record.FakeRecorder) *AaqGateController {
 	informerFactory := externalversions.NewSharedInformerFactory(fake.NewSimpleClientset(), 0)
 	kubeInformerFactory := informers.NewSharedInformerFactory(k8sfake.NewSimpleClientset(), 0)
 	if podInformer == nil {
@@ -321,6 +340,7 @@ func setupAAQGateController(clientSet client.AAQClient, podInformer cache.Shared
 		nil,
 		nil,
 		nil,
+		recorder,
 		false,
 		stop,
 	)
