@@ -170,6 +170,22 @@ func getControllerClusterPolicyRules() []rbacv1.PolicyRule {
 				"aaq.kubevirt.io",
 			},
 			Resources: []string{
+				"applicationawareappliedclusterresourcequotas",
+			},
+			Verbs: []string{
+				"create",
+				"update",
+				"delete",
+				"get",
+				"watch",
+				"list",
+			},
+		},
+		{
+			APIGroups: []string{
+				"aaq.kubevirt.io",
+			},
+			Resources: []string{
 				"applicationawareclusterresourcequotas/finalizers",
 			},
 			Verbs: []string{
