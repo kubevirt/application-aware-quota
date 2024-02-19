@@ -77,6 +77,7 @@ func createCRDResources(args *FactoryArgs) []client.Object {
 	}
 	if cr.Spec.Configuration.AllowApplicationAwareClusterResourceQuota {
 		objs = append(objs, createApplicationAwareClusterResourceQuotaCRD())
+		objs = append(objs, createApplicationAwareAppliedClusterResourceQuotaCRD())
 	}
 	return objs
 }
