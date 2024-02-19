@@ -30,6 +30,14 @@ type AAQJobQueueConfigListerExpansion interface{}
 // AAQJobQueueConfigNamespaceLister.
 type AAQJobQueueConfigNamespaceListerExpansion interface{}
 
+// ApplicationAwareAppliedClusterResourceQuotaListerExpansion allows custom methods to be added to
+// ApplicationAwareAppliedClusterResourceQuotaLister.
+type ApplicationAwareAppliedClusterResourceQuotaListerExpansion interface{}
+
+// ApplicationAwareAppliedClusterResourceQuotaNamespaceListerExpansion allows custom methods to be added to
+// ApplicationAwareAppliedClusterResourceQuotaNamespaceLister.
+type ApplicationAwareAppliedClusterResourceQuotaNamespaceListerExpansion interface{}
+
 // ApplicationAwareClusterResourceQuotaListerExpansion allows custom methods to be added to
 // ApplicationAwareClusterResourceQuotaLister.
 type ApplicationAwareClusterResourceQuotaListerExpansion interface{}
