@@ -11,6 +11,7 @@ import (
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/quota/v1/evaluator/core"
 	rq_controller "kubevirt.io/application-aware-quota/pkg/aaq-controller/rq-controller"
+	"kubevirt.io/application-aware-quota/tests/builders"
 	"kubevirt.io/application-aware-quota/tests/framework"
 	"time"
 )
@@ -29,7 +30,7 @@ var _ = Describe("ResourceQuotas mirrors ApplicationAwareResourceQuota non-sched
 			core.V1ResourceByStorageClass(classGold, v1.ResourceRequestsStorage):        resource.MustParse("10Gi"),
 			v1.ResourceName("count/replicasets.apps"):                                   resource.MustParse("5"),
 		}
-		arq := NewArqBuilder().WithName("test-quota").WithNamespace(f.Namespace.GetName()).WithResource(v1.ResourcePods, resource.MustParse("5"))
+		arq := builders.NewArqBuilder().WithName("test-quota").WithNamespace(f.Namespace.GetName()).WithResource(v1.ResourcePods, resource.MustParse("5"))
 
 		for resource, quantity := range noneScheduableResources {
 			arq = arq.WithResource(resource, quantity)
@@ -71,7 +72,7 @@ var _ = Describe("ResourceQuotas mirrors ApplicationAwareResourceQuota non-sched
 	})
 
 	It("should delete managed quota once arq doesn't contain nonscheduable resources", func(ctx context.Context) {
-		arq := NewArqBuilder().WithName("test-quota").
+		arq := builders.NewArqBuilder().WithName("test-quota").
 			WithNamespace(f.Namespace.GetName()).
 			WithResource(v1.ResourcePods, resource.MustParse("5")).
 			WithResource(v1.ResourceServices, resource.MustParse("10")).
@@ -110,7 +111,7 @@ var _ = Describe("ResourceQuotas mirrors ApplicationAwareResourceQuota non-sched
 	})
 
 	It("should delete managed quota once arq doesn't contain nonscheduable resources", func(ctx context.Context) {
-		arq := NewArqBuilder().WithName("test-quota").
+		arq := builders.NewArqBuilder().WithName("test-quota").
 			WithNamespace(f.Namespace.GetName()).
 			WithResource(v1.ResourcePods, resource.MustParse("5")).
 			WithResource(v1.ResourceServices, resource.MustParse("10")).
@@ -144,7 +145,7 @@ var _ = Describe("ResourceQuotas mirrors ApplicationAwareResourceQuota non-sched
 	})
 
 	It("should update managed quota once arq nonscheduable resources boundaries change", func(ctx context.Context) {
-		arq := NewArqBuilder().WithName("test-quota").
+		arq := builders.NewArqBuilder().WithName("test-quota").
 			WithNamespace(f.Namespace.GetName()).
 			WithResource(v1.ResourcePods, resource.MustParse("5")).
 			WithResource(v1.ResourceServices, resource.MustParse("10")).
@@ -195,5 +196,4 @@ var _ = Describe("ResourceQuotas mirrors ApplicationAwareResourceQuota non-sched
 			return nil
 		}, 2*time.Minute, 1*time.Second).ShouldNot(HaveOccurred())
 	})
-
 })

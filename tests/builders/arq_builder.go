@@ -1,4 +1,4 @@
-package tests
+package builders
 
 import (
 	v1 "k8s.io/api/core/v1"
@@ -6,31 +6,31 @@ import (
 	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 )
 
-// QuotaBuilder is a builder for creating a ResourceQuota.
+// ArqBuilder is a builder for creating a ApplicationAwareResourceQuota.
 type ArqBuilder struct {
 	arq *v1alpha1.ApplicationAwareResourceQuota
 }
 
-// NewQuotaBuilder creates a new instance of QuotaBuilder.
+// NewArqBuilder creates a new instance of ArqBuilder.
 func NewArqBuilder() *ArqBuilder {
 	return &ArqBuilder{
 		arq: &v1alpha1.ApplicationAwareResourceQuota{},
 	}
 }
 
-// WithNamespace sets the namespace for the ResourceQuota.
+// WithNamespace sets the namespace for the ApplicationAwareResourceQuota.
 func (qb *ArqBuilder) WithNamespace(namespace string) *ArqBuilder {
 	qb.arq.ObjectMeta.Namespace = namespace
 	return qb
 }
 
-// WithName sets the name for the ResourceQuota.
+// WithName sets the name for the ApplicationAwareResourceQuota.
 func (qb *ArqBuilder) WithName(name string) *ArqBuilder {
 	qb.arq.ObjectMeta.Name = name
 	return qb
 }
 
-// WithRequestsMemory sets  requests/limits for the ResourceQuota.
+// WithRequestsMemory sets  requests/limits for the ApplicationAwareResourceQuota.
 func (qb *ArqBuilder) WithResource(resourceName v1.ResourceName, val resource.Quantity) *ArqBuilder {
 	if qb.arq.Spec.Hard == nil {
 		qb.arq.Spec.Hard = make(v1.ResourceList)
@@ -39,14 +39,14 @@ func (qb *ArqBuilder) WithResource(resourceName v1.ResourceName, val resource.Qu
 	return qb
 }
 
-// WithScopes sets scopes for the ResourceQuota.
+// WithScopes sets scopes for the ApplicationAwareResourceQuota.
 func (qb *ArqBuilder) WithScopes(scopes []v1.ResourceQuotaScope) *ArqBuilder {
 	qb.arq.Spec.Scopes = []v1.ResourceQuotaScope{}
 	qb.arq.Spec.Scopes = scopes
 	return qb
 }
 
-// WithName sets the name for the ResourceQuota.
+// WithName sets the name for the ApplicationAwareResourceQuota.
 func (qb *ArqBuilder) WithSyncStatusHardEmptyStatusUsed() *ArqBuilder {
 	if qb.arq.Spec.Hard == nil {
 		qb.arq.Spec.Hard = make(v1.ResourceList)
@@ -64,7 +64,7 @@ func (qb *ArqBuilder) WithSyncStatusHardEmptyStatusUsed() *ArqBuilder {
 	return qb
 }
 
-// Build creates and returns the ResourceQuota.
+// Build creates and returns the ApplicationAwareResourceQuota.
 func (qb *ArqBuilder) Build() *v1alpha1.ApplicationAwareResourceQuota {
 	return qb.arq
 }
