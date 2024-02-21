@@ -39,6 +39,13 @@ func (qb *ArqBuilder) WithResource(resourceName v1.ResourceName, val resource.Qu
 	return qb
 }
 
+// WithScopes sets scopes for the ResourceQuota.
+func (qb *ArqBuilder) WithScopes(scopes []v1.ResourceQuotaScope) *ArqBuilder {
+	qb.arq.Spec.Scopes = []v1.ResourceQuotaScope{}
+	qb.arq.Spec.Scopes = scopes
+	return qb
+}
+
 // WithName sets the name for the ResourceQuota.
 func (qb *ArqBuilder) WithSyncStatusHardEmptyStatusUsed() *ArqBuilder {
 	if qb.arq.Spec.Hard == nil {
