@@ -165,17 +165,17 @@ func (mr *MockAAQClientMockRecorder) AdmissionregistrationV1beta1() *gomock.Call
 }
 
 // ApplicationAwareAppliedClusterResourceQuotas mocks base method.
-func (m *MockAAQClient) ApplicationAwareAppliedClusterResourceQuotas() ApplicationAwareClusterResourceQuotaInterface {
+func (m *MockAAQClient) ApplicationAwareAppliedClusterResourceQuotas(namespace string) ApplicationAwareAppliedClusterResourceQuotaInterface {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ApplicationAwareAppliedClusterResourceQuotas")
-	ret0, _ := ret[0].(ApplicationAwareClusterResourceQuotaInterface)
+	ret := m.ctrl.Call(m, "ApplicationAwareAppliedClusterResourceQuotas", namespace)
+	ret0, _ := ret[0].(ApplicationAwareAppliedClusterResourceQuotaInterface)
 	return ret0
 }
 
 // ApplicationAwareAppliedClusterResourceQuotas indicates an expected call of ApplicationAwareAppliedClusterResourceQuotas.
-func (mr *MockAAQClientMockRecorder) ApplicationAwareAppliedClusterResourceQuotas() *gomock.Call {
+func (mr *MockAAQClientMockRecorder) ApplicationAwareAppliedClusterResourceQuotas(namespace interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ApplicationAwareAppliedClusterResourceQuotas", reflect.TypeOf((*MockAAQClient)(nil).ApplicationAwareAppliedClusterResourceQuotas))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ApplicationAwareAppliedClusterResourceQuotas", reflect.TypeOf((*MockAAQClient)(nil).ApplicationAwareAppliedClusterResourceQuotas), namespace)
 }
 
 // ApplicationAwareClusterResourceQuotas mocks base method.
