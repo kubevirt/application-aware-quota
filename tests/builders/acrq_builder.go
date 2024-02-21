@@ -53,6 +53,13 @@ func (qb *AcrqBuilder) WithScopes(scopes []v1.ResourceQuotaScope) *AcrqBuilder {
 	return qb
 }
 
+// WithScopesSelector sets scopeSelector for the ApplicationAwareClusterResourceQuota.
+func (qb *AcrqBuilder) WithScopesSelector(scopeSelector *v1.ScopeSelector) *AcrqBuilder {
+	qb.acrq.Spec.Quota.ScopeSelector = &v1.ScopeSelector{}
+	qb.acrq.Spec.Quota.ScopeSelector = scopeSelector
+	return qb
+}
+
 // Build creates and returns the ApplicationAwareClusterResourceQuota.
 func (qb *AcrqBuilder) Build() *v1alpha1.ApplicationAwareClusterResourceQuota {
 	return qb.acrq
