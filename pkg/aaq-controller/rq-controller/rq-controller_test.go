@@ -19,7 +19,7 @@ import (
 	testsutils "kubevirt.io/application-aware-quota/pkg/tests-utils"
 	"kubevirt.io/application-aware-quota/pkg/util"
 	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
-	"kubevirt.io/application-aware-quota/tests"
+	"kubevirt.io/application-aware-quota/tests/builders"
 	"strings"
 )
 
@@ -69,34 +69,34 @@ var _ = Describe("Test rq-controller", func() {
 		}
 		Expect(actionSet.Equal(expectedActionSet)).To(BeTrue(), fmt.Sprintf("Expected actions:\n%v\n but got:\n%v\nDifference:\n%v", expectedActionSet, actionSet, expectedActionSet.Difference(actionSet)))
 	}, Entry(" there aren't any scheduable resources, managed rq should not be created",
-		tests.NewArqBuilder().WithNamespace(testNs).WithName("arq-test").WithResource(corev1.ResourceLimitsMemory, resource.MustParse("1m")).Build(),
+		builders.NewArqBuilder().WithNamespace(testNs).WithName("arq-test").WithResource(corev1.ResourceLimitsMemory, resource.MustParse("1m")).Build(),
 		[]metav1.Object{},
 		sets.NewString(
 			strings.Join([]string{"delete", "resourcequotas"}, "-"),
 		),
 		Forget,
 	), Entry(" there are scheduable resources, managed rq should be created",
-		tests.NewArqBuilder().WithNamespace(testNs).WithName("arq-test").WithResource(corev1.ResourceServices, resource.MustParse("5")).Build(),
+		builders.NewArqBuilder().WithNamespace(testNs).WithName("arq-test").WithResource(corev1.ResourceServices, resource.MustParse("5")).Build(),
 		[]metav1.Object{},
 		sets.NewString(
 			strings.Join([]string{"create", "resourcequotas"}, "-"),
 		),
 		Forget,
 	), Entry(" there are scheduable resources, but managed rq should not be created because it already exist",
-		tests.NewArqBuilder().WithNamespace(testNs).WithName("arq-test").WithResource(corev1.ResourceServices, resource.MustParse("5")).Build(),
-		[]metav1.Object{tests.NewQuotaBuilder().WithName("arq-test"+RQSuffix).WithNamespace(testNs).WithLabel(util.AAQLabel, "true").WithResource(corev1.ResourceServices, resource.MustParse("5")).Build()},
+		builders.NewArqBuilder().WithNamespace(testNs).WithName("arq-test").WithResource(corev1.ResourceServices, resource.MustParse("5")).Build(),
+		[]metav1.Object{builders.NewQuotaBuilder().WithName("arq-test"+RQSuffix).WithNamespace(testNs).WithLabel(util.AAQLabel, "true").WithResource(corev1.ResourceServices, resource.MustParse("5")).Build()},
 		nil,
 		Forget,
 	), Entry(" there are scheduable resources, managed rq should be updated because it is different from what it should be",
-		tests.NewArqBuilder().WithNamespace(testNs).WithName("arq-test").WithResource(corev1.ResourceServices, resource.MustParse("5")).Build(),
-		[]metav1.Object{tests.NewQuotaBuilder().WithName("arq-test"+RQSuffix).WithNamespace(testNs).WithLabel(util.AAQLabel, "true").WithResource(corev1.ResourceServices, resource.MustParse("2")).Build()},
+		builders.NewArqBuilder().WithNamespace(testNs).WithName("arq-test").WithResource(corev1.ResourceServices, resource.MustParse("5")).Build(),
+		[]metav1.Object{builders.NewQuotaBuilder().WithName("arq-test"+RQSuffix).WithNamespace(testNs).WithLabel(util.AAQLabel, "true").WithResource(corev1.ResourceServices, resource.MustParse("2")).Build()},
 		sets.NewString(
 			strings.Join([]string{"update", "resourcequotas"}, "-"),
 		),
 		Forget,
 	), Entry(" there are no scheduable resources, managed rq should be deleted if exist",
-		tests.NewArqBuilder().WithNamespace(testNs).WithName("arq-test").WithResource(corev1.ResourceRequestsMemory, resource.MustParse("5Mi")).Build(),
-		[]metav1.Object{tests.NewQuotaBuilder().WithName("arq-test"+RQSuffix).WithNamespace(testNs).WithLabel(util.AAQLabel, "true").WithResource(corev1.ResourceServices, resource.MustParse("2")).Build()},
+		builders.NewArqBuilder().WithNamespace(testNs).WithName("arq-test").WithResource(corev1.ResourceRequestsMemory, resource.MustParse("5Mi")).Build(),
+		[]metav1.Object{builders.NewQuotaBuilder().WithName("arq-test"+RQSuffix).WithNamespace(testNs).WithLabel(util.AAQLabel, "true").WithResource(corev1.ResourceServices, resource.MustParse("2")).Build()},
 		sets.NewString(
 			strings.Join([]string{"delete", "resourcequotas"}, "-"),
 		),

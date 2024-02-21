@@ -23,7 +23,7 @@ import (
 	testsutils "kubevirt.io/application-aware-quota/pkg/tests-utils"
 	"kubevirt.io/application-aware-quota/pkg/util"
 	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
-	"kubevirt.io/application-aware-quota/tests"
+	"kubevirt.io/application-aware-quota/tests/builders"
 	"strings"
 	"time"
 )
@@ -202,7 +202,7 @@ var _ = Describe("Test aaq-gate-controller", func() {
 				},
 			},
 		}, []metav1.Object{
-			tests.NewArqBuilder().WithNamespace(testNs).WithName("testarq").WithResource(corev1.ResourceRequestsMemory, resource.MustParse("2Gi")).WithSyncStatusHardEmptyStatusUsed().Build(),
+			builders.NewArqBuilder().WithNamespace(testNs).WithName("testarq").WithResource(corev1.ResourceRequestsMemory, resource.MustParse("2Gi")).WithSyncStatusHardEmptyStatusUsed().Build(),
 		},
 		sets.NewString(
 			strings.Join([]string{"update", "pods"}, "-"),
@@ -220,7 +220,7 @@ var _ = Describe("Test aaq-gate-controller", func() {
 				},
 			},
 		}, []metav1.Object{
-			tests.NewArqBuilder().WithNamespace(testNs).WithName("testarq").WithResource(corev1.ResourceRequestsMemory, resource.MustParse("2Mi")).WithSyncStatusHardEmptyStatusUsed().Build(),
+			builders.NewArqBuilder().WithNamespace(testNs).WithName("testarq").WithResource(corev1.ResourceRequestsMemory, resource.MustParse("2Mi")).WithSyncStatusHardEmptyStatusUsed().Build(),
 		},
 		sets.NewString(),
 		true,
@@ -236,8 +236,8 @@ var _ = Describe("Test aaq-gate-controller", func() {
 				},
 			},
 		}, []metav1.Object{
-			tests.NewArqBuilder().WithNamespace(testNs).WithName("testarq").WithResource(corev1.ResourceRequestsMemory, resource.MustParse("2Gi")).WithSyncStatusHardEmptyStatusUsed().Build(),
-			tests.NewArqBuilder().WithNamespace(testNs).WithName("testarq1").WithResource(corev1.ResourceRequestsMemory, resource.MustParse("2Mi")).WithSyncStatusHardEmptyStatusUsed().Build(),
+			builders.NewArqBuilder().WithNamespace(testNs).WithName("testarq").WithResource(corev1.ResourceRequestsMemory, resource.MustParse("2Gi")).WithSyncStatusHardEmptyStatusUsed().Build(),
+			builders.NewArqBuilder().WithNamespace(testNs).WithName("testarq1").WithResource(corev1.ResourceRequestsMemory, resource.MustParse("2Mi")).WithSyncStatusHardEmptyStatusUsed().Build(),
 		},
 		sets.NewString(),
 		true,
@@ -253,8 +253,8 @@ var _ = Describe("Test aaq-gate-controller", func() {
 				},
 			},
 		}, []metav1.Object{
-			tests.NewArqBuilder().WithNamespace(testNs).WithName("testarq").WithResource(corev1.ResourceRequestsMemory, resource.MustParse("2Gi")).WithSyncStatusHardEmptyStatusUsed().Build(),
-			tests.NewArqBuilder().WithNamespace(testNs).WithName("testarq1").WithResource(corev1.ResourceRequestsMemory, resource.MustParse("1Gi")).WithSyncStatusHardEmptyStatusUsed().Build(),
+			builders.NewArqBuilder().WithNamespace(testNs).WithName("testarq").WithResource(corev1.ResourceRequestsMemory, resource.MustParse("2Gi")).WithSyncStatusHardEmptyStatusUsed().Build(),
+			builders.NewArqBuilder().WithNamespace(testNs).WithName("testarq1").WithResource(corev1.ResourceRequestsMemory, resource.MustParse("1Gi")).WithSyncStatusHardEmptyStatusUsed().Build(),
 		},
 		sets.NewString(
 			strings.Join([]string{"update", "pods"}, "-"),
@@ -280,8 +280,8 @@ var _ = Describe("Test aaq-gate-controller", func() {
 				},
 			},
 		}, []metav1.Object{
-			tests.NewArqBuilder().WithNamespace(testNs).WithName("testarq").WithResource(corev1.ResourceRequestsMemory, resource.MustParse("2Gi")).WithSyncStatusHardEmptyStatusUsed().Build(),
-			tests.NewArqBuilder().WithNamespace(testNs).WithName("testarq1").WithResource(corev1.ResourceRequestsMemory, resource.MustParse("1Gi")).WithSyncStatusHardEmptyStatusUsed().Build(),
+			builders.NewArqBuilder().WithNamespace(testNs).WithName("testarq").WithResource(corev1.ResourceRequestsMemory, resource.MustParse("2Gi")).WithSyncStatusHardEmptyStatusUsed().Build(),
+			builders.NewArqBuilder().WithNamespace(testNs).WithName("testarq1").WithResource(corev1.ResourceRequestsMemory, resource.MustParse("1Gi")).WithSyncStatusHardEmptyStatusUsed().Build(),
 		},
 		sets.NewString(
 			strings.Join([]string{"update", "pods"}, "-"),
@@ -307,8 +307,8 @@ var _ = Describe("Test aaq-gate-controller", func() {
 				},
 			},
 		}, []metav1.Object{
-			tests.NewArqBuilder().WithNamespace(testNs).WithName("testarq").WithResource(corev1.ResourceRequestsCPU, resource.MustParse("400m")).WithSyncStatusHardEmptyStatusUsed().Build(),
-			tests.NewArqBuilder().WithNamespace(testNs).WithName("testarq1").WithResource(corev1.ResourceRequestsMemory, resource.MustParse("1Gi")).WithSyncStatusHardEmptyStatusUsed().Build(),
+			builders.NewArqBuilder().WithNamespace(testNs).WithName("testarq").WithResource(corev1.ResourceRequestsCPU, resource.MustParse("400m")).WithSyncStatusHardEmptyStatusUsed().Build(),
+			builders.NewArqBuilder().WithNamespace(testNs).WithName("testarq1").WithResource(corev1.ResourceRequestsMemory, resource.MustParse("1Gi")).WithSyncStatusHardEmptyStatusUsed().Build(),
 		},
 		sets.NewString(),
 		true,

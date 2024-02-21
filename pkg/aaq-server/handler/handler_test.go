@@ -15,7 +15,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"kubevirt.io/application-aware-quota/pkg/client"
 	"kubevirt.io/application-aware-quota/pkg/util"
-	"kubevirt.io/application-aware-quota/tests"
+	"kubevirt.io/application-aware-quota/tests/builders"
 	"net/http"
 )
 
@@ -159,7 +159,7 @@ var _ = Describe("Test handler of aaq server", func() {
 	})
 
 	DescribeTable("ARQ", func(operation admissionv1.Operation) {
-		arq := tests.NewArqBuilder().WithNamespace("testNS").WithResource(v1.ResourceRequestsMemory, resource.MustParse("4Gi")).Build()
+		arq := builders.NewArqBuilder().WithNamespace("testNS").WithResource(v1.ResourceRequestsMemory, resource.MustParse("4Gi")).Build()
 		arqBytes, err := json.Marshal(arq)
 		Expect(err).ToNot(HaveOccurred())
 		fakek8sCli := fake.NewSimpleClientset()
