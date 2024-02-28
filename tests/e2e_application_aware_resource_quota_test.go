@@ -2131,6 +2131,11 @@ func createApplicationAwareResourceQuota(ctx context.Context, c *aaqclientset.Cl
 	return c.AaqV1alpha1().ApplicationAwareResourceQuotas(namespace).Create(ctx, ApplicationAwareResourceQuota, metav1.CreateOptions{})
 }
 
+// createApplicationAwareClusterResourceQuota in the specified namespace
+func createApplicationAwareClusterResourceQuota(ctx context.Context, c *aaqclientset.Clientset, namespace string, ApplicationAwareClusterResourceQuota *v1alpha1.ApplicationAwareClusterResourceQuota) (*v1alpha1.ApplicationAwareClusterResourceQuota, error) {
+	return c.AaqV1alpha1().ApplicationAwareClusterResourceQuotas().Create(ctx, ApplicationAwareClusterResourceQuota, metav1.CreateOptions{})
+}
+
 // deleteApplicationAwareResourceQuota with the specified name
 func deleteApplicationAwareResourceQuota(ctx context.Context, c *aaqclientset.Clientset, namespace, name string) error {
 	return c.AaqV1alpha1().ApplicationAwareResourceQuotas(namespace).Delete(ctx, name, metav1.DeleteOptions{})

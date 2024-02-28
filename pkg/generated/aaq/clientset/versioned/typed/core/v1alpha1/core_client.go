@@ -30,6 +30,7 @@ type AaqV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	AAQsGetter
 	AAQJobQueueConfigsGetter
+	ApplicationAwareAppliedClusterResourceQuotasGetter
 	ApplicationAwareClusterResourceQuotasGetter
 	ApplicationAwareResourceQuotasGetter
 }
@@ -45,6 +46,10 @@ func (c *AaqV1alpha1Client) AAQs() AAQInterface {
 
 func (c *AaqV1alpha1Client) AAQJobQueueConfigs(namespace string) AAQJobQueueConfigInterface {
 	return newAAQJobQueueConfigs(c, namespace)
+}
+
+func (c *AaqV1alpha1Client) ApplicationAwareAppliedClusterResourceQuotas(namespace string) ApplicationAwareAppliedClusterResourceQuotaInterface {
+	return newApplicationAwareAppliedClusterResourceQuotas(c, namespace)
 }
 
 func (c *AaqV1alpha1Client) ApplicationAwareClusterResourceQuotas() ApplicationAwareClusterResourceQuotaInterface {
