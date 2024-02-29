@@ -32,6 +32,11 @@ func GetApplicationAwareClusterResourceQuotaInformer(aaqCli client.AAQClient) ca
 	return cache.NewSharedIndexInformer(listWatcher, &v1alpha13.ApplicationAwareClusterResourceQuota{}, 1*time.Hour, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 }
 
+func GetApplicationAwareAppliedClusterResourceQuotaInformer(aaqCli client.AAQClient) cache.SharedIndexInformer {
+	listWatcher := NewListWatchFromClient(aaqCli.RestClient(), "applicationawareappliedclusterresourcequotas", metav1.NamespaceAll, fields.Everything(), labels.Everything())
+	return cache.NewSharedIndexInformer(listWatcher, &v1alpha13.ApplicationAwareAppliedClusterResourceQuota{}, 1*time.Hour, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+}
+
 func GetAAQJobQueueConfig(aaqCli client.AAQClient) cache.SharedIndexInformer {
 	listWatcher := NewListWatchFromClient(aaqCli.RestClient(), "aaqjobqueueconfigs", metav1.NamespaceAll, fields.Everything(), labels.Everything())
 	return cache.NewSharedIndexInformer(listWatcher, &v1alpha13.AAQJobQueueConfig{}, 1*time.Hour, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})

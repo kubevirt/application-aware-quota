@@ -57,6 +57,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Aaq().V1alpha1().AAQs().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("aaqjobqueueconfigs"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Aaq().V1alpha1().AAQJobQueueConfigs().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("applicationawareappliedclusterresourcequotas"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Aaq().V1alpha1().ApplicationAwareAppliedClusterResourceQuotas().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("applicationawareclusterresourcequotas"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Aaq().V1alpha1().ApplicationAwareClusterResourceQuotas().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("applicationawareresourcequotas"):

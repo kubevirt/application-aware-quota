@@ -28,6 +28,8 @@ type Interface interface {
 	AAQs() AAQInformer
 	// AAQJobQueueConfigs returns a AAQJobQueueConfigInformer.
 	AAQJobQueueConfigs() AAQJobQueueConfigInformer
+	// ApplicationAwareAppliedClusterResourceQuotas returns a ApplicationAwareAppliedClusterResourceQuotaInformer.
+	ApplicationAwareAppliedClusterResourceQuotas() ApplicationAwareAppliedClusterResourceQuotaInformer
 	// ApplicationAwareClusterResourceQuotas returns a ApplicationAwareClusterResourceQuotaInformer.
 	ApplicationAwareClusterResourceQuotas() ApplicationAwareClusterResourceQuotaInformer
 	// ApplicationAwareResourceQuotas returns a ApplicationAwareResourceQuotaInformer.
@@ -53,6 +55,11 @@ func (v *version) AAQs() AAQInformer {
 // AAQJobQueueConfigs returns a AAQJobQueueConfigInformer.
 func (v *version) AAQJobQueueConfigs() AAQJobQueueConfigInformer {
 	return &aAQJobQueueConfigInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// ApplicationAwareAppliedClusterResourceQuotas returns a ApplicationAwareAppliedClusterResourceQuotaInformer.
+func (v *version) ApplicationAwareAppliedClusterResourceQuotas() ApplicationAwareAppliedClusterResourceQuotaInformer {
+	return &applicationAwareAppliedClusterResourceQuotaInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // ApplicationAwareClusterResourceQuotas returns a ApplicationAwareClusterResourceQuotaInformer.

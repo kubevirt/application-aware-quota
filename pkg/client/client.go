@@ -27,6 +27,7 @@ type AAQClient interface {
 	kubernetes.Interface
 	ApplicationAwareResourceQuotas(namespace string) ApplicationAwareResourceQuotaInterface
 	ApplicationAwareClusterResourceQuotas() ApplicationAwareClusterResourceQuotaInterface
+	ApplicationAwareAppliedClusterResourceQuotas(namespace string) ApplicationAwareAppliedClusterResourceQuotaInterface
 	AAQJobQueueConfigs(namespace string) AAQJobQueueConfigInterface
 	AAQ() AAQInterface
 	GeneratedAAQClient() generatedclient.Interface
@@ -77,6 +78,10 @@ func (k aaq) ApplicationAwareClusterResourceQuotas() ApplicationAwareClusterReso
 	return k.generatedAAQClient.AaqV1alpha1().ApplicationAwareClusterResourceQuotas()
 }
 
+func (k aaq) ApplicationAwareAppliedClusterResourceQuotas(namespace string) ApplicationAwareAppliedClusterResourceQuotaInterface {
+	return k.generatedAAQClient.AaqV1alpha1().ApplicationAwareAppliedClusterResourceQuotas(namespace)
+}
+
 func (k aaq) AAQJobQueueConfigs(namespace string) AAQJobQueueConfigInterface {
 	return k.generatedAAQClient.AaqV1alpha1().AAQJobQueueConfigs(namespace)
 }
@@ -118,6 +123,20 @@ type ApplicationAwareClusterResourceQuotaInterface interface {
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
 	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1alpha1.ApplicationAwareClusterResourceQuota, err error)
 	aaqv1alpha1.ApplicationAwareClusterResourceQuotaExpansion
+}
+
+// ApplicationAwareAppliedClusterResourceQuotaInterface has methods to work with ApplicationAwareAppliedClusterResourceQuotaInterface resources.
+type ApplicationAwareAppliedClusterResourceQuotaInterface interface {
+	Create(ctx context.Context, ApplicationAwareAppliedClusterResourceQuota *v1alpha1.ApplicationAwareAppliedClusterResourceQuota, opts metav1.CreateOptions) (*v1alpha1.ApplicationAwareAppliedClusterResourceQuota, error)
+	Update(ctx context.Context, ApplicationAwareAppliedClusterResourceQuota *v1alpha1.ApplicationAwareAppliedClusterResourceQuota, opts metav1.UpdateOptions) (*v1alpha1.ApplicationAwareAppliedClusterResourceQuota, error)
+	UpdateStatus(ctx context.Context, ApplicationAwareAppliedClusterResourceQuota *v1alpha1.ApplicationAwareAppliedClusterResourceQuota, opts metav1.UpdateOptions) (*v1alpha1.ApplicationAwareAppliedClusterResourceQuota, error)
+	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
+	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1alpha1.ApplicationAwareAppliedClusterResourceQuota, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*v1alpha1.ApplicationAwareAppliedClusterResourceQuotaList, error)
+	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1alpha1.ApplicationAwareAppliedClusterResourceQuota, err error)
+	aaqv1alpha1.ApplicationAwareAppliedClusterResourceQuotaExpansion
 }
 
 // AAQJobQueueConfigInterface has methods to work with AAQJobQueueConfigs resources.
