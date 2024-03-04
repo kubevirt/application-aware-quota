@@ -1,8 +1,8 @@
-This release follows 082d2fc24797994dc92cd86b522605bdcb018ef8 and consists of 6 changes, contributed by
-2 people, leading to 63 files changed, 2153 insertions(+), 2152 deletions(-).
+This release follows 2428e462a80336862570515f3ffd8ee8b4b265b3 and consists of 10 changes, contributed by
+2 people, leading to 36 files changed, 2010 insertions(+), 303 deletions(-).
 
 The source code and selected binaries are available for download at:
-<https://github.com/kubevirt/application-aware-quota/releases/tag/2645a279eb86495a5023a637143b2b26b3dc4726>.
+<https://github.com/kubevirt/application-aware-quota/releases/tag/9dc465bd6a008af6f7a0fa9ed9502f6d26573f29>.
 
 Pre-built AAQ containers are published on Quay.io and can be viewed at:
 <https://quay.io/repository/kubevirt/aaq-controller/>
@@ -13,15 +13,15 @@ Pre-built AAQ containers are published on Quay.io and can be viewed at:
 Notable changes
 ---------------
 
-FIXME manual notes needed
-
+Adding event when there is not enough quota for pods
+Define a Namespace-Level Resource for ApplicationAwareClusterResourceQuota
 
 Contributors
 ------------
 
 2 people contributed to this release:
 
-         4	bmordeha <bmordeha@redhat.com>
+         8	bmordeha <bmordeha@redhat.com>
 
 Additional Resources
 --------------------
