@@ -15,7 +15,6 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
-	testingclock "k8s.io/utils/clock/testing"
 	aaq_evaluator "kubevirt.io/application-aware-quota/pkg/aaq-controller/aaq-evaluator"
 	arq_controller "kubevirt.io/application-aware-quota/pkg/aaq-controller/aaq-gate-controller"
 	rq_controller "kubevirt.io/application-aware-quota/pkg/aaq-controller/rq-controller"
@@ -24,7 +23,6 @@ import (
 	"kubevirt.io/application-aware-quota/pkg/generated/aaq/informers/externalversions"
 	testsutils "kubevirt.io/application-aware-quota/pkg/tests-utils"
 	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
-	"time"
 )
 
 var _ = Describe("Test arq-controller", func() {
@@ -823,14 +821,13 @@ func setupQuotaController(clientSet client.AAQClient, podInformer cache.SharedIn
 	if aaqjqcInformer == nil {
 		aaqjqcInformer = informerFactory.Aaq().V1alpha1().AAQJobQueueConfigs().Informer()
 	}
-	fakeClock := testingclock.NewFakeClock(time.Now())
 	stop := make(chan struct{})
 	qc := NewArqController(clientSet,
 		podInformer,
 		informerFactory.Aaq().V1alpha1().ApplicationAwareResourceQuotas().Informer(),
 		rqInformer,
 		aaqjqcInformer,
-		aaq_evaluator.NewAaqCalculatorsRegistry(3, fakeClock),
+		aaq_evaluator.GetAaqEvaluatorsRegistry(),
 		stop,
 	)
 	informerFactory.Start(stop)
