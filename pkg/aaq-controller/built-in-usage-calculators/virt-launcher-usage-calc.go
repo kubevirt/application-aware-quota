@@ -1,21 +1,15 @@
 package built_in_usage_calculators
 
 import (
-	"context"
 	"fmt"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	v12 "k8s.io/apiserver/pkg/quota/v1"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/quota/v1/evaluator/core"
 	"k8s.io/utils/clock"
 	v15 "kubevirt.io/api/core/v1"
-	"kubevirt.io/application-aware-quota/pkg/client"
-	"kubevirt.io/application-aware-quota/pkg/informers"
-	"kubevirt.io/application-aware-quota/pkg/log"
 	"kubevirt.io/application-aware-quota/pkg/util"
 	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 )
@@ -24,26 +18,10 @@ const launcherLabel = "virt-launcher"
 
 var MyConfigs = []v1alpha1.VmiCalcConfigName{v1alpha1.VmiPodUsage, v1alpha1.VirtualResources, v1alpha1.DedicatedVirtualResources}
 
-func NewVirtLauncherCalculator(stop <-chan struct{}, calcConfig v1alpha1.VmiCalcConfigName) *VirtLauncherCalculator {
-	aaqCli, err := client.GetAAQClient()
-	if err != nil {
-		panic("NewVirtLauncherCalculator: couldn't get aaqCli")
-	}
-	vmiInformer := informers.GetVMIInformer(aaqCli)
-	migrationInformer := informers.GetMigrationInformer(aaqCli)
-	go migrationInformer.Run(stop)
-	go vmiInformer.Run(stop)
-
-	if !cache.WaitForCacheSync(stop,
-		migrationInformer.HasSynced,
-		vmiInformer.HasSynced,
-	) {
-		klog.Warningf("failed to wait for caches to sync")
-	}
+func NewVirtLauncherCalculator(vmiInformer cache.SharedIndexInformer, migrationInformer cache.SharedIndexInformer, calcConfig v1alpha1.VmiCalcConfigName) *VirtLauncherCalculator {
 	return &VirtLauncherCalculator{
 		vmiInformer:       vmiInformer,
 		migrationInformer: migrationInformer,
-		aaqCli:            aaqCli,
 		calcConfig:        calcConfig,
 	}
 }
@@ -51,17 +29,11 @@ func NewVirtLauncherCalculator(stop <-chan struct{}, calcConfig v1alpha1.VmiCalc
 type VirtLauncherCalculator struct {
 	vmiInformer       cache.SharedIndexInformer
 	migrationInformer cache.SharedIndexInformer
-	aaqCli            client.AAQClient
 	calcConfig        v1alpha1.VmiCalcConfigName
 }
 
-func (launchercalc *VirtLauncherCalculator) PodUsageFunc(obj runtime.Object, items []runtime.Object, clock clock.Clock) (corev1.ResourceList, error, bool) {
-	pod, err := util.ToExternalPodOrError(obj)
-	if err != nil {
-		return corev1.ResourceList{}, err, false
-	}
-
-	if pod.OwnerReferences == nil || len(pod.OwnerReferences) == 0 || pod.OwnerReferences[0].Kind != v15.VirtualMachineInstanceGroupVersionKind.Kind || !core.QuotaV1Pod(pod, clock) {
+func (launchercalc *VirtLauncherCalculator) PodUsageFunc(pod *corev1.Pod, existingPods []*corev1.Pod) (corev1.ResourceList, error, bool) {
+	if pod.OwnerReferences == nil || len(pod.OwnerReferences) == 0 || pod.OwnerReferences[0].Kind != v15.VirtualMachineInstanceGroupVersionKind.Kind {
 		return corev1.ResourceList{}, nil, false
 	}
 
@@ -70,7 +42,7 @@ func (launchercalc *VirtLauncherCalculator) PodUsageFunc(obj runtime.Object, ite
 		return corev1.ResourceList{}, nil, false
 	}
 	vmi := vmiObj.(*v15.VirtualMachineInstance)
-	launcherPods := UnfinishedVMIPods(launchercalc.aaqCli, items, vmi)
+	launcherPods := UnfinishedVMIPods(existingPods, vmi)
 
 	if !podExists(launcherPods, pod) { //sanity check
 		return corev1.ResourceList{}, fmt.Errorf("can't detect pod as launcher pod"), true
@@ -247,24 +219,7 @@ func GetNumberOfVCPUs(cpuSpec *v15.CPUTopology) int64 {
 	return int64(vCPUs)
 }
 
-func UnfinishedVMIPods(aaqCli client.AAQClient, items []runtime.Object, vmi *v15.VirtualMachineInstance) (podsToReturn []*corev1.Pod) {
-	pods := []corev1.Pod{}
-	if items != nil {
-		for _, item := range items {
-			pod, err := util.ToExternalPodOrError(item)
-			if err != nil {
-				continue
-			}
-			pods = append(pods, *pod)
-		}
-	} else {
-		podsList, err := aaqCli.CoreV1().Pods(vmi.Namespace).List(context.Background(), metav1.ListOptions{})
-		if err != nil {
-			log.Log.Infof("AaqGateController: Error: %v", err)
-		}
-		pods = podsList.Items
-	}
-
+func UnfinishedVMIPods(pods []*corev1.Pod, vmi *v15.VirtualMachineInstance) (podsToReturn []*corev1.Pod) {
 	for _, pod := range pods {
 		if pod.Status.Phase == corev1.PodFailed || pod.Status.Phase == corev1.PodSucceeded {
 			continue
