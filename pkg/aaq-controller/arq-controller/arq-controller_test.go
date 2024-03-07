@@ -15,7 +15,6 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
-	testingclock "k8s.io/utils/clock/testing"
 	aaq_evaluator "kubevirt.io/application-aware-quota/pkg/aaq-controller/aaq-evaluator"
 	arq_controller "kubevirt.io/application-aware-quota/pkg/aaq-controller/aaq-gate-controller"
 	rq_controller "kubevirt.io/application-aware-quota/pkg/aaq-controller/rq-controller"
@@ -24,33 +23,23 @@ import (
 	"kubevirt.io/application-aware-quota/pkg/generated/aaq/informers/externalversions"
 	testsutils "kubevirt.io/application-aware-quota/pkg/tests-utils"
 	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
-	"time"
 )
 
 var _ = Describe("Test arq-controller", func() {
 	DescribeTable("Test SyncResourceQuota when ", func(arq v1alpha1.ApplicationAwareResourceQuota, managedRQ corev1.ResourceQuota,
-		status v1alpha1.ApplicationAwareResourceQuotaStatus, podsState []metav1.Object, expectedError string) {
+		status v1alpha1.ApplicationAwareResourceQuotaStatus, podsState []metav1.Object) {
 		ctrl := gomock.NewController(GinkgoT())
 		cli := client.NewMockAAQClient(ctrl)
 		arqmock := client.NewMockApplicationAwareResourceQuotaInterface(ctrl)
 		podInformer := testsutils.NewFakeSharedIndexInformer(podsState)
 		rqInformer := testsutils.NewFakeSharedIndexInformer([]metav1.Object{&managedRQ})
-		if expectedError != "" {
-			podInformer.InternalGetIndexer = func(i cache.Indexer) cache.Indexer {
-				return FakefailureIndexer{}
-			}
-		}
 		expectedArq := arq.DeepCopy()
 		expectedArq.Status = status
 		arqmock.EXPECT().UpdateStatus(context.Background(), expectedArq, metav1.UpdateOptions{}).Times(1)
 		cli.EXPECT().ApplicationAwareResourceQuotas(arq.Namespace).Return(arqmock).Times(1)
 		qc := setupQuotaController(cli, podInformer, rqInformer, testsutils.FakeNamespaceLister{}, nil)
-		if err := qc.syncResourceQuota(&arq); err != nil {
-			Expect(expectedError).ToNot(BeEmpty(), "error was not expected")
-			Expect(err.Error()).To(ContainSubstring(expectedError), fmt.Sprintf("unexpected error: %v", err))
-		} else {
-			Expect(expectedError).To(BeEmpty(), fmt.Sprintf("expected error %q, got none", expectedError))
-		}
+		err := qc.syncResourceQuota(&arq)
+		Expect(err).ToNot(HaveOccurred())
 	}, Entry("non-matching-best-effort-scoped-quota", v1alpha1.ApplicationAwareResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: "quota", Namespace: "testing"},
 		Spec: v1alpha1.ApplicationAwareResourceQuotaSpec{
@@ -79,7 +68,6 @@ var _ = Describe("Test arq-controller", func() {
 			},
 		},
 		newTestPods(),
-		"",
 	), Entry("matching-best-effort-scoped-quota", v1alpha1.ApplicationAwareResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: "quota", Namespace: "testing"},
 		Spec: v1alpha1.ApplicationAwareResourceQuotaSpec{
@@ -108,7 +96,6 @@ var _ = Describe("Test arq-controller", func() {
 			},
 		},
 		newBestEffortTestPods(),
-		"",
 	), Entry("non-matching-priorityclass-scoped-quota-OpExists", v1alpha1.ApplicationAwareResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: "quota", Namespace: "testing"},
 		Spec: v1alpha1.ApplicationAwareResourceQuotaSpec{
@@ -143,7 +130,6 @@ var _ = Describe("Test arq-controller", func() {
 			},
 		},
 		newTestPods(),
-		"",
 	), Entry("matching-priorityclass-scoped-quota-OpExists", v1alpha1.ApplicationAwareResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: "quota", Namespace: "testing"},
 		Spec: v1alpha1.ApplicationAwareResourceQuotaSpec{
@@ -178,7 +164,6 @@ var _ = Describe("Test arq-controller", func() {
 			},
 		},
 		newTestPodsWithPriorityClasses(),
-		"",
 	), Entry("matching-priorityclass-scoped-quota-OpIn", v1alpha1.ApplicationAwareResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: "quota", Namespace: "testing"},
 		Spec: v1alpha1.ApplicationAwareResourceQuotaSpec{
@@ -215,7 +200,6 @@ var _ = Describe("Test arq-controller", func() {
 			},
 		},
 		newTestPodsWithPriorityClasses(),
-		"",
 	), Entry("matching-priorityclass-scoped-quota-OpIn-high", v1alpha1.ApplicationAwareResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: "quota", Namespace: "testing"},
 		Spec: v1alpha1.ApplicationAwareResourceQuotaSpec{
@@ -252,7 +236,6 @@ var _ = Describe("Test arq-controller", func() {
 			},
 		},
 		newTestPodsWithPriorityClasses(),
-		"",
 	), Entry("matching-priorityclass-scoped-quota-OpNotIn-low", v1alpha1.ApplicationAwareResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: "quota", Namespace: "testing"},
 		Spec: v1alpha1.ApplicationAwareResourceQuotaSpec{
@@ -289,7 +272,6 @@ var _ = Describe("Test arq-controller", func() {
 			},
 		},
 		newTestPodsWithPriorityClasses(),
-		"",
 	), Entry("non-matching-priorityclass-scoped-quota-OpIn", v1alpha1.ApplicationAwareResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: "quota", Namespace: "testing"},
 		Spec: v1alpha1.ApplicationAwareResourceQuotaSpec{
@@ -326,7 +308,6 @@ var _ = Describe("Test arq-controller", func() {
 			},
 		},
 		newTestPodsWithPriorityClasses(),
-		"",
 	), Entry("non-matching-priorityclass-scoped-quota-OpNotIn", v1alpha1.ApplicationAwareResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: "quota", Namespace: "testing"},
 		Spec: v1alpha1.ApplicationAwareResourceQuotaSpec{
@@ -363,7 +344,6 @@ var _ = Describe("Test arq-controller", func() {
 			},
 		},
 		newTestPods(),
-		"",
 	), Entry("matching-priorityclass-scoped-quota-OpDoesNotExist", v1alpha1.ApplicationAwareResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: "quota", Namespace: "testing"},
 		Spec: v1alpha1.ApplicationAwareResourceQuotaSpec{
@@ -399,7 +379,6 @@ var _ = Describe("Test arq-controller", func() {
 			},
 		},
 		newTestPods(),
-		"",
 	), Entry("pods", v1alpha1.ApplicationAwareResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: "quota", Namespace: "testing"},
 		Spec: v1alpha1.ApplicationAwareResourceQuotaSpec{
@@ -427,7 +406,6 @@ var _ = Describe("Test arq-controller", func() {
 			},
 		},
 		newTestPods(),
-		"",
 	), Entry("quota-spec-hard-updated", v1alpha1.ApplicationAwareResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: "quota", Namespace: "testing"},
 		Spec: v1alpha1.ApplicationAwareResourceQuotaSpec{
@@ -459,7 +437,6 @@ var _ = Describe("Test arq-controller", func() {
 			},
 		},
 		[]metav1.Object{},
-		"",
 	), Entry("quota-unchanged", v1alpha1.ApplicationAwareResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: "quota", Namespace: "testing"},
 		Spec: v1alpha1.ApplicationAwareResourceQuotaSpec{
@@ -488,28 +465,6 @@ var _ = Describe("Test arq-controller", func() {
 			},
 		},
 		[]metav1.Object{},
-		"",
-	), Entry("quota-missing-status-with-calculation-error", v1alpha1.ApplicationAwareResourceQuota{
-		ObjectMeta: metav1.ObjectMeta{Name: "quota", Namespace: "testing"},
-		Spec: v1alpha1.ApplicationAwareResourceQuotaSpec{
-			ResourceQuotaSpec: corev1.ResourceQuotaSpec{
-				Hard: corev1.ResourceList{
-					corev1.ResourcePods: resource.MustParse("1"),
-				},
-			},
-		},
-		Status: v1alpha1.ApplicationAwareResourceQuotaStatus{},
-	}, nil,
-		v1alpha1.ApplicationAwareResourceQuotaStatus{
-			ResourceQuotaStatus: corev1.ResourceQuotaStatus{
-				Hard: corev1.ResourceList{
-					corev1.ResourcePods: resource.MustParse("1"),
-				},
-				Used: corev1.ResourceList{},
-			},
-		},
-		[]metav1.Object{},
-		"error listing",
 	), Entry("managed-quota-with-arq-not-synced", v1alpha1.ApplicationAwareResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: "quota", Namespace: "testing"},
 		Spec: v1alpha1.ApplicationAwareResourceQuotaSpec{
@@ -542,7 +497,6 @@ var _ = Describe("Test arq-controller", func() {
 			},
 		},
 		[]metav1.Object{},
-		"",
 	), Entry("managed-quota-with-rq-not-synced", v1alpha1.ApplicationAwareResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: "quota", Namespace: "testing"},
 		Spec: v1alpha1.ApplicationAwareResourceQuotaSpec{
@@ -576,7 +530,6 @@ var _ = Describe("Test arq-controller", func() {
 			},
 		},
 		[]metav1.Object{},
-		"",
 	), Entry("managed-quota-should-sync", v1alpha1.ApplicationAwareResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: "quota", Namespace: "testing"},
 		Spec: v1alpha1.ApplicationAwareResourceQuotaSpec{
@@ -620,7 +573,6 @@ var _ = Describe("Test arq-controller", func() {
 			},
 		},
 		[]metav1.Object{},
-		"",
 	),
 	)
 
@@ -831,14 +783,13 @@ func setupQuotaController(clientSet client.AAQClient, podInformer cache.SharedIn
 	if aaqjqcInformer == nil {
 		aaqjqcInformer = informerFactory.Aaq().V1alpha1().AAQJobQueueConfigs().Informer()
 	}
-	fakeClock := testingclock.NewFakeClock(time.Now())
 	stop := make(chan struct{})
 	qc := NewArqController(clientSet,
 		podInformer,
 		informerFactory.Aaq().V1alpha1().ApplicationAwareResourceQuotas().Informer(),
 		rqInformer,
 		aaqjqcInformer,
-		aaq_evaluator.NewAaqCalculatorsRegistry(3, fakeClock),
+		aaq_evaluator.GetAaqEvaluatorsRegistry(),
 		nsLister,
 		stop,
 	)
