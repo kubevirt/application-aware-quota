@@ -68,9 +68,6 @@ func NewArqController(clientSet client.AAQClient,
 	namespaceLister v12.NamespaceLister,
 	stop <-chan struct{},
 ) *ArqController {
-	//eventBroadcaster := record.NewBroadcaster()
-	//eventBroadcaster.StartRecordingToSink(&v14.EventSinkImpl{Interface: clientSet.CoreV1().Events(v1.NamespaceAll)})
-
 	ctrl := &ArqController{
 		aaqCli:            clientSet,
 		arqInformer:       arqInformer,
@@ -81,11 +78,10 @@ func NewArqController(clientSet client.AAQClient,
 		missingUsageQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq_priority"),
 		nsQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "ns_queue"),
 		resyncPeriod:      metav1.Duration{Duration: 5 * time.Minute}.Duration,
-		//recorder:          eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: util.ControllerPodName}),
-		evalRegistry:    generic.NewRegistry([]quota.Evaluator{aaq_evaluator.NewAaqEvaluator(v12.NewPodLister(podInformer.GetIndexer()), calcRegistry, clock.RealClock{})}),
-		namespaceLister: namespaceLister,
-		logger:          klog.FromContext(context.Background()),
-		stop:            stop,
+		evalRegistry:      generic.NewRegistry([]quota.Evaluator{aaq_evaluator.NewAaqEvaluator(v12.NewPodLister(podInformer.GetIndexer()), calcRegistry, clock.RealClock{})}),
+		namespaceLister:   namespaceLister,
+		logger:            klog.FromContext(context.Background()),
+		stop:              stop,
 	}
 	ctrl.syncHandler = ctrl.syncResourceQuotaFromKey
 
