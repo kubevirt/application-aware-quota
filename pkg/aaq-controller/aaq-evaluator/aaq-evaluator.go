@@ -20,18 +20,18 @@ import (
 )
 
 // NewAaqEvaluator returns an evaluator that can evaluate pods with apps consideration
-func NewAaqEvaluator(podInformer cache.SharedIndexInformer, aaqAppUsageCalculator *AaqCalculatorsRegistry, clock clock.Clock) *AaqEvaluator {
+func NewAaqEvaluator(podInformer cache.SharedIndexInformer, aaqEvalRegistery Registry, clock clock.Clock) *AaqEvaluator {
 	podEvaluator := core.NewPodEvaluator(nil, clock)
 	return &AaqEvaluator{
-		podEvaluator:                  podEvaluator,
-		podInformer:                   podInformer,
-		aaqAppUsageCalculatorRegistry: aaqAppUsageCalculator,
+		podEvaluator:     podEvaluator,
+		podInformer:      podInformer,
+		aaqEvalRegistery: aaqEvalRegistery,
 	}
 }
 
 type AaqEvaluator struct {
-	podEvaluator                  v12.Evaluator
-	aaqAppUsageCalculatorRegistry *AaqCalculatorsRegistry
+	podEvaluator     v12.Evaluator
+	aaqEvalRegistery Registry
 	// knows how to list pods
 	podInformer cache.SharedIndexInformer
 }
@@ -77,17 +77,16 @@ func (aaqe *AaqEvaluator) Usage(item runtime.Object) (corev1.ResourceList, error
 	if err != nil {
 		return nil, fmt.Errorf("failed to list content: %v", err)
 	}
-	var runtimeObjects []runtime.Object
+	var podsState []corev1.Pod
 	for _, obj := range podObjs {
 		pod, ok := obj.(*corev1.Pod)
 		if !ok {
 			log.Log.Infof("Failed to type assert to *v1.Pod")
 			continue
 		}
-		runtimeObjects = append(runtimeObjects, pod.DeepCopy())
+		podsState = append(podsState, *pod.DeepCopy())
 	}
-
-	rl, err := aaqe.aaqAppUsageCalculatorRegistry.Usage(item, runtimeObjects)
+	rl, err := aaqe.aaqEvalRegistery.Usage(*pod, podsState)
 	if err != nil {
 		return aaqe.podEvaluator.Usage(item)
 	}
@@ -95,15 +94,14 @@ func (aaqe *AaqEvaluator) Usage(item runtime.Object) (corev1.ResourceList, error
 }
 
 func (aaqe *AaqEvaluator) CalculatorUsage(item runtime.Object, items []runtime.Object) (corev1.ResourceList, error) {
-	pod, err := util.ToExternalPodOrError(item)
+	pod, pods, err := convertToPodAndSlice(item, items)
 	if err != nil {
 		return corev1.ResourceList{}, err
 	} else if pod.Spec.SchedulingGates != nil &&
 		len(pod.Spec.SchedulingGates) > 0 {
 		return corev1.ResourceList{}, nil
 	}
-
-	rl, err := aaqe.aaqAppUsageCalculatorRegistry.Usage(item, items)
+	rl, err := aaqe.aaqEvalRegistery.Usage(pod, pods)
 	if err != nil {
 		return aaqe.podEvaluator.Usage(item)
 	}
@@ -266,4 +264,24 @@ func crossNamespaceWeightedPodAffinityTerms(terms []corev1.WeightedPodAffinityTe
 		}
 	}
 	return false
+}
+
+func convertToPodAndSlice(item runtime.Object, items []runtime.Object) (corev1.Pod, []corev1.Pod, error) {
+	// Convert the individual item
+	pod, err := util.ToExternalPodOrError(item)
+	if err != nil {
+		return corev1.Pod{}, nil, err
+	}
+
+	// Convert items in the slice
+	var convertedPods []corev1.Pod
+	for _, obj := range items {
+		pod, err := util.ToExternalPodOrError(obj)
+		if err != nil {
+			return corev1.Pod{}, nil, err
+		}
+		convertedPods = append(convertedPods, *pod)
+	}
+
+	return *pod, convertedPods, nil
 }

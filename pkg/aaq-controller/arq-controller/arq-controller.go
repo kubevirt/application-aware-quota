@@ -62,7 +62,7 @@ func NewArqController(clientSet client.AAQClient,
 	arqInformer cache.SharedIndexInformer,
 	rqInformer cache.SharedIndexInformer,
 	aaqjqcInformer cache.SharedIndexInformer,
-	calcRegistry *aaq_evaluator.AaqCalculatorsRegistry,
+	calcRegistry *aaq_evaluator.AaqEvaluatorRegistry,
 	stop <-chan struct{},
 ) *ArqController {
 	//eventBroadcaster := record.NewBroadcaster()

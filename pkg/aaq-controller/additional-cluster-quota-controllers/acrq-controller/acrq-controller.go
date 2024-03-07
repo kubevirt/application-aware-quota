@@ -81,7 +81,7 @@ func NewAcrqController(aaqCli client.AAQClient,
 	crqInformer cache.SharedIndexInformer,
 	podInformer cache.SharedIndexInformer,
 	aaqjqcInformer cache.SharedIndexInformer,
-	calcRegistry *aaq_evaluator.AaqCalculatorsRegistry,
+	calcRegistry *aaq_evaluator.AaqEvaluatorRegistry,
 	stop <-chan struct{},
 	collectCrqsData bool,
 ) *AcrqController {

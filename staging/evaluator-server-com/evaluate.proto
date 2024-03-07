@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package evaluate;
+option go_package = "kubevirt-sidecar.evaluate";
+
+// Define the PodUsage service
+service PodUsage {
+    rpc PodUsageFunc(PodUsageRequest) returns (PodUsageResponse);
+    rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+// Define messages
+message PodUsageRequest {
+    Pod pod = 1;
+    repeated Pod podsState = 2;
+}
+
+message PodUsageResponse {
+    ResourceList resourceList = 1;
+    bool match = 2;
+    Error error = 3;
+}
+
+message Error {
+    bool error = 1;
+    string errorMessage = 2;
+}
+
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+    bool healthy = 1;
+}
+
+message ResourceList {
+    bytes resourceListJson = 1;
+}
+
+message Pod {
+    bytes podJson = 1;
+}
