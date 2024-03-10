@@ -114,12 +114,12 @@ func (aaqe *AaqEvaluator) UsageStats(options v12.UsageStatsOptions) (v12.UsageSt
 	for _, resourceName := range options.Resources {
 		result.Used[resourceName] = resource.Quantity{Format: resource.DecimalSI}
 	}
-	arqObjs, err := aaqe.podInformer.GetIndexer().ByIndex(cache.NamespaceIndex, options.Namespace)
+	podObjs, err := aaqe.podInformer.GetIndexer().ByIndex(cache.NamespaceIndex, options.Namespace)
 	if err != nil {
 		return result, fmt.Errorf("failed to list content: %v", err)
 	}
 	var runtimeObjects []runtime.Object
-	for _, obj := range arqObjs {
+	for _, obj := range podObjs {
 		pod, ok := obj.(*corev1.Pod)
 		if !ok {
 			fmt.Printf("Failed to type assert to *v1.Pod\n")

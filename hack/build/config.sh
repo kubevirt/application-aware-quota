@@ -15,6 +15,7 @@
 OPERATOR_IMAGE_NAME=${OPERATOR_IMAGE_NAME:-aaq-operator}
 CONTROLLER_IMAGE_NAME=${CONTROLLER_IMAGE_NAME:-aaq-controller}
 AAQ_SERVER_IMAGE_NAME=${AAQ_SERVER_IMAGE_NAME:-aaq-server}
+KUBEVIRT_SIDECAR_IMAGE_NAME=${LABEL_SIDECAR_IMAGE_NAME:-kubevirt-sidecar}
 DOCKER_PREFIX=${DOCKER_PREFIX:-"quay.io/kubevirt"}
 DOCKER_TAG=${DOCKER_TAG:-latest}
 VERBOSITY=${VERBOSITY:-1}
@@ -23,7 +24,7 @@ AAQ_NAMESPACE=${AAQ_NAMESPACE:-aaq}
 CR_NAME=${CR_NAME:-aaq}
 
 # update this whenever new builder tag is created
-BUILDER_IMAGE=${BUILDER_IMAGE:-quay.io/kubevirt/kubevirt-aaq-bazel-builder:2402011057-0b69bc1}
+BUILDER_IMAGE=${BUILDER_IMAGE:-quay.io/bmordeha/kubevirt-aaq-bazel-builder:2403041423-dec9f1fa}
 
 function parseTestOpts() {
     pkgs=""
