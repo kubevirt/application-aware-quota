@@ -1,0 +1,32 @@
+# Builder stage
+FROM golang:1.20-alpine as builder
+
+# Install make
+RUN apk update && apk add make
+
+# Copy the source code from the host to the container
+COPY pkg /workdir/app/pkg
+COPY cmd /workdir/app/cmd
+COPY vendor /workdir/app/vendor
+COPY go.mod /workdir/app/go.mod
+COPY go.sum /workdir/app/go.sum
+COPY Makefile /workdir/app/Makefile
+
+WORKDIR /workdir/app
+
+RUN make label_sidecar
+
+# Final stage
+FROM golang:1.20-alpine
+
+# Copy the binary from the builder stage to the final image
+COPY --from=builder /workdir/app/label_sidecar /app/label_sidecar
+
+# Set the working directory to /app
+WORKDIR /app
+
+RUN adduser -u 1001 -D -s /bin/sh -h /app/label_sidecar label_sidecar
+USER 1001
+
+# Set the entrypoint to the binary
+ENTRYPOINT ["/app/label_sidecar"]

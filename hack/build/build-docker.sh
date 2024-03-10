@@ -53,8 +53,9 @@ for target in ${PUSH_TARGETS[@]}; do
         ${cri_cmd} push ${insecure} ${IMAGE}
     fi
 done
-cd example_sidecars
 
+cd example_sidecars
+PUSH_EXAMPLE_SIDECARS=("$LABEL_SIDECAR_IMAGE_NAME")
 for target in ${PUSH_EXAMPLE_SIDECARS[@]}; do
     cd ${target}
     BIN_NAME="${target}"
