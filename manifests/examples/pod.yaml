@@ -4,6 +4,8 @@ metadata:
   name: my-pod-with-resources
   labels:
     label-app: my-app
+  annotations:
+    annotation-app: "my-app"
 spec:
   #schedulingGates:
   #  - name: example.com/foo

@@ -55,7 +55,7 @@ for target in ${PUSH_TARGETS[@]}; do
 done
 
 cd example_sidecars
-PUSH_EXAMPLE_SIDECARS=("$LABEL_SIDECAR_IMAGE_NAME")
+PUSH_EXAMPLE_SIDECARS=("$LABEL_SIDECAR_IMAGE_NAME" "$ANNOTATION_SIDECAR_IMAGE_NAME")
 for target in ${PUSH_EXAMPLE_SIDECARS[@]}; do
     cd ${target}
     BIN_NAME="${target}"
