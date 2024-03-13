@@ -10,8 +10,10 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"kubevirt.io/application-aware-quota/pkg/aaq-operator/resources/cluster"
 	clientset "kubevirt.io/application-aware-quota/pkg/generated/aaq/clientset/versioned"
+	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 	aaqv1 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 	"kubevirt.io/application-aware-quota/tests/flags"
+	"kubevirt.io/application-aware-quota/tests/libaaq"
 	qe_reporters "kubevirt.io/qe-tools/pkg/ginkgo-reporters"
 	"reflect"
 	"testing"
@@ -30,8 +32,8 @@ const (
 )
 
 var (
-	afterSuiteReporters          = []Reporter{}
-	originalAAQNamespaceSelector *metav1.LabelSelector
+	afterSuiteReporters = []Reporter{}
+	originalAAQ         *v1alpha1.AAQ
 )
 
 var (
@@ -126,30 +128,32 @@ func BuildTestSuite() {
 			afterSuiteReporters = append(afterSuiteReporters, qe_reporters.NewJunitReporter())
 		}
 
-		fmt.Fprintf(ginkgo.GinkgoWriter, "Modifying AAQ to target all namespaces\n")
-		aaq, err := getRunningAAQ(framework.ClientsInstance.AaqClient)
-		if err != nil {
-			ginkgo.Fail("cannot get the running AAQ instance: " + err.Error())
-		}
-		originalAAQNamespaceSelector = aaq.Spec.NamespaceSelector
+		originalAAQ, err = getRunningAAQ(framework.ClientsInstance.AaqClient)
+		Expect(err).ToNot(HaveOccurred(), "cannot get the running AAQ instance")
 
+		fmt.Fprintf(ginkgo.GinkgoWriter, "Modifying AAQ to target all namespaces\n")
 		err = updateAAQNamespaceSelector(framework.ClientsInstance.AaqClient, framework.ClientsInstance.K8sClient, &metav1.LabelSelector{})
-		if err != nil {
-			ginkgo.Fail("cannot update AAQ namespace selector: " + err.Error())
-		}
+		Expect(err).ToNot(HaveOccurred(), "cannot update AAQ namespace selector")
 	})
 
 	AfterSuite(func() {
+		Eventually(func() error {
+			aaq, err := getRunningAAQ(framework.ClientsInstance.AaqClient)
+			Expect(err).ToNot(HaveOccurred(), "cannot get the running AAQ instance")
+			aaq.Spec = originalAAQ.Spec
+			_, err = framework.ClientsInstance.AaqClient.AaqV1alpha1().AAQs().Update(context.Background(), aaq, metav1.UpdateOptions{})
+			Expect(err).ToNot(HaveOccurred())
+			return nil
+		}, 60*time.Second, 1*time.Second).ShouldNot(HaveOccurred(), "waiting for aaq to be restored")
+		Eventually(func() bool {
+			return libaaq.AaqControllerReady(framework.ClientsInstance.K8sClient, framework.ClientsInstance.AAQInstallNs)
+		}, 120*time.Second, 1*time.Second).Should(BeTrue(), "waiting for aaq controller to be ready")
+
 		k8sClient := framework.ClientsInstance.K8sClient
 		Eventually(func() []corev1.Namespace {
 			nsList, _ := k8sClient.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{LabelSelector: framework.NsPrefixLabel})
 			return nsList.Items
 		}, nsDeletedTimeout, pollInterval).Should(BeEmpty())
-
-		err := updateAAQNamespaceSelector(framework.ClientsInstance.AaqClient, framework.ClientsInstance.K8sClient, originalAAQNamespaceSelector)
-		if err != nil {
-			ginkgo.Fail("cannot restore AAQ namespace selector: " + err.Error())
-		}
 	})
 
 	var _ = ReportAfterSuite("TestTests", func(report Report) {

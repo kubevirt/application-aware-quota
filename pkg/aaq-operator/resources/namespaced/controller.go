@@ -164,7 +164,7 @@ func createAAQControllerDeployment(image, verbosity, pullPolicy string, imagePul
 	}
 	container.VolumeMounts = []corev1.VolumeMount{
 		{
-			Name:      "sockets-dir",
+			Name:      utils2.VolumeMountName,
 			MountPath: utils2.SocketsSharedDirectory,
 		},
 	}
@@ -198,7 +198,7 @@ func createAAQControllerDeployment(image, verbosity, pullPolicy string, imagePul
 			},
 		},
 		{
-			Name: "sockets-dir",
+			Name: utils2.VolumeMountName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},

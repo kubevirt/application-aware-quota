@@ -92,6 +92,7 @@ const (
 	SocketsSharedDirectory                                              = "/var/run/aaq-sockets"
 	SidecarEvaluatorsNumberFlag                                         = "evaluators-sidecars"
 	DefaultSidecarsEvaluatorsStartTimeout                               = 2 * time.Minute
+	VolumeMountName                                                     = "sockets-dir"
 )
 
 var commonLabels = map[string]string{
