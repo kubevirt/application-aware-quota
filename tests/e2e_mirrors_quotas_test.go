@@ -13,10 +13,10 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/kubernetes/pkg/quota/v1/evaluator/core"
 	rq_controller "kubevirt.io/application-aware-quota/pkg/aaq-controller/rq-controller"
-	"kubevirt.io/application-aware-quota/pkg/util"
 	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 	"kubevirt.io/application-aware-quota/tests/builders"
 	"kubevirt.io/application-aware-quota/tests/framework"
+	"kubevirt.io/application-aware-quota/tests/libaaq"
 	"reflect"
 	"time"
 )
@@ -215,10 +215,10 @@ var _ = Describe("ApplicationAwareAppliedClusterResourceQuota mirrors Applicatio
 			_, err := f.AaqClient.AaqV1alpha1().AAQs().Update(context.Background(), aaq, v12.UpdateOptions{})
 			Expect(err).ToNot(HaveOccurred())
 			Eventually(func() bool {
-				return aaqControllerReady(f.K8sClient, f.AAQInstallNs)
+				return libaaq.AaqControllerReady(f.K8sClient, f.AAQInstallNs)
 			}, 1*time.Minute, 1*time.Second).ShouldNot(BeTrue(), "config change should trigger redeployment of the controller")
 			Eventually(func() bool {
-				return aaqControllerReady(f.K8sClient, f.AAQInstallNs)
+				return libaaq.AaqControllerReady(f.K8sClient, f.AAQInstallNs)
 			}, 10*time.Minute, 1*time.Second).Should(BeTrue(), "aaq-controller should be ready with the new config Eventually")
 
 		}
@@ -443,15 +443,6 @@ func removeLabelFromNamespace(clientset *kubernetes.Clientset, namespace, key st
 	}
 
 	return nil
-}
-
-func aaqControllerReady(clientset *kubernetes.Clientset, aaqInstallNs string) bool {
-	deployment, err := clientset.AppsV1().Deployments(aaqInstallNs).Get(context.TODO(), util.ControllerPodName, v12.GetOptions{})
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-	if *deployment.Spec.Replicas != deployment.Status.ReadyReplicas {
-		return false
-	}
-	return true
 }
 
 func AacrqsMatchAcrq(aacrqs []*v1alpha1.ApplicationAwareAppliedClusterResourceQuota, acrq *v1alpha1.ApplicationAwareClusterResourceQuota) bool {

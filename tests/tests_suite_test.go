@@ -7,7 +7,9 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	ginkgo_reporters "github.com/onsi/ginkgo/v2/reporters"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 	"kubevirt.io/application-aware-quota/tests/flags"
+	"kubevirt.io/application-aware-quota/tests/libaaq"
 	qe_reporters "kubevirt.io/qe-tools/pkg/ginkgo-reporters"
 	"testing"
 	"time"
@@ -24,7 +26,10 @@ const (
 	nsDeletedTimeout = 270 * time.Second
 )
 
-var afterSuiteReporters = []Reporter{}
+var (
+	afterSuiteReporters = []Reporter{}
+	originalAAQ         *v1alpha1.AAQ
+)
 
 var (
 	kubectlPath  = flag.String("kubectl-path-aaq", "kubectl", "The path to the kubectl binary")
@@ -117,9 +122,28 @@ func BuildTestSuite() {
 		if qe_reporters.JunitOutput != "" {
 			afterSuiteReporters = append(afterSuiteReporters, qe_reporters.NewJunitReporter())
 		}
+		aaqs, err := framework.ClientsInstance.AaqClient.AaqV1alpha1().AAQs().List(context.TODO(), metav1.ListOptions{})
+		Expect(err).ToNot(HaveOccurred())
+		Expect(aaqs.Items).To(HaveLen(1), fmt.Sprintf("Single AAQ should exist when runnning the functional tests"))
+		originalAAQ = &aaqs.Items[0]
 	})
 
 	AfterSuite(func() {
+		Eventually(func() error {
+			aaqs, err := framework.ClientsInstance.AaqClient.AaqV1alpha1().AAQs().List(context.TODO(), metav1.ListOptions{})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(aaqs.Items).To(HaveLen(1), fmt.Sprintf("Single AAQ should exist when runnning the functional tests"))
+			aaq := &aaqs.Items[0]
+			aaq.Spec = originalAAQ.Spec
+			_, err = framework.ClientsInstance.AaqClient.AaqV1alpha1().AAQs().Update(context.Background(), aaq, metav1.UpdateOptions{})
+			Expect(err).ToNot(HaveOccurred())
+			return nil
+		}, 60*time.Second, 1*time.Second).ShouldNot(HaveOccurred(), "waiting for aaq to be restored")
+
+		Eventually(func() bool {
+			return libaaq.AaqControllerReady(framework.ClientsInstance.K8sClient, framework.ClientsInstance.AAQInstallNs)
+		}, 120*time.Second, 1*time.Second).Should(BeTrue(), "waiting for aaq controller to be ready")
+
 		k8sClient := framework.ClientsInstance.K8sClient
 		Eventually(func() []corev1.Namespace {
 			nsList, _ := k8sClient.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{LabelSelector: framework.NsPrefixLabel})
