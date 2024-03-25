@@ -140,9 +140,8 @@ function copy_istio_cni_conf_files() {
 
 function deploy_cdi() {
     if [ "$KUBEVIRT_DEPLOY_CDI" == "true" ]; then
-
-        if [ "${KUBEVIRT_DEPLOY_CDI_LATEST}" == "true" ]; then
-            $ssh node01 -- 'sudo sed --regexp-extended -i s/v[0-9]+\.[0-9]+\.[0-9]+/latest/g /opt/cdi-*-operator.yaml'            
+        if [ -n "${KUBEVIRT_CUSTOM_CDI_VERSION}" ]; then
+            $ssh node01 -- 'sudo sed --regexp-extended -i s/v[0-9]+\.[0-9]+\.[0-9]+\(.*\)?$/'"$KUBEVIRT_CUSTOM_CDI_VERSION"'/g /opt/cdi-*-operator.yaml'
         fi
 
         $kubectl create -f /opt/cdi-*-operator.yaml
@@ -157,6 +156,13 @@ function wait_for_cdi_ready() {
             sleep 10
         done
         $kubectl wait --for=condition=Ready pod --timeout=180s --all --namespace cdi
+    fi
+}
+
+# configure Prometheus to select kubevirt prometheusrules
+function configure_prometheus() {
+    if [[ $KUBEVIRT_DEPLOY_PROMETHEUS == "true" ]] && $kubectl get crd prometheuses.monitoring.coreos.com; then
+        _kubectl patch prometheus k8s -n monitoring --type='json' -p='[{"op": "replace", "path": "/spec/ruleSelector", "value":{}}, {"op": "replace", "path": "/spec/ruleNamespaceSelector", "value":{"matchLabels": {}}}]'
     fi
 }
 
@@ -199,6 +205,7 @@ function up() {
     fi
     $kubectl label node -l $label node-role.kubernetes.io/worker=''
 
+    configure_prometheus
     configure_memory_overcommitment_behavior
 
     deploy_cnao
