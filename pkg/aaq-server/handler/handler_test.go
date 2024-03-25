@@ -16,6 +16,7 @@ import (
 	"kubevirt.io/application-aware-quota/pkg/client"
 	"kubevirt.io/application-aware-quota/pkg/util"
 	"kubevirt.io/application-aware-quota/pkg/util/patch"
+	aaqv1 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 	"kubevirt.io/application-aware-quota/tests/builders"
 	"net/http"
 )
@@ -263,5 +264,39 @@ var _ = Describe("Test handler of aaq server", func() {
 
 		Expect(removeNodeNamePatchFound).To(BeTrue(), "Patch to remove nodeName is not found")
 		Expect(nodeAffinityPatchFound).To(BeTrue(), "Patch to add node affinity is not found")
+	})
+
+	It("Operations on AAQ", func() {
+		aaq := &aaqv1.AAQ{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "AAQ",
+				APIVersion: "aaqs.aaq.kubevirt.io",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-aaq",
+			},
+		}
+		aaqBytes, err := json.Marshal(aaq)
+		Expect(err).ToNot(HaveOccurred())
+
+		v := Handler{
+			request: &admissionv1.AdmissionRequest{
+				Kind: metav1.GroupVersionKind{
+					Kind: aaq.Kind,
+				},
+				Object: runtime.RawExtension{
+					Raw:    aaqBytes,
+					Object: aaq,
+				},
+				Operation: admissionv1.Create,
+			},
+		}
+
+		admissionReview, err := v.Handle()
+		Expect(err).ToNot(HaveOccurred())
+		Expect(admissionReview.Response.Allowed).To(BeFalse())
+		Expect(admissionReview.Response.Result.Code).To(Equal(int32(http.StatusForbidden)))
+		Expect(admissionReview.Response.Result.Message).To(Equal(onlySingleAAQInstaceIsAllowed))
+
 	})
 })
