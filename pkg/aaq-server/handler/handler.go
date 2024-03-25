@@ -24,6 +24,7 @@ const (
 	validPodUpdate                = "Pod update did not remove AAQGate"
 	aaqControllerPodUpdate        = "AAQ controller has permission to remove gate from pods"
 	invalidPodUpdate              = "Only AAQ controller has permission to remove " + util.AAQGate + " gate from pods"
+	onlySingleAAQInstaceIsAllowed = "only a single AAQ CR instance is allowed"
 )
 
 type Handler struct {
@@ -54,6 +55,8 @@ func (v Handler) Handle() (*admissionv1.AdmissionReview, error) {
 		return v.validateApplicationAwareResourceQuota()
 	case "ApplicationAwareClusterResourceQuota":
 		return v.validateApplicationAwareClusterResourceQuota()
+	case "AAQ":
+		return reviewResponse(v.request.UID, false, http.StatusForbidden, onlySingleAAQInstaceIsAllowed), nil
 	}
 	return nil, fmt.Errorf("AAQ webhook doesn't recongnize request: %+v", v.request)
 }
