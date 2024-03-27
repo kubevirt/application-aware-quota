@@ -46,7 +46,7 @@ import (
 )
 
 const (
-	// how long to wait for a Application Aware Resource Quota update to occur
+	// how long to wait for a Application Aware Resource Quota update to occur.
 	resourceQuotaTimeout = 2 * time.Minute
 	podName              = "pfpod"
 )
@@ -810,7 +810,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		Expect(resourceQuotaResult.Spec.Hard).To(HaveKeyWithValue(v1.ResourceMemory, resource.MustParse("1Gi")))
 
 		By("Deleting a ApplicationAwareResourceQuota")
-		err = utils.DeleteApplicationAwareResourceQuota(ctx, f.AaqClient, ns, quotaName)
+		err = deleteApplicationAwareResourceQuota(ctx, f.AaqClient, ns, quotaName)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Verifying the deleted ApplicationAwareResourceQuota")
@@ -1392,13 +1392,13 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		podName := "test-pod"
 		requests := v1.ResourceList{}
 		requests[v1.ResourceMemory] = resource.MustParse("600Mi") //quota has only 500Mi
-		pod := newTestPodForQuota(podName, requests, nil)
+		pod := utils.NewTestPodForQuota(podName, requests, nil)
 		pod.Spec.NodeSelector = nil
 		pod.Spec.NodeName = *nodeName
 		pod, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
 
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
 		By("Update arq to fit pod")
 		Eventually(func() error {
@@ -1410,7 +1410,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 			_, err = f.AaqClient.AaqV1alpha1().ApplicationAwareResourceQuotas(f.Namespace.Name).Update(ctx, currApplicationAwareResourceQuota, metav1.UpdateOptions{})
 			return err
 		}, 2*time.Minute, 1*time.Second).Should(BeNil())
-		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
 		By("Ensuring that the pod has proper node affinity")
 		Eventually(func() error {
@@ -2205,6 +2205,11 @@ func newTestSecretForQuota(name string) *v1.Secret {
 // createApplicationAwareResourceQuota in the specified namespace
 func createApplicationAwareResourceQuota(ctx context.Context, c *aaqclientset.Clientset, namespace string, ApplicationAwareResourceQuota *v1alpha1.ApplicationAwareResourceQuota) (*v1alpha1.ApplicationAwareResourceQuota, error) {
 	return c.AaqV1alpha1().ApplicationAwareResourceQuotas(namespace).Create(ctx, ApplicationAwareResourceQuota, metav1.CreateOptions{})
+}
+
+// deleteApplicationAwareResourceQuota with the specified name
+func deleteApplicationAwareResourceQuota(ctx context.Context, c *aaqclientset.Clientset, namespace, name string) error {
+	return c.AaqV1alpha1().ApplicationAwareResourceQuotas(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 }
 
 // countApplicationAwareResourceQuota counts the number of ApplicationAwareResourceQuota in the specified namespace
