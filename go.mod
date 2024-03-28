@@ -82,7 +82,6 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/openshift/api v0.0.0
 	github.com/openshift/custom-resource-status v1.1.2
-	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.16.0 // indirect
 	github.com/prometheus/client_model v0.4.0 // indirect
@@ -109,7 +108,7 @@ require (
 	k8s.io/kube-openapi v0.0.0-20230717233707-2695361300d9 // indirect
 	k8s.io/kubernetes v1.28.4
 	k8s.io/utils v0.0.0-20230505201702-9f6742963106
-	kubevirt.io/api v1.0.0
+	kubevirt.io/api v1.2.0
 	kubevirt.io/controller-lifecycle-operator-sdk v0.2.6
 	kubevirt.io/controller-lifecycle-operator-sdk/api v0.0.0-20220329064328-f3cc58c6ed90
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
