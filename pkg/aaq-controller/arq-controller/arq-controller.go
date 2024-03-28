@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	quota "k8s.io/apiserver/pkg/quota/v1"
 	"k8s.io/apiserver/pkg/quota/v1/generic"
+	v12 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
@@ -62,12 +63,9 @@ func NewArqController(clientSet client.AAQClient,
 	arqInformer cache.SharedIndexInformer,
 	rqInformer cache.SharedIndexInformer,
 	aaqjqcInformer cache.SharedIndexInformer,
-	calcRegistry *aaq_evaluator.AaqCalculatorsRegistry,
+	calcRegistry *aaq_evaluator.AaqEvaluatorRegistry,
 	stop <-chan struct{},
 ) *ArqController {
-	//eventBroadcaster := record.NewBroadcaster()
-	//eventBroadcaster.StartRecordingToSink(&v14.EventSinkImpl{Interface: clientSet.CoreV1().Events(v1.NamespaceAll)})
-
 	ctrl := &ArqController{
 		aaqCli:            clientSet,
 		arqInformer:       arqInformer,
@@ -78,10 +76,9 @@ func NewArqController(clientSet client.AAQClient,
 		missingUsageQueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq_priority"),
 		nsQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "ns_queue"),
 		resyncPeriod:      metav1.Duration{Duration: 5 * time.Minute}.Duration,
-		//recorder:          eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: util.ControllerPodName}),
-		evalRegistry: generic.NewRegistry([]quota.Evaluator{aaq_evaluator.NewAaqEvaluator(podInformer, calcRegistry, clock.RealClock{})}),
-		logger:       klog.FromContext(context.Background()),
-		stop:         stop,
+		evalRegistry:      generic.NewRegistry([]quota.Evaluator{aaq_evaluator.NewAaqEvaluator(v12.NewPodLister(podInformer.GetIndexer()), calcRegistry, clock.RealClock{})}),
+		logger:            klog.FromContext(context.Background()),
+		stop:              stop,
 	}
 	ctrl.syncHandler = ctrl.syncResourceQuotaFromKey
 

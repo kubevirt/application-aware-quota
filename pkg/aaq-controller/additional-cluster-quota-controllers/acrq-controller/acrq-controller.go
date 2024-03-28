@@ -17,6 +17,7 @@ import (
 	quota "k8s.io/apiserver/pkg/quota/v1"
 	utilquota "k8s.io/apiserver/pkg/quota/v1"
 	"k8s.io/apiserver/pkg/quota/v1/generic"
+	v12 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
@@ -81,7 +82,7 @@ func NewAcrqController(aaqCli client.AAQClient,
 	crqInformer cache.SharedIndexInformer,
 	podInformer cache.SharedIndexInformer,
 	aaqjqcInformer cache.SharedIndexInformer,
-	calcRegistry *aaq_evaluator.AaqCalculatorsRegistry,
+	calcRegistry *aaq_evaluator.AaqEvaluatorRegistry,
 	stop <-chan struct{},
 	collectCrqsData bool,
 ) *AcrqController {
@@ -93,7 +94,7 @@ func NewAcrqController(aaqCli client.AAQClient,
 		crqInformer:        crqInformer,
 		podInformer:        podInformer,
 		resyncPeriod:       metav1.Duration{Duration: 5 * time.Minute}.Duration,
-		registry:           generic.NewRegistry([]quota.Evaluator{aaq_evaluator.NewAaqEvaluator(podInformer, calcRegistry, clock.RealClock{})}),
+		registry:           generic.NewRegistry([]quota.Evaluator{aaq_evaluator.NewAaqEvaluator(v12.NewPodLister(podInformer.GetIndexer()), calcRegistry, clock.RealClock{})}),
 		queue:              util.NewBucketingWorkQueue("controller_clusterquotareconcilationcontroller"),
 		nsQueue:            workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "ns_queue"),
 		stop:               stop,

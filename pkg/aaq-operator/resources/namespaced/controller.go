@@ -12,6 +12,7 @@ import (
 	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 	sdkapi "kubevirt.io/controller-lifecycle-operator-sdk/api"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"strconv"
 )
 
 func createAAQControllerResources(args *FactoryArgs) []client.Object {
@@ -23,7 +24,7 @@ func createAAQControllerResources(args *FactoryArgs) []client.Object {
 		createAAQControllerServiceAccount(),
 		createControllerRoleBinding(),
 		createControllerRole(),
-		createAAQControllerDeployment(args.ControllerImage, args.Verbosity, args.PullPolicy, args.ImagePullSecrets, args.PriorityClassName, args.InfraNodePlacement, cr.Spec.Configuration.AllowApplicationAwareClusterResourceQuota, args.OnOpenshift, cr.Spec.Configuration.VmiCalculatorConfiguration.ConfigName),
+		createAAQControllerDeployment(args.ControllerImage, args.Verbosity, args.PullPolicy, args.ImagePullSecrets, args.PriorityClassName, args.InfraNodePlacement, cr.Spec.Configuration.AllowApplicationAwareClusterResourceQuota, args.OnOpenshift, cr.Spec.Configuration.VmiCalculatorConfiguration.ConfigName, args.Client),
 	}
 }
 func createControllerRoleBinding() *rbacv1.RoleBinding {
@@ -97,7 +98,7 @@ func createAAQControllerServiceAccount() *corev1.ServiceAccount {
 	return utils2.ResourceBuilder.CreateServiceAccount(utils2.ControllerResourceName)
 }
 
-func createAAQControllerDeployment(image, verbosity, pullPolicy string, imagePullSecrets []corev1.LocalObjectReference, priorityClassName string, infraNodePlacement *sdkapi.NodePlacement, enableClusterQuota bool, onOpenshift bool, configName v1alpha1.VmiCalcConfigName) *appsv1.Deployment {
+func createAAQControllerDeployment(image, verbosity, pullPolicy string, imagePullSecrets []corev1.LocalObjectReference, priorityClassName string, infraNodePlacement *sdkapi.NodePlacement, enableClusterQuota bool, onOpenshift bool, configName v1alpha1.VmiCalcConfigName, c client.Client) *appsv1.Deployment {
 	defaultMode := corev1.ConfigMapVolumeSourceDefaultMode
 	deployment := utils2.CreateDeployment(utils2.ControllerResourceName, utils2.AAQLabel, utils2.ControllerResourceName, utils2.ControllerResourceName, imagePullSecrets, 2, infraNodePlacement)
 	if priorityClassName != "" {
@@ -161,7 +162,21 @@ func createAAQControllerDeployment(image, verbosity, pullPolicy string, imagePul
 			corev1.ResourceMemory: resource.MustParse("150Mi"),
 		},
 	}
-	deployment.Spec.Template.Spec.Containers = []corev1.Container{container}
+	container.VolumeMounts = []corev1.VolumeMount{
+		{
+			Name:      "sockets-dir",
+			MountPath: utils2.SocketsSharedDirectory,
+		},
+	}
+
+	cr, _ := utils2.GetActiveAAQ(c)
+	var Containers []corev1.Container
+	if cr != nil {
+		container.Args = append(container.Args, []string{"--" + utils2.SidecarEvaluatorsNumberFlag, strconv.Itoa(len(cr.Spec.Configuration.SidecarEvaluators))}...)
+		Containers = cr.Spec.Configuration.SidecarEvaluators
+	}
+	Containers = append(Containers, container)
+	deployment.Spec.Template.Spec.Containers = Containers
 	deployment.Spec.Template.Spec.Volumes = []corev1.Volume{
 		{
 			Name: "server-cert",
@@ -180,6 +195,12 @@ func createAAQControllerDeployment(image, verbosity, pullPolicy string, imagePul
 					},
 					DefaultMode: &defaultMode,
 				},
+			},
+		},
+		{
+			Name: "sockets-dir",
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 		},
 	}
