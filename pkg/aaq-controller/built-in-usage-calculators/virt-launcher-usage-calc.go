@@ -158,70 +158,72 @@ func CalculateResourceLauncherVMIUsagePodResources(vmi *v15.VirtualMachineInstan
 	result := corev1.ResourceList{
 		corev1.ResourcePods: *(resource.NewQuantity(1, resource.DecimalSI)),
 	}
-	//todo: once memory hot-plug is implemented we need to update this
-	memoryGuest := corev1.ResourceList{}
-	memoryGuestHugePages := corev1.ResourceList{}
-	domainResourcesReq := corev1.ResourceList{}
-	domainResourcesLim := corev1.ResourceList{}
+
+	var memoryGuest resource.Quantity
+	var cpuGuest resource.Quantity
+	var cpuTopology *v15.CPUTopology
+
+	if vmi.Spec.Domain.Resources.Limits != nil {
+		memoryResource, memoryResourceExist := vmi.Spec.Domain.Resources.Limits[corev1.ResourceMemory]
+		if memoryResourceExist {
+			memoryGuest = memoryResource.DeepCopy()
+		}
+		cpuResource, cpuResourceExist := vmi.Spec.Domain.Resources.Limits[corev1.ResourceCPU]
+		if cpuResourceExist {
+			cpuGuest = cpuResource.DeepCopy()
+		}
+	}
+
+	if vmi.Spec.Domain.Resources.Requests != nil {
+		memoryResource, memoryResourceExist := vmi.Spec.Domain.Resources.Requests[corev1.ResourceMemory]
+		if memoryResourceExist {
+			memoryGuest = memoryResource.DeepCopy()
+		}
+		cpuResource, cpuResourceExist := vmi.Spec.Domain.Resources.Requests[corev1.ResourceCPU]
+		if cpuResourceExist {
+			cpuGuest = cpuResource.DeepCopy()
+		}
+	}
 
 	if vmi.Spec.Domain.Memory != nil && vmi.Spec.Domain.Memory.Guest != nil {
-		memoryGuest = corev1.ResourceList{corev1.ResourceRequestsMemory: *vmi.Spec.Domain.Memory.Guest}
-	}
-	if vmi.Spec.Domain.Memory != nil && vmi.Spec.Domain.Memory.Hugepages != nil {
-		quantity, err := resource.ParseQuantity(vmi.Spec.Domain.Memory.Hugepages.PageSize)
-		if err == nil {
-			memoryGuestHugePages = corev1.ResourceList{corev1.ResourceRequestsMemory: quantity}
-		}
-	}
-	if vmi.Spec.Domain.Resources.Requests != nil {
-		resourceMemory, resourceMemoryExist := vmi.Spec.Domain.Resources.Requests[corev1.ResourceMemory]
-		resourceRequestsMemory, resourceRequestsMemoryExist := vmi.Spec.Domain.Resources.Requests[corev1.ResourceRequestsMemory]
-		if resourceMemoryExist && !resourceRequestsMemoryExist {
-			domainResourcesReq = corev1.ResourceList{corev1.ResourceRequestsMemory: resourceMemory}
-		} else if resourceRequestsMemoryExist {
-			domainResourcesReq = corev1.ResourceList{corev1.ResourceRequestsMemory: resourceRequestsMemory}
-		}
-	}
-	if vmi.Spec.Domain.Resources.Limits != nil {
-		resourceMemory, resourceMemoryExist := vmi.Spec.Domain.Resources.Limits[corev1.ResourceMemory]
-		resourceLimitsMemory, resourceLimitsMemoryExist := vmi.Spec.Domain.Resources.Limits[corev1.ResourceLimitsMemory]
-		if resourceMemoryExist && !resourceLimitsMemoryExist {
-			domainResourcesLim = corev1.ResourceList{corev1.ResourceLimitsMemory: resourceMemory}
-		} else if resourceLimitsMemoryExist {
-			domainResourcesLim = corev1.ResourceList{corev1.ResourceLimitsMemory: resourceLimitsMemory}
-		}
+		memoryGuest = vmi.Spec.Domain.Memory.Guest.DeepCopy()
 	}
 
-	tmpMemReq := v12.Max(memoryGuest, domainResourcesReq)
-	tmpMemLim := v12.Max(memoryGuest, domainResourcesLim)
-
-	finalMemReq := v12.Max(tmpMemReq, memoryGuestHugePages)
-	finalMemLim := v12.Max(tmpMemLim, corev1.ResourceList{corev1.ResourceLimitsMemory: finalMemReq[corev1.ResourceRequestsMemory]})
-	requests := corev1.ResourceList{
-		corev1.ResourceRequestsMemory: finalMemReq[corev1.ResourceRequestsMemory],
-	}
-	limits := corev1.ResourceList{
-		corev1.ResourceLimitsMemory: finalMemLim[corev1.ResourceLimitsMemory],
-	}
-
-	var cpuTopology *v15.CPUTopology
-	if isSourceOrSingleLauncher && vmi.Status.CurrentCPUTopology != nil {
-		cpuTopology = vmi.Status.CurrentCPUTopology
-	} else {
+	if vmi.Spec.Domain.CPU != nil {
 		cpuTopology = &v15.CPUTopology{
 			Cores:   vmi.Spec.Domain.CPU.Cores,
 			Sockets: vmi.Spec.Domain.CPU.Sockets,
 			Threads: vmi.Spec.Domain.CPU.Threads,
 		}
+		vcpus := GetNumberOfVCPUs(cpuTopology)
+		cpuGuest = *resource.NewQuantity(vcpus, resource.BinarySI)
 	}
-	vcpus := GetNumberOfVCPUs(cpuTopology)
-	vcpuQuantity := *resource.NewQuantity(vcpus, resource.BinarySI)
 
-	guestCpuReq := v12.Max(corev1.ResourceList{corev1.ResourceRequestsCPU: vcpuQuantity}, domainResourcesReq)
-	guestCpuLim := v12.Max(corev1.ResourceList{corev1.ResourceLimitsCPU: vcpuQuantity}, domainResourcesLim)
+	if isSourceOrSingleLauncher && vmi.Status.Memory != nil {
+		memoryGuest = vmi.Status.Memory.GuestCurrent.DeepCopy()
+	}
 
-	requests[corev1.ResourceRequestsCPU] = guestCpuReq[corev1.ResourceRequestsCPU]
-	limits[corev1.ResourceLimitsCPU] = guestCpuLim[corev1.ResourceLimitsCPU]
+	if isSourceOrSingleLauncher && vmi.Status.CurrentCPUTopology != nil {
+		cpuTopology = vmi.Status.CurrentCPUTopology
+		vcpus := GetNumberOfVCPUs(cpuTopology)
+		cpuGuest = *resource.NewQuantity(vcpus, resource.BinarySI)
+	}
+
+	if cpuGuest.IsZero() {
+		log.Log.Errorf("Couldn't find guest cpu")
+	}
+	if memoryGuest.IsZero() {
+		log.Log.Errorf("Couldn't find guest memory")
+	}
+
+	requests := corev1.ResourceList{
+		corev1.ResourceRequestsMemory: memoryGuest,
+		corev1.ResourceRequestsCPU:    cpuGuest,
+	}
+	limits := corev1.ResourceList{
+		corev1.ResourceLimitsMemory: memoryGuest,
+		corev1.ResourceCPU:          cpuGuest,
+	}
 
 	result = v12.Add(result, requests)
 	result = v12.Add(result, limits)
