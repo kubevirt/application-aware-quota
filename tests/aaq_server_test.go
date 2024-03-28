@@ -8,13 +8,16 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	matav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"kubevirt.io/application-aware-quota/pkg/util"
+	aaqv1 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 	"kubevirt.io/application-aware-quota/tests/builders"
 	"kubevirt.io/application-aware-quota/tests/framework"
+	"kubevirt.io/application-aware-quota/tests/utils"
 	"time"
 )
 
 var _ = Describe("AAQ Server", func() {
 	f := framework.NewFramework("aaq-server-test")
+
 	Context("Test Valid/Invalid ARQ creations", func() {
 		It("Simple empty ARQ should be allowed to create", func() {
 			arq := builders.NewArqBuilder().WithName("arq").Build()
@@ -80,5 +83,20 @@ var _ = Describe("AAQ Server", func() {
 			err := f.K8sClient.CoreV1().Pods(f.Namespace.GetName()).Delete(context.Background(), podName, matav1.DeleteOptions{})
 			return err
 		}, 2*time.Minute, 1*time.Second).ShouldNot(HaveOccurred())
+	})
+
+	It("should be invalid to create two AAQ instances", func() {
+		currentAaq, err := utils.GetAAQ(f)
+		Expect(err).ToNot(HaveOccurred())
+
+		secondAaq := &aaqv1.AAQ{
+			ObjectMeta: matav1.ObjectMeta{
+				Name: "second-aaq-instance",
+			},
+			Spec: currentAaq.Spec,
+		}
+
+		secondAaq, err = f.AaqClient.AaqV1alpha1().AAQs().Create(context.TODO(), secondAaq, matav1.CreateOptions{})
+		Expect(err).Should(HaveOccurred(), "shouldn't be possible to create a second AAQ instance")
 	})
 })
