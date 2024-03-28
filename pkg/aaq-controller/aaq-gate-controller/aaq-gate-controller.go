@@ -478,3 +478,11 @@ func (ctrl *AaqGateController) aaqjqcProcessed(aaqjqc *v1alpha12.AAQJobQueueConf
 	}
 	return true
 }
+
+func (ctrl *AaqGateController) AddMapping(_, namespaceName string) {
+	ctrl.nsQueue.Add(namespaceName)
+}
+
+func (ctrl *AaqGateController) RemoveMapping(_, namespaceName string) {
+	ctrl.nsQueue.Add(namespaceName)
+}

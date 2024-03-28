@@ -6,7 +6,6 @@ import (
 	"fmt"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
-	"k8s.io/client-go/kubernetes"
 	"kubevirt.io/application-aware-quota/pkg/aaq-operator/resources"
 	aaqclientset "kubevirt.io/application-aware-quota/pkg/generated/aaq/clientset/versioned"
 	testsutils "kubevirt.io/application-aware-quota/pkg/tests-utils"
@@ -47,7 +46,7 @@ import (
 )
 
 const (
-	// how long to wait for a Application Aware Resource Quota update to occur
+	// how long to wait for a Application Aware Resource Quota update to occur.
 	resourceQuotaTimeout = 2 * time.Minute
 	podName              = "pfpod"
 )
@@ -217,10 +216,10 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		requests[v1.ResourceEphemeralStorage] = resource.MustParse("30Gi")
 		requests[v1.ResourceName(extendedResourceName)] = resource.MustParse("2")
 		limits[v1.ResourceName(extendedResourceName)] = resource.MustParse("2")
-		pod := newTestPodForQuota(podName, requests, limits)
+		pod := utils.NewTestPodForQuota(podName, requests, limits)
 		pod, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 		podToUpdate := pod
 
 		By("Ensuring ApplicationAwareResourceQuota status captures the pod usage")
@@ -237,10 +236,10 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		requests = v1.ResourceList{}
 		requests[v1.ResourceCPU] = resource.MustParse("600m")
 		requests[v1.ResourceMemory] = resource.MustParse("100Mi")
-		pod = newTestPodForQuota("fail-pod", requests, v1.ResourceList{})
+		pod = utils.NewTestPodForQuota("fail-pod", requests, v1.ResourceList{})
 		_, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsGated(f.K8sClient, f.Namespace.Name, pod.Name)
 		err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Delete(ctx, pod.Name, *metav1.NewDeleteOptions(0))
 
 		By("Not allowing a pod to be created that exceeds remaining quota(validation on extended resources)")
@@ -251,10 +250,10 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		requests[v1.ResourceEphemeralStorage] = resource.MustParse("30Gi")
 		requests[v1.ResourceName(extendedResourceName)] = resource.MustParse("2")
 		limits[v1.ResourceName(extendedResourceName)] = resource.MustParse("2")
-		pod = newTestPodForQuota("fail-pod-for-extended-resource", requests, limits)
+		pod = utils.NewTestPodForQuota("fail-pod-for-extended-resource", requests, limits)
 		_, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsGated(f.K8sClient, f.Namespace.Name, pod.Name)
 		err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Delete(ctx, pod.Name, *metav1.NewDeleteOptions(0))
 
 		By("Ensuring a pod cannot update its resource requirements")
@@ -615,10 +614,10 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		limits := v1.ResourceList{}
 		limits[v1.ResourceCPU] = resource.MustParse("1")
 		limits[v1.ResourceMemory] = resource.MustParse("400Mi")
-		pod := newTestPodForQuota(podName, requests, limits)
+		pod := utils.NewTestPodForQuota(podName, requests, limits)
 		_, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
 		By("Ensuring Application Aware Resource Quota with not terminating scope captures the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("1")
@@ -653,12 +652,12 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 
 		By("Creating a terminating pod")
 		podName = "terminating-pod"
-		pod = newTestPodForQuota(podName, requests, limits)
+		pod = utils.NewTestPodForQuota(podName, requests, limits)
 		activeDeadlineSeconds := int64(3600)
 		pod.Spec.ActiveDeadlineSeconds = &activeDeadlineSeconds
 		_, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
 		By("Ensuring Application Aware Resource Quota with terminating scope captures the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("1")
@@ -712,10 +711,10 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a best-effort pod")
-		pod := newTestPodForQuota(podName, v1.ResourceList{}, v1.ResourceList{})
+		pod := utils.NewTestPodForQuota(podName, v1.ResourceList{}, v1.ResourceList{})
 		pod, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
 		By("Ensuring Application Aware Resource Quota with best effort scope captures the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("1")
@@ -743,10 +742,10 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		limits := v1.ResourceList{}
 		limits[v1.ResourceCPU] = resource.MustParse("1")
 		limits[v1.ResourceMemory] = resource.MustParse("400Mi")
-		pod = newTestPodForQuota("burstable-pod", requests, limits)
+		pod = utils.NewTestPodForQuota("burstable-pod", requests, limits)
 		pod, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
 		By("Ensuring Application Aware Resource Quota with not best effort scope captures the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("1")
@@ -1081,10 +1080,10 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Creating a best-effort pod")
-		pod := newTestPodForQuota(podName, v1.ResourceList{}, v1.ResourceList{})
+		pod := utils.NewTestPodForQuota(podName, v1.ResourceList{}, v1.ResourceList{})
 		pod, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
 		By("Ensuring Application Aware Resource Quota with best effort scope captures the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("1")
@@ -1112,10 +1111,10 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		limits := v1.ResourceList{}
 		limits[v1.ResourceCPU] = resource.MustParse("1")
 		limits[v1.ResourceMemory] = resource.MustParse("400Mi")
-		pod = newTestPodForQuota("burstable-pod", requests, limits)
+		pod = utils.NewTestPodForQuota("burstable-pod", requests, limits)
 		pod, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
 		By("Ensuring Application Aware Resource Quota with not best effort scope captures the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("1")
@@ -1165,10 +1164,10 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		limits := v1.ResourceList{}
 		limits[v1.ResourceCPU] = resource.MustParse("1")
 		limits[v1.ResourceMemory] = resource.MustParse("400Mi")
-		pod := newTestPodForQuota(podName, requests, limits)
+		pod := utils.NewTestPodForQuota(podName, requests, limits)
 		_, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
 		By("Ensuring Application Aware Resource Quota with not terminating scope captures the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("1")
@@ -1203,12 +1202,12 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 
 		By("Creating a terminating pod")
 		podName = "terminating-pod"
-		pod = newTestPodForQuota(podName, requests, limits)
+		pod = utils.NewTestPodForQuota(podName, requests, limits)
 		activeDeadlineSeconds := int64(3600)
 		pod.Spec.ActiveDeadlineSeconds = &activeDeadlineSeconds
 		_, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
 		By("Ensuring Application Aware Resource Quota with terminating scope captures the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("1")
@@ -1267,10 +1266,10 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		requests := v1.ResourceList{}
 		limits := v1.ResourceList{}
 		requests[v1.ResourceMemory] = resource.MustParse("600Mi") //quota has only 500Mi
-		pod := newTestPodForQuota(podName, requests, limits)
+		pod := utils.NewTestPodForQuota(podName, requests, limits)
 		pod, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
 		By("Update arq to fit pod")
 		Eventually(func() error {
@@ -1282,7 +1281,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 			_, err = f.AaqClient.AaqV1alpha1().ApplicationAwareResourceQuotas(f.Namespace.Name).Update(ctx, currApplicationAwareResourceQuota, metav1.UpdateOptions{})
 			return err
 		}, 2*time.Minute, 1*time.Second).Should(BeNil())
-		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 	})
 
 	It("should be able to create a ApplicationAwareResourceQuota and gated pod, delete another pod release first pod", func(ctx context.Context) {
@@ -1307,21 +1306,21 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		requests := v1.ResourceList{}
 		limits := v1.ResourceList{}
 		requests[v1.ResourceMemory] = resource.MustParse("300Mi") //quota has only 500Mi
-		pod := newTestPodForQuota(podName, requests, limits)
+		pod := utils.NewTestPodForQuota(podName, requests, limits)
 		pod, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
 		By("Creating a Pod that doesn't fits quota")
 		podName2 := "test-pod2"
-		pod2 := newTestPodForQuota(podName2, requests, limits)
+		pod2 := utils.NewTestPodForQuota(podName2, requests, limits)
 		pod2, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod2, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsGated(f.K8sClient, f.Namespace.Name, pod2.Name)
+		utils.VerifyPodIsGated(f.K8sClient, f.Namespace.Name, pod2.Name)
 
 		By("Make room by deleting first pod")
 		err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Delete(ctx, pod.Name, metav1.DeleteOptions{})
-		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod2.Name)
+		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod2.Name)
 	})
 
 	It("should be able to create a ApplicationAwareResourceQuota and a pod with different gate and release the pod by removing the other gate", func(ctx context.Context) {
@@ -1346,11 +1345,11 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		requests := v1.ResourceList{}
 		limits := v1.ResourceList{}
 		requests[v1.ResourceMemory] = resource.MustParse("300Mi") //quota has only 500Mi
-		pod := newTestPodForQuota(podName, requests, limits)
+		pod := utils.NewTestPodForQuota(podName, requests, limits)
 		pod.Spec.SchedulingGates = []v1.PodSchedulingGate{{"testGate"}}
 		pod, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
 		By("Remove test scheduling gate to release pod")
 		Eventually(func() error {
@@ -1362,7 +1361,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 			_, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Update(ctx, pod, metav1.UpdateOptions{})
 			return err
 		}, 2*time.Minute, 1*time.Second).Should(BeNil())
-		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 	})
 
 	It("[Serial] should replace .spec.nodeName with node affinity", Serial, func(ctx context.Context) {
@@ -1393,13 +1392,13 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		podName := "test-pod"
 		requests := v1.ResourceList{}
 		requests[v1.ResourceMemory] = resource.MustParse("600Mi") //quota has only 500Mi
-		pod := newTestPodForQuota(podName, requests, nil)
+		pod := utils.NewTestPodForQuota(podName, requests, nil)
 		pod.Spec.NodeSelector = nil
 		pod.Spec.NodeName = *nodeName
 		pod, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
 
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
 		By("Update arq to fit pod")
 		Eventually(func() error {
@@ -1411,7 +1410,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 			_, err = f.AaqClient.AaqV1alpha1().ApplicationAwareResourceQuotas(f.Namespace.Name).Update(ctx, currApplicationAwareResourceQuota, metav1.UpdateOptions{})
 			return err
 		}, 2*time.Minute, 1*time.Second).Should(BeNil())
-		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
 		By("Ensuring that the pod has proper node affinity")
 		Eventually(func() error {
@@ -1497,7 +1496,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		pod := newTestPodForQuotaWithPriority(f, podName, v1.ResourceList{}, v1.ResourceList{}, "pclass1")
 		pod, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
 		By("Ensuring Application Aware Resource Quota with priority class scope captures the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("1")
@@ -1540,7 +1539,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		pod := newTestPodForQuotaWithPriority(f, podName, v1.ResourceList{}, v1.ResourceList{}, "pclass2")
 		pod, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
 		By("Ensuring Application Aware Resource Quota with priority class scope captures the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("1")
@@ -1552,7 +1551,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		pod2 := newTestPodForQuotaWithPriority(f, podName2, v1.ResourceList{}, v1.ResourceList{}, "pclass2")
 		_, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod2, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsGated(f.K8sClient, f.Namespace.Name, pod2.Name)
+		utils.VerifyPodIsGated(f.K8sClient, f.Namespace.Name, pod2.Name)
 		err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Delete(ctx, pod2.Name, *metav1.NewDeleteOptions(0))
 
 		By("Deleting first pod")
@@ -1591,7 +1590,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		pod := newTestPodForQuotaWithPriority(f, podName, v1.ResourceList{}, v1.ResourceList{}, "pclass3")
 		pod, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
 		By("Ensuring Application Aware Resource Quota with priority class scope remains same")
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
@@ -1603,7 +1602,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		pod2 := newTestPodForQuotaWithPriority(f, podName2, v1.ResourceList{}, v1.ResourceList{}, "pclass3")
 		pod2, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod2, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
 		By("Ensuring Application Aware Resource Quota with priority class scope remains same")
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
@@ -1646,7 +1645,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		pod := newTestPodForQuotaWithPriority(f, podName, v1.ResourceList{}, v1.ResourceList{}, "pclass5")
 		pod, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
 		By("Ensuring Application Aware Resource Quota with priority class is updated with the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("1")
@@ -1658,7 +1657,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		pod2 := newTestPodForQuotaWithPriority(f, podName2, v1.ResourceList{}, v1.ResourceList{}, "pclass6")
 		pod2, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod2, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
 		By("Ensuring Application Aware Resource Quota with priority class scope is updated with the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("2")
@@ -1702,7 +1701,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		pod := newTestPodForQuotaWithPriority(f, podName, v1.ResourceList{}, v1.ResourceList{}, "pclass7")
 		pod, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
 		By("Ensuring Application Aware Resource Quota with priority class is not used")
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
@@ -1739,7 +1738,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		pod := newTestPodForQuotaWithPriority(f, podName, v1.ResourceList{}, v1.ResourceList{}, "pclass8")
 		pod, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
 		By("Ensuring Application Aware Resource Quota with priority class is updated with the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("1")
@@ -1796,7 +1795,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		pod := newTestPodForQuotaWithPriority(f, podName, request, limit, "pclass9")
 		pod, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
 		By("Ensuring Application Aware Resource Quota with priority class scope captures the pod usage")
 		usedResources[v1.ResourcePods] = resource.MustParse("1")
@@ -1845,7 +1844,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 				}}}})
 		pod, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
 		By("Creating a pod that uses namespaces field")
 		podWithNamespaces := newTestPodWithAffinityForQuota(f, "with-namespaces", &v1.Affinity{
@@ -1856,7 +1855,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 				}}}})
 		podWithNamespaces, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, podWithNamespaces, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
 		By("Ensuring Application Aware Resource Quota captures podWithNamespaces usage")
 		wantUsedResources[v1.ResourcePods] = resource.MustParse("1")
@@ -1879,7 +1878,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 					}}}}})
 		podWithNamespaceSelector, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, podWithNamespaceSelector, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
+		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
 		By("Ensuring Application Aware Resource Quota captures podWithNamespaceSelector usage")
 		wantUsedResources[v1.ResourcePods] = resource.MustParse("2")
@@ -1929,7 +1928,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		}
 		blockedPod, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, blockedPod, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
-		verifyPodIsGated(f.K8sClient, f.Namespace.Name, blockedPod.Name)
+		utils.VerifyPodIsGated(f.K8sClient, f.Namespace.Name, blockedPod.Name)
 		f.ExpectEvent(blockedPod.Namespace).Should(ContainSubstring("exceeded quota"))
 
 	})
@@ -2026,32 +2025,6 @@ func newTestApplicationAwareResourceQuota(name string) *v1alpha1.ApplicationAwar
 	}
 }
 
-// newTestPodForQuota returns a pod that has the specified requests and limits
-func newTestPodForQuota(name string, requests v1.ResourceList, limits v1.ResourceList) *v1.Pod {
-	return &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-		Spec: v1.PodSpec{
-			// prevent disruption to other test workloads in parallel test runs by ensuring the quota
-			// test pods don't get scheduled onto a node
-			NodeSelector: map[string]string{
-				"x-test.k8s.io/unsatisfiable": "not-schedulable",
-			},
-			Containers: []v1.Container{
-				{
-					Name:  "pause",
-					Image: "busybox",
-					Resources: v1.ResourceRequirements{
-						Requests: requests,
-						Limits:   limits,
-					},
-				},
-			},
-		},
-	}
-}
-
 // newTestPodForQuotaWithPriority returns a pod that has the specified requests, limits and priority class
 func newTestPodForQuotaWithPriority(f *framework.Framework, name string, requests v1.ResourceList, limits v1.ResourceList, pclass string) *v1.Pod {
 	return &v1.Pod{
@@ -2079,7 +2052,7 @@ func newTestPodForQuotaWithPriority(f *framework.Framework, name string, request
 	}
 }
 
-// newTestPodForQuota returns a pod that has the specified requests and limits
+// utils.NewTestPodForQuota returns a pod that has the specified requests and limits
 func newTestPodWithAffinityForQuota(f *framework.Framework, name string, affinity *v1.Affinity) *v1.Pod {
 	return &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -2234,11 +2207,6 @@ func createApplicationAwareResourceQuota(ctx context.Context, c *aaqclientset.Cl
 	return c.AaqV1alpha1().ApplicationAwareResourceQuotas(namespace).Create(ctx, ApplicationAwareResourceQuota, metav1.CreateOptions{})
 }
 
-// createApplicationAwareClusterResourceQuota in the specified namespace
-func createApplicationAwareClusterResourceQuota(ctx context.Context, c *aaqclientset.Clientset, namespace string, ApplicationAwareClusterResourceQuota *v1alpha1.ApplicationAwareClusterResourceQuota) (*v1alpha1.ApplicationAwareClusterResourceQuota, error) {
-	return c.AaqV1alpha1().ApplicationAwareClusterResourceQuotas().Create(ctx, ApplicationAwareClusterResourceQuota, metav1.CreateOptions{})
-}
-
 // deleteApplicationAwareResourceQuota with the specified name
 func deleteApplicationAwareResourceQuota(ctx context.Context, c *aaqclientset.Clientset, namespace, name string) error {
 	return c.AaqV1alpha1().ApplicationAwareResourceQuotas(namespace).Delete(ctx, name, metav1.DeleteOptions{})
@@ -2320,37 +2288,4 @@ func unstructuredToApplicationAwareResourceQuota(obj *unstructured.Unstructured)
 	err = runtime.DecodeInto(clientscheme.Codecs.LegacyCodec(v1.SchemeGroupVersion), json, rq)
 
 	return rq, err
-}
-
-func verifyPodIsGated(c kubernetes.Interface, podNamespace, podName string) {
-	// Retry every 1 seconds
-	EventuallyWithOffset(1, func() bool {
-		// Consistently retry every 1 second for ~10 seconds
-		success := true
-		for i := 0; i < 10; i++ {
-			if !utils.PodSchedulingGated(c, podNamespace, podName) {
-				success = false
-				break
-			}
-
-			time.Sleep(1 * time.Second)
-		}
-		return success
-	}, 2*time.Minute, 1*time.Second).Should(BeTrue())
-}
-
-func verifyPodIsNotGated(c kubernetes.Interface, podNamespace, podName string) {
-	// Retry every 1 seconds
-	EventuallyWithOffset(1, func() bool {
-		// Consistently retry every 1 second for ~10 seconds
-		success := true
-		for i := 0; i < 10; i++ {
-			if utils.PodSchedulingGated(c, podNamespace, podName) {
-				success = false
-				break
-			}
-			time.Sleep(1 * time.Second)
-		}
-		return success
-	}, 2*time.Minute, 1*time.Second).Should(BeTrue())
 }

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	k8sv1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -306,4 +307,63 @@ func PodSchedulingGated(c kubernetes.Interface, podNamespace, podName string) bo
 
 	return cond != nil && cond.Status == v1.ConditionFalse &&
 		cond.Reason == v1.PodReasonSchedulingGated && pod.Spec.NodeName == ""
+}
+
+// newTestPodForQuota returns a pod that has the specified requests and limits
+func NewTestPodForQuota(name string, requests v1.ResourceList, limits v1.ResourceList) *v1.Pod {
+	return &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: v1.PodSpec{
+			// prevent disruption to other test workloads in parallel test runs by ensuring the quota
+			// test pods don't get scheduled onto a node
+			NodeSelector: map[string]string{
+				"x-test.k8s.io/unsatisfiable": "not-schedulable",
+			},
+			Containers: []v1.Container{
+				{
+					Name:  "pause",
+					Image: "busybox",
+					Resources: v1.ResourceRequirements{
+						Requests: requests,
+						Limits:   limits,
+					},
+				},
+			},
+		},
+	}
+}
+
+func VerifyPodIsGated(c kubernetes.Interface, podNamespace, podName string) {
+	// Retry every 1 seconds
+	EventuallyWithOffset(1, func() bool {
+		// Consistently retry every 1 second for ~10 seconds
+		success := true
+		for i := 0; i < 10; i++ {
+			if !PodSchedulingGated(c, podNamespace, podName) {
+				success = false
+				break
+			}
+
+			time.Sleep(1 * time.Second)
+		}
+		return success
+	}, 2*time.Minute, 1*time.Second).Should(BeTrue())
+}
+
+func VerifyPodIsNotGated(c kubernetes.Interface, podNamespace, podName string) {
+	// Retry every 1 seconds
+	EventuallyWithOffset(1, func() bool {
+		// Consistently retry every 1 second for ~10 seconds
+		success := true
+		for i := 0; i < 10; i++ {
+			if PodSchedulingGated(c, podNamespace, podName) {
+				success = false
+				break
+			}
+			time.Sleep(1 * time.Second)
+		}
+		return success
+	}, 2*time.Minute, 1*time.Second).Should(BeTrue())
 }

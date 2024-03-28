@@ -164,10 +164,13 @@ func Execute() {
 	app.initAaqGateController(stop, clusterQuotaLister, namespaceLister, clusterQuotaMapper)
 	app.initRQController(stop)
 
+	if app.enableClusterQuota {
+		app.clusterQuotaMappingController.GetClusterQuotaMapper().AddListener(app.aaqGateController)
+	}
+
 	app.Run(stop)
 
 	klog.V(2).Infoln("AAQ controller exited")
-
 }
 
 func (mca *AaqControllerApp) leaderProbe(_ *restful.Request, response *restful.Response) {

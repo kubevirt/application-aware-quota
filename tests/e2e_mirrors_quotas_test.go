@@ -10,13 +10,12 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	quota "k8s.io/apiserver/pkg/quota/v1"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/kubernetes/pkg/quota/v1/evaluator/core"
 	rq_controller "kubevirt.io/application-aware-quota/pkg/aaq-controller/rq-controller"
-	"kubevirt.io/application-aware-quota/pkg/util"
 	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 	"kubevirt.io/application-aware-quota/tests/builders"
 	"kubevirt.io/application-aware-quota/tests/framework"
+	"kubevirt.io/application-aware-quota/tests/utils"
 	"reflect"
 	"time"
 )
@@ -215,10 +214,14 @@ var _ = Describe("ApplicationAwareAppliedClusterResourceQuota mirrors Applicatio
 			_, err := f.AaqClient.AaqV1alpha1().AAQs().Update(context.Background(), aaq, v12.UpdateOptions{})
 			Expect(err).ToNot(HaveOccurred())
 			Eventually(func() bool {
-				return aaqControllerReady(f.K8sClient, f.AAQInstallNs)
+				ready, err := utils.AaqControllerReady(f.K8sClient, f.AAQInstallNs)
+				Expect(err).ToNot(HaveOccurred())
+				return ready
 			}, 1*time.Minute, 1*time.Second).ShouldNot(BeTrue(), "config change should trigger redeployment of the controller")
 			Eventually(func() bool {
-				return aaqControllerReady(f.K8sClient, f.AAQInstallNs)
+				ready, err := utils.AaqControllerReady(f.K8sClient, f.AAQInstallNs)
+				Expect(err).ToNot(HaveOccurred())
+				return ready
 			}, 10*time.Minute, 1*time.Second).Should(BeTrue(), "aaq-controller should be ready with the new config Eventually")
 
 		}
@@ -226,23 +229,24 @@ var _ = Describe("ApplicationAwareAppliedClusterResourceQuota mirrors Applicatio
 			MatchLabels: map[string]string{"foo": "foo"},
 		}
 		// Function to add label to a namespace
-		err = addLabelToNamespace(f.K8sClient, "default", "foo", "foo")
+		err = utils.AddLabelToNamespace(f.K8sClient, "default", "foo", "foo")
 		Expect(err).ToNot(HaveOccurred())
-		err = addLabelToNamespace(f.K8sClient, f.Namespace.GetName(), "foo", "foo")
+		err = utils.AddLabelToNamespace(f.K8sClient, f.Namespace.GetName(), "foo", "foo")
 		Expect(err).ToNot(HaveOccurred())
 	})
 
 	AfterEach(func() {
 		// Function to add label to a namespace
-		err := removeLabelFromNamespace(f.K8sClient, "default", "foo")
+		err := utils.RemoveLabelFromNamespace(f.K8sClient, "default", "foo")
 		Expect(err).ToNot(HaveOccurred())
-		err = removeLabelFromNamespace(f.K8sClient, f.Namespace.GetName(), "foo")
+		err = utils.RemoveLabelFromNamespace(f.K8sClient, f.Namespace.GetName(), "foo")
 		Expect(err).ToNot(HaveOccurred())
 
 		acrqs, err := f.AaqClient.AaqV1alpha1().ApplicationAwareClusterResourceQuotas().List(context.Background(), v12.ListOptions{})
 		Expect(err).ToNot(HaveOccurred())
 		for _, acrq := range acrqs.Items {
-			f.AaqClient.AaqV1alpha1().ApplicationAwareClusterResourceQuotas().Delete(context.Background(), acrq.Name, v12.DeleteOptions{})
+			err := f.AaqClient.AaqV1alpha1().ApplicationAwareClusterResourceQuotas().Delete(context.Background(), acrq.Name, v12.DeleteOptions{})
+			Expect(err).ToNot(HaveOccurred())
 		}
 	})
 
@@ -271,7 +275,7 @@ var _ = Describe("ApplicationAwareAppliedClusterResourceQuota mirrors Applicatio
 		}
 		acrq := acrqBuilder.Build()
 		By("Creating a ApplicationAwareClusterResourceQuota")
-		_, err := createApplicationAwareClusterResourceQuota(ctx, f.AaqClient, f.Namespace.Name, acrq)
+		_, err := utils.CreateApplicationAwareClusterResourceQuota(ctx, f.AaqClient, acrq)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Waiting for the mirror aacrq")
@@ -341,7 +345,7 @@ var _ = Describe("ApplicationAwareAppliedClusterResourceQuota mirrors Applicatio
 			Build()
 
 		By("Creating a ApplicationAwareClusterResourceQuota")
-		_, err := createApplicationAwareClusterResourceQuota(ctx, f.AaqClient, f.Namespace.Name, acrq)
+		_, err := utils.CreateApplicationAwareClusterResourceQuota(ctx, f.AaqClient, acrq)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Waiting for the mirror aacrq")
@@ -399,60 +403,6 @@ var _ = Describe("ApplicationAwareAppliedClusterResourceQuota mirrors Applicatio
 	})
 
 })
-
-// addLabelToNamespace adds a label to the specified namespace
-func addLabelToNamespace(clientset *kubernetes.Clientset, namespace, key, value string) error {
-	// Get the namespace object
-	ns, err := clientset.CoreV1().Namespaces().Get(context.TODO(), namespace, v12.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("error getting namespace %s: %v", namespace, err)
-	}
-
-	// Add the label to the namespace
-	if ns.Labels == nil {
-		ns.Labels = make(map[string]string)
-	}
-	ns.Labels[key] = value
-
-	// Update the namespace
-	_, err = clientset.CoreV1().Namespaces().Update(context.TODO(), ns, v12.UpdateOptions{})
-	if err != nil {
-		return fmt.Errorf("error updating namespace %s: %v", namespace, err)
-	}
-
-	return nil
-}
-
-// removeLabelFromNamespace removes a label from the specified namespace
-func removeLabelFromNamespace(clientset *kubernetes.Clientset, namespace, key string) error {
-	// Get the namespace object
-	ns, err := clientset.CoreV1().Namespaces().Get(context.TODO(), namespace, v12.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("error getting namespace %s: %v", namespace, err)
-	}
-
-	// Remove the label from the namespace
-	if _, ok := ns.Labels[key]; ok {
-		delete(ns.Labels, key)
-	}
-
-	// Update the namespace
-	_, err = clientset.CoreV1().Namespaces().Update(context.TODO(), ns, v12.UpdateOptions{})
-	if err != nil {
-		return fmt.Errorf("error updating namespace %s: %v", namespace, err)
-	}
-
-	return nil
-}
-
-func aaqControllerReady(clientset *kubernetes.Clientset, aaqInstallNs string) bool {
-	deployment, err := clientset.AppsV1().Deployments(aaqInstallNs).Get(context.TODO(), util.ControllerPodName, v12.GetOptions{})
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-	if *deployment.Spec.Replicas != deployment.Status.ReadyReplicas {
-		return false
-	}
-	return true
-}
 
 func AacrqsMatchAcrq(aacrqs []*v1alpha1.ApplicationAwareAppliedClusterResourceQuota, acrq *v1alpha1.ApplicationAwareClusterResourceQuota) bool {
 	for _, aacrq := range aacrqs {
