@@ -254,6 +254,37 @@ func createGatingValidatingWebhook(namespace string, c client.Client, l logr.Log
 		},
 	})
 
+	mhc.Webhooks = append(mhc.Webhooks, admissionregistrationv1.ValidatingWebhook{
+		Name:                    "aaq.cr.validator",
+		AdmissionReviewVersions: []string{"v1", "v1beta1"},
+		FailurePolicy:           &failurePolicy,
+		SideEffects:             &sideEffect,
+		MatchPolicy:             &exactPolicy,
+		Rules: []admissionregistrationv1.RuleWithOperations{
+			{
+				Operations: []admissionregistrationv1.OperationType{
+					admissionregistrationv1.Create,
+				},
+				Rule: admissionregistrationv1.Rule{
+					APIGroups:   []string{"*"},
+					APIVersions: []string{"*"},
+					Scope:       &clusterScope,
+					Resources:   []string{"aaqs"},
+				},
+			},
+		},
+
+		ClientConfig: admissionregistrationv1.WebhookClientConfig{
+			Service: &admissionregistrationv1.ServiceReference{
+				Namespace: namespace,
+				Name:      AaqServerServiceName,
+				Path:      &path,
+				Port:      &defaultServicePort,
+			},
+			CABundle: bundle,
+		},
+	})
+
 	if !cr.Spec.Configuration.AllowApplicationAwareClusterResourceQuota {
 		return mhc
 	}
