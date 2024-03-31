@@ -132,6 +132,7 @@ func Execute() {
 	app.aaqjqcInformer = informers.GetAAQJobQueueConfig(app.aaqCli)
 	app.podInformer = informers.GetPodInformer(app.aaqCli)
 	app.aaqInformer = informers.GetAAQInformer(app.aaqCli)
+	app.nsInformer = informers.GetNamespaceInformer(app.aaqCli)
 	// Create event recorder
 	broadcaster := record.NewBroadcaster()
 	broadcaster.StartRecordingToSink(&v14.EventSinkImpl{Interface: app.aaqCli.CoreV1().Events(v1.NamespaceAll)})
@@ -139,28 +140,27 @@ func Execute() {
 
 	stop := ctx.Done()
 	app.calcRegistry = aaq_evaluator.NewAaqCalculatorsRegistry(10, clock.RealClock{}).AddBuiltInCalculator(util.LauncherConfig, built_in_usage_calculators.NewVirtLauncherCalculator(stop, alpha1.VmiCalcConfigName(*launcherConfig)))
+	namespaceLister := v12.NewNamespaceLister(app.nsInformer.GetIndexer())
+
 	var clusterQuotaLister v1alpha1.ApplicationAwareClusterResourceQuotaLister
-	var namespaceLister v12.NamespaceLister
 	var clusterQuotaMapper clusterquotamapping.ClusterQuotaMapper
 
 	if app.enableClusterQuota {
 		app.acrqInformer = informers.GetApplicationAwareClusterResourceQuotaInformer(app.aaqCli)
 		app.aacrqInformer = informers.GetApplicationAwareAppliedClusterResourceQuotaInformer(app.aaqCli)
-		app.nsInformer = informers.GetNamespaceInformer(app.aaqCli)
 		if app.onOpenshift {
 			app.crqInformer = informers.GetClusterResourceQuotaInformer(app.aaqCli)
 			app.initCRQController(stop)
 		}
 		app.initAacrqController(stop)
 		app.initClusterQuotaMappingController(stop)
-		app.initAcrqController(stop, app.clusterQuotaMappingController.GetClusterQuotaMapper())
+		app.initAcrqController(stop, app.clusterQuotaMappingController.GetClusterQuotaMapper(), namespaceLister)
 		app.clusterQuotaMappingController.GetClusterQuotaMapper().AddListener(app.acrqController)
 		clusterQuotaLister = v1alpha1.NewApplicationAwareClusterResourceQuotaLister(app.acrqInformer.GetIndexer())
-		namespaceLister = v12.NewNamespaceLister(app.nsInformer.GetIndexer())
 		clusterQuotaMapper = app.clusterQuotaMappingController.GetClusterQuotaMapper()
 	}
 
-	app.initArqController(stop)
+	app.initArqController(stop, namespaceLister)
 	app.initAaqGateController(stop, clusterQuotaLister, namespaceLister, clusterQuotaMapper)
 	app.initRQController(stop)
 
@@ -189,18 +189,26 @@ func (mca *AaqControllerApp) leaderProbe(_ *restful.Request, response *restful.R
 	}
 }
 
-func (mca *AaqControllerApp) initArqController(stop <-chan struct{}) {
+func (mca *AaqControllerApp) initArqController(
+	stop <-chan struct{},
+	namespaceLister v12.NamespaceLister,
+) {
 	mca.arqController = arq_controller.NewArqController(mca.aaqCli,
 		mca.podInformer,
 		mca.arqInformer,
 		mca.rqInformer,
 		mca.aaqjqcInformer,
 		mca.calcRegistry,
+		namespaceLister,
 		stop,
 	)
 }
 
-func (mca *AaqControllerApp) initAcrqController(stop <-chan struct{}, clusterQuotaMapper clusterquotamapping.ClusterQuotaMapper) {
+func (mca *AaqControllerApp) initAcrqController(
+	stop <-chan struct{},
+	clusterQuotaMapper clusterquotamapping.ClusterQuotaMapper,
+	namespaceLister v12.NamespaceLister,
+) {
 	mca.acrqController = acrq_controller.NewAcrqController(mca.aaqCli,
 		clusterQuotaMapper,
 		mca.acrqInformer,
@@ -208,6 +216,7 @@ func (mca *AaqControllerApp) initAcrqController(stop <-chan struct{}, clusterQuo
 		mca.podInformer,
 		mca.aaqjqcInformer,
 		mca.calcRegistry,
+		namespaceLister,
 		stop,
 		mca.onOpenshift,
 	)
@@ -344,6 +353,7 @@ func (mca *AaqControllerApp) onStartedLeading() func(ctx context.Context) {
 		go mca.rqInformer.Run(stop)
 		go mca.aaqjqcInformer.Run(stop)
 		go mca.aaqInformer.Run(stop)
+		go mca.nsInformer.Run(stop)
 
 		if !cache.WaitForCacheSync(stop,
 			mca.podInformer.HasSynced,
@@ -351,17 +361,16 @@ func (mca *AaqControllerApp) onStartedLeading() func(ctx context.Context) {
 			mca.aaqjqcInformer.HasSynced,
 			mca.rqInformer.HasSynced,
 			mca.aaqInformer.HasSynced,
+			mca.nsInformer.HasSynced,
 		) {
 			klog.Warningf("failed to wait for caches to sync")
 		}
 		if mca.enableClusterQuota {
 			go mca.acrqInformer.Run(stop)
 			go mca.aacrqInformer.Run(stop)
-			go mca.nsInformer.Run(stop)
 			if !cache.WaitForCacheSync(stop,
 				mca.acrqInformer.HasSynced,
 				mca.aacrqInformer.HasSynced,
-				mca.nsInformer.HasSynced,
 			) {
 				klog.Warningf("failed to wait for caches to sync")
 			}
