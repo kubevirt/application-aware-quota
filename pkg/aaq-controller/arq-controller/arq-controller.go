@@ -5,6 +5,7 @@ import (
 	"fmt"
 	v1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
@@ -12,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	quota "k8s.io/apiserver/pkg/quota/v1"
 	"k8s.io/apiserver/pkg/quota/v1/generic"
+	v12 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
@@ -37,12 +39,12 @@ const (
 )
 
 type ArqController struct {
-	podInformer    cache.SharedIndexInformer
-	aaqjqcInformer cache.SharedIndexInformer
-	aaqCli         client.AAQClient
-	// A lister/getter of resource quota objects
-	arqInformer cache.SharedIndexInformer
-	rqInformer  cache.SharedIndexInformer
+	podInformer     cache.SharedIndexInformer
+	aaqjqcInformer  cache.SharedIndexInformer
+	aaqCli          client.AAQClient
+	arqInformer     cache.SharedIndexInformer
+	rqInformer      cache.SharedIndexInformer
+	namespaceLister v12.NamespaceLister
 	// A list of functions that return true when their caches have synced
 	arqQueue          workqueue.RateLimitingInterface
 	missingUsageQueue workqueue.RateLimitingInterface
@@ -63,6 +65,7 @@ func NewArqController(clientSet client.AAQClient,
 	rqInformer cache.SharedIndexInformer,
 	aaqjqcInformer cache.SharedIndexInformer,
 	calcRegistry *aaq_evaluator.AaqCalculatorsRegistry,
+	namespaceLister v12.NamespaceLister,
 	stop <-chan struct{},
 ) *ArqController {
 	//eventBroadcaster := record.NewBroadcaster()
@@ -79,9 +82,10 @@ func NewArqController(clientSet client.AAQClient,
 		nsQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "ns_queue"),
 		resyncPeriod:      metav1.Duration{Duration: 5 * time.Minute}.Duration,
 		//recorder:          eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: util.ControllerPodName}),
-		evalRegistry: generic.NewRegistry([]quota.Evaluator{aaq_evaluator.NewAaqEvaluator(podInformer, calcRegistry, clock.RealClock{})}),
-		logger:       klog.FromContext(context.Background()),
-		stop:         stop,
+		evalRegistry:    generic.NewRegistry([]quota.Evaluator{aaq_evaluator.NewAaqEvaluator(podInformer, calcRegistry, clock.RealClock{})}),
+		namespaceLister: namespaceLister,
+		logger:          klog.FromContext(context.Background()),
+		stop:            stop,
 	}
 	ctrl.syncHandler = ctrl.syncResourceQuotaFromKey
 
@@ -257,6 +261,10 @@ func (ctrl *ArqController) Execute() bool {
 
 func (ctrl *ArqController) execute(ns string) (error, enqueueState) {
 	var aaqjqc *v1alpha12.AAQJobQueueConfig
+	_, err := ctrl.namespaceLister.Get(ns)
+	if errors.IsNotFound(err) {
+		return nil, Forget
+	}
 	aaqjqcObj, exists, err := ctrl.aaqjqcInformer.GetIndexer().GetByKey(ns + "/" + arq_controller.AaqjqcName)
 	if err != nil {
 		return err, Immediate
