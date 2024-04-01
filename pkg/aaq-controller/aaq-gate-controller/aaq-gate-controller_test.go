@@ -44,14 +44,23 @@ var _ = Describe("Test aaq-gate-controller", func() {
 			aaqjcInterfaceMock := client.NewMockAAQJobQueueConfigInterface(ctrl)
 			aaqjcInterfaceMock.EXPECT().Create(context.Background(), aaqjqc, metav1.CreateOptions{}).Return(aaqjqc, nil).Times(1)
 			cli.EXPECT().AAQJobQueueConfigs(testNs).Return(aaqjcInterfaceMock).Times(1)
-
+			namespaceLister := testsutils.FakeNamespaceLister{Namespaces: map[string]*corev1.Namespace{testNs: {ObjectMeta: metav1.ObjectMeta{Name: testNs}}}}
 			recorder := record.NewFakeRecorder(100)
-			qc := setupAAQGateController(cli, nil, nil, aaqjcInformer, recorder)
+			qc := setupAAQGateController(cli, nil, nil, aaqjcInformer, namespaceLister, recorder)
 			err, es := qc.execute(testNs)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(es).To(Equal(Forget))
 		})
 
+		It("should forget the key if its namespace doesn't exist", func() {
+			cli := client.NewMockAAQClient(ctrl)
+			namespaceLister := testsutils.FakeNamespaceLister{Namespaces: map[string]*corev1.Namespace{}}
+			recorder := record.NewFakeRecorder(100)
+			qc := setupAAQGateController(cli, nil, nil, nil, namespaceLister, recorder)
+			err, es := qc.execute(testNs)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(es).To(Equal(Forget))
+		})
 	})
 
 	DescribeTable("Test execute when aaqjc is not empty", func(aaqjqc *v1alpha1.AAQJobQueueConfig, podsState []metav1.Object, expectedActionSet sets.String) {
@@ -65,7 +74,11 @@ var _ = Describe("Test aaq-gate-controller", func() {
 			cli.EXPECT().CoreV1().Times(1).Return(fakek8sCli.CoreV1())
 		}
 		recorder := record.NewFakeRecorder(100)
-		qc := setupAAQGateController(cli, podInformer, arqInformer, aaqjqcInformer, recorder)
+		namespaceLister := testsutils.FakeNamespaceLister{Namespaces: map[string]*corev1.Namespace{}}
+		for _, p := range podsState {
+			namespaceLister.Namespaces[p.GetNamespace()] = &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs}}
+		}
+		qc := setupAAQGateController(cli, podInformer, arqInformer, aaqjqcInformer, namespaceLister, recorder)
 		err, es := qc.execute(testNs)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(es).To(Equal(Immediate))
@@ -116,7 +129,11 @@ var _ = Describe("Test aaq-gate-controller", func() {
 			cli.EXPECT().AAQJobQueueConfigs(testNs).Return(aaqjqcInterfaceMock).Times(1)
 		}
 		recorder := record.NewFakeRecorder(100)
-		qc := setupAAQGateController(cli, podInformer, arqInformer, aaqjqcInformer, recorder)
+		namespaceLister := testsutils.FakeNamespaceLister{Namespaces: map[string]*corev1.Namespace{}}
+		for _, p := range podsState {
+			namespaceLister.Namespaces[p.GetNamespace()] = &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs}}
+		}
+		qc := setupAAQGateController(cli, podInformer, arqInformer, aaqjqcInformer, namespaceLister, recorder)
 		err, es := qc.execute(testNs)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(es).To(Equal(Forget))
@@ -317,7 +334,7 @@ var _ = Describe("Test aaq-gate-controller", func() {
 
 })
 
-func setupAAQGateController(clientSet client.AAQClient, podInformer cache.SharedIndexInformer, arqInformer cache.SharedIndexInformer, aaqjcInformer cache.SharedIndexInformer, recorder *record.FakeRecorder) *AaqGateController {
+func setupAAQGateController(clientSet client.AAQClient, podInformer cache.SharedIndexInformer, arqInformer cache.SharedIndexInformer, aaqjcInformer cache.SharedIndexInformer, nsLister testsutils.FakeNamespaceLister, recorder *record.FakeRecorder) *AaqGateController {
 	informerFactory := externalversions.NewSharedInformerFactory(fake.NewSimpleClientset(), 0)
 	kubeInformerFactory := informers.NewSharedInformerFactory(k8sfake.NewSimpleClientset(), 0)
 	if podInformer == nil {
@@ -338,7 +355,7 @@ func setupAAQGateController(clientSet client.AAQClient, podInformer cache.Shared
 		nil,
 		aaq_evaluator.NewAaqCalculatorsRegistry(3, fakeClock),
 		nil,
-		nil,
+		nsLister,
 		nil,
 		recorder,
 		false,

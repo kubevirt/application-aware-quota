@@ -1,7 +1,10 @@
 package tests_utils
 
 import (
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
 	"time"
 )
@@ -53,4 +56,19 @@ func (i FakeSharedIndexInformer) SetTransform(f cache.TransformFunc) error {
 
 func selfGetIndexer(i cache.Indexer) cache.Indexer { //for testing
 	return i
+}
+
+type FakeNamespaceLister struct {
+	Namespaces map[string]*corev1.Namespace
+}
+
+func (f FakeNamespaceLister) List(selector labels.Selector) (ret []*corev1.Namespace, err error) {
+	return nil, nil
+}
+func (f FakeNamespaceLister) Get(name string) (*corev1.Namespace, error) {
+	ns, ok := f.Namespaces[name]
+	if ok {
+		return ns, nil
+	}
+	return nil, errors.NewNotFound(corev1.Resource("namespaces"), name)
 }
