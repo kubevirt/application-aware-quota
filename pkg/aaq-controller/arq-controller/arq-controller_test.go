@@ -44,7 +44,7 @@ var _ = Describe("Test arq-controller", func() {
 		expectedArq.Status = status
 		arqmock.EXPECT().UpdateStatus(context.Background(), expectedArq, metav1.UpdateOptions{}).Times(1)
 		cli.EXPECT().ApplicationAwareResourceQuotas(arq.Namespace).Return(arqmock).Times(1)
-		qc := setupQuotaController(cli, podInformer, rqInformer, nil)
+		qc := setupQuotaController(cli, podInformer, rqInformer, testsutils.FakeNamespaceLister{}, nil)
 		if err := qc.syncResourceQuota(&arq); err != nil {
 			Expect(expectedError).ToNot(BeEmpty(), "error was not expected")
 			Expect(err.Error()).To(ContainSubstring(expectedError), fmt.Sprintf("unexpected error: %v", err))
@@ -652,7 +652,7 @@ var _ = Describe("Test arq-controller", func() {
 			mockAaaqjqcInterface := client.NewMockAAQJobQueueConfigInterface(ctrl)
 			mockAaaqjqcInterface.EXPECT().UpdateStatus(context.Background(), &v1alpha1.AAQJobQueueConfig{ObjectMeta: metav1.ObjectMeta{Name: arq_controller.AaqjqcName, Namespace: "testNs"}, Status: v1alpha1.AAQJobQueueConfigStatus{PodsInJobQueue: []string{"pod-test", "pod-test2"}, ControllerLock: map[string]bool{arq_controller.ApplicationAwareResourceQuotaLockName: false}}}, metav1.UpdateOptions{})
 			cli.EXPECT().AAQJobQueueConfigs("testNs").Times(1).Return(mockAaaqjqcInterface)
-			qc := setupQuotaController(cli, nil, nil, aaqjqcInformer)
+			qc := setupQuotaController(cli, nil, nil, testsutils.FakeNamespaceLister{Namespaces: map[string]*corev1.Namespace{"testNs": {ObjectMeta: metav1.ObjectMeta{Name: "testNs"}}}}, aaqjqcInformer)
 			err, es := qc.execute("testNs")
 			Expect(err).ToNot(HaveOccurred())
 			Expect(es).To(Equal(Forget))
@@ -679,10 +679,18 @@ var _ = Describe("Test arq-controller", func() {
 				},
 			}...)
 			cli.EXPECT().CoreV1().Times(1).Return(fakek8sCli.CoreV1())
-			qc := setupQuotaController(cli, nil, nil, aaqjqcInformer)
+			qc := setupQuotaController(cli, nil, nil, testsutils.FakeNamespaceLister{Namespaces: map[string]*corev1.Namespace{"testNs": {ObjectMeta: metav1.ObjectMeta{Name: "testNs"}}}}, aaqjqcInformer)
 			err, es := qc.execute("testNs")
 			Expect(err).ToNot(HaveOccurred())
 			Expect(es).To(Equal(Immediate))
+		})
+		It("should forget the key if its namespace doesn't exist", func() {
+			cli := client.NewMockAAQClient(ctrl)
+			namespaceLister := testsutils.FakeNamespaceLister{Namespaces: map[string]*corev1.Namespace{}}
+			qc := setupQuotaController(cli, nil, nil, namespaceLister, nil)
+			err, es := qc.execute("testNs")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(es).To(Equal(Forget))
 		})
 	})
 
@@ -690,7 +698,7 @@ var _ = Describe("Test arq-controller", func() {
 		expectedPriority bool) {
 		ctrl := gomock.NewController(GinkgoT())
 		cli := client.NewMockAAQClient(ctrl)
-		qc := setupQuotaController(cli, nil, nil, nil)
+		qc := setupQuotaController(cli, nil, nil, testsutils.FakeNamespaceLister{}, nil)
 		qc.addQuota(klog.FromContext(context.Background()), arq)
 		if expectedPriority {
 			Expect(qc.missingUsageQueue.Len()).To(Equal(1))
@@ -811,7 +819,7 @@ func (errorLister) ByNamespace(namespace string) cache.GenericNamespaceLister {
 	return errorLister{}
 }
 
-func setupQuotaController(clientSet client.AAQClient, podInformer cache.SharedIndexInformer, rqInformer cache.SharedIndexInformer, aaqjqcInformer cache.SharedIndexInformer) *ArqController {
+func setupQuotaController(clientSet client.AAQClient, podInformer cache.SharedIndexInformer, rqInformer cache.SharedIndexInformer, nsLister testsutils.FakeNamespaceLister, aaqjqcInformer cache.SharedIndexInformer) *ArqController {
 	informerFactory := externalversions.NewSharedInformerFactory(fake.NewSimpleClientset(), 0)
 	kubeInformerFactory := informers.NewSharedInformerFactory(k8sfake.NewSimpleClientset(), 0)
 	if podInformer == nil {
@@ -831,6 +839,7 @@ func setupQuotaController(clientSet client.AAQClient, podInformer cache.SharedIn
 		rqInformer,
 		aaqjqcInformer,
 		aaq_evaluator.NewAaqCalculatorsRegistry(3, fakeClock),
+		nsLister,
 		stop,
 	)
 	informerFactory.Start(stop)
