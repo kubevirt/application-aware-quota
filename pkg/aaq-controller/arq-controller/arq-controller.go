@@ -192,13 +192,8 @@ func (ctrl *ArqController) enqueueAll() {
 		ctrl.arqQueue.Add(key)
 	}
 }
-func (ctrl *ArqController) updateArq(old, curr interface{}) {
-	oldArq := old.(*v1alpha12.ApplicationAwareResourceQuota)
-	curArq := curr.(*v1alpha12.ApplicationAwareResourceQuota)
-	if quota.Equals(oldArq.Spec.Hard, curArq.Spec.Hard) {
-		return
-	}
-	ctrl.addQuota(ctrl.logger, curArq)
+func (ctrl *ArqController) updateArq(_, curr interface{}) {
+	ctrl.addQuota(ctrl.logger, curr.(*v1alpha12.ApplicationAwareResourceQuota))
 }
 
 func (ctrl *ArqController) addArq(obj interface{}) {
