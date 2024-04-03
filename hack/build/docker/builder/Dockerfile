@@ -23,6 +23,7 @@ RUN 	dnf -y install dnf-plugins-core && \
 	libnbd-devel \
 	nbdkit-devel \
 	unzip \
+    protobuf-compiler \
 	java-11-openjdk-devel \
 	&& dnf clean all
 
@@ -45,6 +46,7 @@ RUN \
 	go install mvdan.cc/sh/cmd/shfmt@latest && \
 	go install github.com/mattn/goveralls@latest && \
 	go install golang.org/x/lint/golint@latest && \
+    go install -v github.com/golang/protobuf/protoc-gen-go@1643683 && \
 	go install github.com/rmohr/go-swagger-utils/swagger-doc@latest && \
 	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.11.3 && \
 	go install github.com/securego/gosec/v2/cmd/gosec@latest && \

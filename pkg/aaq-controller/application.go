@@ -35,7 +35,6 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/clock"
 	aaq_evaluator "kubevirt.io/application-aware-quota/pkg/aaq-controller/aaq-evaluator"
 	arq_controller2 "kubevirt.io/application-aware-quota/pkg/aaq-controller/aaq-gate-controller"
 	aacrq_controller "kubevirt.io/application-aware-quota/pkg/aaq-controller/additional-cluster-quota-controllers/aacrq-controller"
@@ -51,7 +50,7 @@ import (
 	"kubevirt.io/application-aware-quota/pkg/generated/aaq/listers/core/v1alpha1"
 	"kubevirt.io/application-aware-quota/pkg/informers"
 	"kubevirt.io/application-aware-quota/pkg/util"
-	alpha1 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
+	v1alpha12 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 	golog "log"
 	"net/http"
 	"os"
@@ -83,7 +82,7 @@ type AaqControllerApp struct {
 	aacrqInformer                 cache.SharedIndexInformer
 	nsInformer                    cache.SharedIndexInformer
 	recorder                      record.EventRecorder
-	calcRegistry                  *aaq_evaluator.AaqCalculatorsRegistry
+	calcRegistry                  *aaq_evaluator.AaqEvaluatorRegistry
 	readyChan                     chan bool
 	leaderElector                 *leaderelection.LeaderElector
 }
@@ -93,6 +92,7 @@ func Execute() {
 	isOnOpenshift := flag.Bool(util.IsOnOpenshift, false, "flag that suggest that we are on Openshift cluster")
 	clusterQuotaEnabled := flag.Bool(util.EnableClusterQuota, false, "flag that to let us know if we should enable clusterQuota controllers")
 	launcherConfig := flag.String(util.VMICalculatorConfiguration, "", "flag that to let us know how to allocate resource for virtual machines") //todo: should delete this once sidecar evaluators are in
+	numberOfRequestedEvaluatorsSidecars := flag.Uint(util.SidecarEvaluatorsNumberFlag, 0, "number of requested evaluators sidecars")
 
 	flag.Parse()
 	var err error
@@ -138,8 +138,29 @@ func Execute() {
 	broadcaster.StartRecordingToSink(&v14.EventSinkImpl{Interface: app.aaqCli.CoreV1().Events(v1.NamespaceAll)})
 	app.recorder = broadcaster.NewRecorder(scheme.Scheme, k8sv1.EventSource{Component: "aaq-controller"})
 
+	// Block until all requested evaluatorsSidecars are ready
+	evaluatorsRegistry := aaq_evaluator.GetAaqEvaluatorsRegistry()
 	stop := ctx.Done()
-	app.calcRegistry = aaq_evaluator.NewAaqCalculatorsRegistry(10, clock.RealClock{}).AddBuiltInCalculator(util.LauncherConfig, built_in_usage_calculators.NewVirtLauncherCalculator(stop, alpha1.VmiCalcConfigName(*launcherConfig)))
+
+	err = evaluatorsRegistry.Collect(*numberOfRequestedEvaluatorsSidecars, util.DefaultSidecarsEvaluatorsStartTimeout)
+	if err != nil {
+		panic(err)
+	}
+	if v1alpha12.VmiCalcConfigName(*launcherConfig) != v1alpha12.IgnoreVmiCalculator {
+		vmiInformer := informers.GetVMIInformer(app.aaqCli)
+		migrationInformer := informers.GetMigrationInformer(app.aaqCli)
+		go migrationInformer.Run(stop)
+		go vmiInformer.Run(stop)
+
+		if !cache.WaitForCacheSync(stop,
+			migrationInformer.HasSynced,
+			vmiInformer.HasSynced,
+		) {
+			klog.Warningf("failed to wait for caches to sync")
+		}
+		evaluatorsRegistry.Add(built_in_usage_calculators.NewVirtLauncherCalculator(vmiInformer, migrationInformer, v1alpha12.VmiCalcConfigName(*launcherConfig)))
+	}
+	app.calcRegistry = evaluatorsRegistry
 	namespaceLister := v12.NewNamespaceLister(app.nsInformer.GetIndexer())
 
 	var clusterQuotaLister v1alpha1.ApplicationAwareClusterResourceQuotaLister

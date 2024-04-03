@@ -15,7 +15,6 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
-	testingclock "k8s.io/utils/clock/testing"
 	aaq_evaluator "kubevirt.io/application-aware-quota/pkg/aaq-controller/aaq-evaluator"
 	"kubevirt.io/application-aware-quota/pkg/client"
 	"kubevirt.io/application-aware-quota/pkg/generated/aaq/clientset/versioned/fake"
@@ -25,7 +24,6 @@ import (
 	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 	"kubevirt.io/application-aware-quota/tests/builders"
 	"strings"
-	"time"
 )
 
 var _ = Describe("Test aaq-gate-controller", func() {
@@ -346,14 +344,13 @@ func setupAAQGateController(clientSet client.AAQClient, podInformer cache.Shared
 	if aaqjcInformer == nil {
 		aaqjcInformer = informerFactory.Aaq().V1alpha1().AAQJobQueueConfigs().Informer()
 	}
-	fakeClock := testingclock.NewFakeClock(time.Now())
 	stop := make(chan struct{})
 	qc := NewAaqGateController(clientSet,
 		podInformer,
 		arqInformer,
 		aaqjcInformer,
 		nil,
-		aaq_evaluator.NewAaqCalculatorsRegistry(3, fakeClock),
+		aaq_evaluator.GetAaqEvaluatorsRegistry(),
 		nil,
 		nsLister,
 		nil,
