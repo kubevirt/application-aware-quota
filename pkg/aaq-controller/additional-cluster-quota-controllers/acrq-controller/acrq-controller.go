@@ -17,6 +17,7 @@ import (
 	quota "k8s.io/apiserver/pkg/quota/v1"
 	utilquota "k8s.io/apiserver/pkg/quota/v1"
 	"k8s.io/apiserver/pkg/quota/v1/generic"
+	v12 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
@@ -48,8 +49,9 @@ type AcrqController struct {
 	aaqjqcInformer cache.SharedIndexInformer
 	aaqCli         client.AAQClient
 
-	AcrqInformer cache.SharedIndexInformer
-	crqInformer  cache.SharedIndexInformer
+	AcrqInformer    cache.SharedIndexInformer
+	crqInformer     cache.SharedIndexInformer
+	namespaceLister v12.NamespaceLister
 
 	clusterQuotaMapper clusterquotamapping.ClusterQuotaMapper
 	resyncPeriod       time.Duration
@@ -82,6 +84,7 @@ func NewAcrqController(aaqCli client.AAQClient,
 	podInformer cache.SharedIndexInformer,
 	aaqjqcInformer cache.SharedIndexInformer,
 	calcRegistry *aaq_evaluator.AaqCalculatorsRegistry,
+	namespaceLister v12.NamespaceLister,
 	stop <-chan struct{},
 	collectCrqsData bool,
 ) *AcrqController {
@@ -93,6 +96,7 @@ func NewAcrqController(aaqCli client.AAQClient,
 		crqInformer:        crqInformer,
 		podInformer:        podInformer,
 		resyncPeriod:       metav1.Duration{Duration: 5 * time.Minute}.Duration,
+		namespaceLister:    namespaceLister,
 		registry:           generic.NewRegistry([]quota.Evaluator{aaq_evaluator.NewAaqEvaluator(podInformer, calcRegistry, clock.RealClock{})}),
 		queue:              util.NewBucketingWorkQueue("controller_clusterquotareconcilationcontroller"),
 		nsQueue:            workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "ns_queue"),
@@ -502,6 +506,11 @@ func (ctrl *AcrqController) Execute() bool {
 
 func (ctrl *AcrqController) execute(ns string) (error, enqueueState) {
 	var aaqjqc *v1alpha1.AAQJobQueueConfig
+	_, err := ctrl.namespaceLister.Get(ns)
+	if apierrors.IsNotFound(err) {
+		return nil, Forget
+	}
+
 	aaqjqcObj, exists, err := ctrl.aaqjqcInformer.GetIndexer().GetByKey(ns + "/" + arq_controller.AaqjqcName)
 	if err != nil {
 		return err, Immediate
