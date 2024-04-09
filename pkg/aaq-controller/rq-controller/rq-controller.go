@@ -94,18 +94,12 @@ func (ctrl *RQController) addArq(obj interface{}) {
 }
 
 // When a ApplicationAwareResourceQuota is updated, enqueue all gated pods for revaluation
-func (ctrl *RQController) updateArq(old, cur interface{}) {
-	curArq := cur.(*v1alpha12.ApplicationAwareResourceQuota)
-	oldArq := old.(*v1alpha12.ApplicationAwareResourceQuota)
-
-	if !quota.Equals(curArq.Spec.Hard, oldArq.Spec.Hard) {
-		key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(curArq)
-		if err != nil {
-			return
-		}
-		ctrl.arqQueue.Add(key)
+func (ctrl *RQController) updateArq(_, cur interface{}) {
+	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(cur.(*v1alpha12.ApplicationAwareResourceQuota))
+	if err != nil {
+		return
 	}
-
+	ctrl.arqQueue.Add(key)
 	return
 }
 
