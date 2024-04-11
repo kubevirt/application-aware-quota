@@ -227,4 +227,34 @@ var _ = Describe("Test handler of aaq server", func() {
 		Expect(admissionReview.Response.Result.Message).To(Equal(onlySingleAAQInstaceIsAllowed))
 
 	})
+
+	It("pod with a non-empty spec.nodeName should be skipped", func() {
+		const nodeName = "test-node"
+
+		pod := &v1.Pod{
+			Spec: v1.PodSpec{
+				NodeName: nodeName,
+			},
+		}
+
+		podBytes, err := json.Marshal(pod)
+		Expect(err).ToNot(HaveOccurred())
+
+		v := Handler{
+			request: &admissionv1.AdmissionRequest{
+				Kind: metav1.GroupVersionKind{
+					Kind: "Pod",
+				},
+				Object: runtime.RawExtension{
+					Raw:    podBytes,
+					Object: pod,
+				},
+				Operation: admissionv1.Create,
+			},
+		}
+		admissionReview, err := v.Handle()
+		Expect(err).ToNot(HaveOccurred())
+		Expect(admissionReview.Response.Allowed).To(BeTrue())
+		Expect(admissionReview.Response.Patch).To(BeEmpty())
+	})
 })
