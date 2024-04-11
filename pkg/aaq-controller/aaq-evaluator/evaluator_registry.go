@@ -7,8 +7,8 @@ import (
 	quota "k8s.io/apiserver/pkg/quota/v1"
 	"kubevirt.io/application-aware-quota/pkg/log"
 	"kubevirt.io/application-aware-quota/pkg/util"
+	pb "kubevirt.io/application-aware-quota/pkg/util/net/generated"
 	"kubevirt.io/application-aware-quota/pkg/util/net/grpc"
-	sidecar_evaluator "kubevirt.io/application-aware-quota/staging/evaluator-server-com"
 	"os"
 	"path/filepath"
 	"sync"
@@ -112,10 +112,10 @@ func processSideCarSocket(socketPath string) (string, bool, error) {
 	}
 	defer conn.Close()
 
-	infoClient := sidecar_evaluator.NewPodUsageClient(conn)
+	infoClient := pb.NewPodUsageClient(conn)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	health, err := infoClient.HealthCheck(ctx, &sidecar_evaluator.HealthCheckRequest{})
+	health, err := infoClient.HealthCheck(ctx, &pb.HealthCheckRequest{})
 	if err != nil || health == nil || !health.Healthy {
 		if err == nil {
 			err = fmt.Errorf("HealthCheck failed with following socket: %v", socketPath)
