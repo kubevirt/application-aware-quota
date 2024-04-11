@@ -6,8 +6,8 @@ import (
 	"fmt"
 	corev1 "k8s.io/api/core/v1"
 	"kubevirt.io/application-aware-quota/pkg/log"
+	pb "kubevirt.io/application-aware-quota/pkg/util/net/generated"
 	"kubevirt.io/application-aware-quota/pkg/util/net/grpc"
-	sidecar_evaluator "kubevirt.io/application-aware-quota/staging/evaluator-server-com"
 	"time"
 )
 
@@ -26,21 +26,21 @@ func (aaqsc *AaqSocketCalculator) PodUsageFunc(pod *corev1.Pod, podsState []*cor
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
-	client := sidecar_evaluator.NewPodUsageClient(conn)
+	client := pb.NewPodUsageClient(conn)
 	podData, err := json.Marshal(pod)
 	if err != nil {
 		return nil, err, false
 	}
-	var podsStateData []*sidecar_evaluator.Pod
+	var podsStateData []*pb.Pod
 	for _, p := range podsState {
 		pData, err := json.Marshal(p)
 		if err != nil {
 			return nil, err, false
 		}
-		podsStateData = append(podsStateData, &sidecar_evaluator.Pod{pData})
+		podsStateData = append(podsStateData, &pb.Pod{PodJson: pData})
 	}
-	result, err := client.PodUsageFunc(ctx, &sidecar_evaluator.PodUsageRequest{
-		Pod:       &sidecar_evaluator.Pod{podData},
+	result, err := client.PodUsageFunc(ctx, &pb.PodUsageRequest{
+		Pod:       &pb.Pod{PodJson: podData},
 		PodsState: podsStateData,
 	})
 	if err != nil {
