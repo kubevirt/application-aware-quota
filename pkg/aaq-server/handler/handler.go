@@ -18,6 +18,7 @@ import (
 
 const (
 	allowPodRequest               = "Pod has successfully gated"
+	allowPodRequestWithNodeName   = "Pod skips quota since .spec.nodeName is set"
 	allowArqRequest               = "ApplicationAwareResourceQuota request is valid"
 	allowAcrqRequest              = "ApplicationAwareClusterResourceQuota request is valid"
 	validatingResourceQuotaPrefix = "aaq-validating-rq-"
@@ -69,6 +70,10 @@ func (v Handler) mutatePod() (*admissionv1.AdmissionReview, error) {
 	pod := v1.Pod{}
 	if err := json.Unmarshal(v.request.Object.Raw, &pod); err != nil {
 		return nil, err
+	}
+
+	if pod.Spec.NodeName != "" {
+		return reviewResponse(v.request.UID, true, http.StatusAccepted, allowPodRequestWithNodeName), nil
 	}
 
 	schedulingGates := pod.Spec.SchedulingGates
