@@ -227,11 +227,9 @@ func generatePatchesForPodWithNodeName(pod v1.Pod) []patch.PatchOperation {
 	}
 
 	affinity := pod.Spec.Affinity
-	affinityPatchOp := patch.PatchReplaceOp
 
 	if affinity == nil {
 		affinity = &v1.Affinity{}
-		affinityPatchOp = patch.PatchAddOp
 	}
 	if affinity.NodeAffinity == nil {
 		affinity.NodeAffinity = &v1.NodeAffinity{}
@@ -264,7 +262,7 @@ func generatePatchesForPodWithNodeName(pod v1.Pod) []patch.PatchOperation {
 
 	return []patch.PatchOperation{
 		{
-			Op:    affinityPatchOp,
+			Op:    patch.PatchAddOp,
 			Path:  "/spec/affinity",
 			Value: affinity,
 		},
