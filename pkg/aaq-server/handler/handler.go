@@ -252,6 +252,16 @@ func generatePatchesForPodWithNodeName(pod v1.Pod) []patch.PatchOperation {
 		},
 	)
 
+	tolerations := pod.Spec.Tolerations
+	if tolerations == nil {
+		tolerations = []v1.Toleration{}
+	}
+	tolerations = append(tolerations, v1.Toleration{
+		Key:      "", // i.e. any key
+		Operator: v1.TolerationOpExists,
+		Effect:   v1.TaintEffectNoSchedule,
+	})
+
 	return []patch.PatchOperation{
 		{
 			Op:    affinityPatchOp,
@@ -262,6 +272,11 @@ func generatePatchesForPodWithNodeName(pod v1.Pod) []patch.PatchOperation {
 			Op:    patch.PatchReplaceOp,
 			Path:  "/spec/nodeName",
 			Value: "",
+		},
+		{
+			Op:    patch.PatchAddOp,
+			Path:  "/spec/tolerations",
+			Value: tolerations,
 		},
 	}
 }
