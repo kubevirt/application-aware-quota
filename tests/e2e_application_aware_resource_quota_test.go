@@ -1388,6 +1388,38 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		Expect(nodeName).ToNot(BeNil())
 		Expect(*nodeName).ToNot(BeEmpty())
 
+		By("Adding a taint to the node")
+		node, err := f.K8sClient.CoreV1().Nodes().Get(context.Background(), *nodeName, metav1.GetOptions{})
+		Expect(err).ToNot(HaveOccurred())
+
+		const taintKey = "testTaint"
+		node.Spec.Taints = append(node.Spec.Taints, v1.Taint{Key: taintKey, Value: "testValue", Effect: v1.TaintEffectNoSchedule})
+		node, err = f.K8sClient.CoreV1().Nodes().Update(context.Background(), node, metav1.UpdateOptions{})
+		Expect(err).ToNot(HaveOccurred())
+
+		defer func() {
+			By("Removing a taint from the node")
+			node, err := f.K8sClient.CoreV1().Nodes().Get(context.Background(), *nodeName, metav1.GetOptions{})
+			Expect(err).ToNot(HaveOccurred())
+
+			taintIdx := -1
+			for i, taint := range node.Spec.Taints {
+				if taint.Key == taintKey {
+					taintIdx = i
+					break
+				}
+			}
+
+			Expect(taintIdx).To(BeNumerically(">=", 0), "test taint is not found")
+			// remove taint
+			node.Spec.Taints = append(node.Spec.Taints[:taintIdx], node.Spec.Taints[taintIdx+1:]...)
+
+			Eventually(func() error {
+				_, err = f.K8sClient.CoreV1().Nodes().Update(context.Background(), node, metav1.UpdateOptions{})
+				return err
+			}).WithTimeout(30*time.Second).WithPolling(5*time.Second).ShouldNot(HaveOccurred(), "cannot remove the NoSchedule taint from the node")
+		}()
+
 		By("Creating a Pod that doesn't fits quota")
 		podName := "test-pod"
 		requests := v1.ResourceList{}
