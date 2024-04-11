@@ -1364,40 +1364,28 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 	})
 
-	It("[Serial] should replace .spec.nodeName with node affinity", Serial, func(ctx context.Context) {
-		By("Counting existing ApplicationAwareResourceQuota")
-		c, err := countApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
-		Expect(err).ToNot(HaveOccurred())
-
-		By("Creating a ApplicationAwareResourceQuota")
-		quotaName := "test-quota"
-		ApplicationAwareResourceQuota := newTestApplicationAwareResourceQuota(quotaName)
-		ApplicationAwareResourceQuota, err = createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, ApplicationAwareResourceQuota)
-		Expect(err).ToNot(HaveOccurred())
-
-		By("Ensuring Application Aware Resource Quota status is calculated")
-		usedResources := v1.ResourceList{}
-		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
-		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
-		Expect(err).ToNot(HaveOccurred())
-
-		By("Choosing a node to target")
-		nodeList, err := f.K8sClient.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{})
-		Expect(err).ToNot(HaveOccurred())
-		nodeName := utils.GetSchedulableNode(nodeList)
-		Expect(nodeName).ToNot(BeNil())
-		Expect(*nodeName).ToNot(BeEmpty())
-
-		By("Adding a taint to the node")
-		node, err := f.K8sClient.CoreV1().Nodes().Get(context.Background(), *nodeName, metav1.GetOptions{})
-		Expect(err).ToNot(HaveOccurred())
-
+	Context("[Serial] with a taint on the node", func() {
 		const taintKey = "testTaint"
-		node.Spec.Taints = append(node.Spec.Taints, v1.Taint{Key: taintKey, Value: "testValue", Effect: v1.TaintEffectNoSchedule})
-		node, err = f.K8sClient.CoreV1().Nodes().Update(context.Background(), node, metav1.UpdateOptions{})
-		Expect(err).ToNot(HaveOccurred())
+		var nodeName *string
 
-		defer func() {
+		BeforeEach(func() {
+			By("Choosing a node to target")
+			nodeList, err := f.K8sClient.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{})
+			Expect(err).ToNot(HaveOccurred())
+			nodeName = utils.GetSchedulableNode(nodeList)
+			Expect(nodeName).ToNot(BeNil())
+			Expect(*nodeName).ToNot(BeEmpty())
+
+			By("Adding a taint to the node")
+			node, err := f.K8sClient.CoreV1().Nodes().Get(context.Background(), *nodeName, metav1.GetOptions{})
+			Expect(err).ToNot(HaveOccurred())
+
+			node.Spec.Taints = append(node.Spec.Taints, v1.Taint{Key: taintKey, Value: "testValue", Effect: v1.TaintEffectNoSchedule})
+			node, err = f.K8sClient.CoreV1().Nodes().Update(context.Background(), node, metav1.UpdateOptions{})
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		AfterEach(func() {
 			By("Removing a taint from the node")
 			node, err := f.K8sClient.CoreV1().Nodes().Get(context.Background(), *nodeName, metav1.GetOptions{})
 			Expect(err).ToNot(HaveOccurred())
@@ -1418,85 +1406,103 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 				_, err = f.K8sClient.CoreV1().Nodes().Update(context.Background(), node, metav1.UpdateOptions{})
 				return err
 			}).WithTimeout(30*time.Second).WithPolling(5*time.Second).ShouldNot(HaveOccurred(), "cannot remove the NoSchedule taint from the node")
-		}()
+		})
 
-		By("Creating a Pod that doesn't fits quota")
-		podName := "test-pod"
-		requests := v1.ResourceList{}
-		requests[v1.ResourceMemory] = resource.MustParse("600Mi") //quota has only 500Mi
-		pod := utils.NewTestPodForQuota(podName, requests, nil)
-		pod.Spec.NodeSelector = nil
-		pod.Spec.NodeName = *nodeName
-		pod, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
+		It("should skip .spec.nodeName", Serial, func(ctx context.Context) {
+			By("Counting existing ApplicationAwareResourceQuota")
+			c, err := countApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
+			Expect(err).ToNot(HaveOccurred())
 
-		Expect(err).ToNot(HaveOccurred())
-		utils.VerifyPodIsGated(f.K8sClient, f.Namespace.Name, pod.Name)
+			By("Creating a ApplicationAwareResourceQuota")
+			quotaName := "test-quota"
+			ApplicationAwareResourceQuota := newTestApplicationAwareResourceQuota(quotaName)
+			ApplicationAwareResourceQuota, err = createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, ApplicationAwareResourceQuota)
+			Expect(err).ToNot(HaveOccurred())
 
-		By("Update arq to fit pod")
-		Eventually(func() error {
-			currApplicationAwareResourceQuota, err := f.AaqClient.AaqV1alpha1().ApplicationAwareResourceQuotas(f.Namespace.Name).Get(ctx, ApplicationAwareResourceQuota.Name, metav1.GetOptions{})
-			if err != nil {
-				return err
-			}
-			currApplicationAwareResourceQuota.Spec.Hard[v1.ResourceMemory] = resource.MustParse("600Mi")
-			_, err = f.AaqClient.AaqV1alpha1().ApplicationAwareResourceQuotas(f.Namespace.Name).Update(ctx, currApplicationAwareResourceQuota, metav1.UpdateOptions{})
-			return err
-		}, 2*time.Minute, 1*time.Second).Should(BeNil())
-		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
+			By("Ensuring Application Aware Resource Quota status is calculated")
+			usedResources := v1.ResourceList{}
+			usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
+			err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+			Expect(err).ToNot(HaveOccurred())
 
-		By("Ensuring that the pod has proper node affinity")
-		Eventually(func() error {
-			pod, err = f.K8sClient.CoreV1().Pods(pod.Namespace).Get(context.Background(), pod.Name, metav1.GetOptions{})
-			if err != nil {
-				return err
-			}
+			By("Creating a Pod that doesn't fits quota")
+			podName := "test-pod"
+			requests := v1.ResourceList{}
+			requests[v1.ResourceMemory] = resource.MustParse("600Mi") //quota has only 500Mi
+			pod := utils.NewTestPodForQuota(podName, requests, nil)
+			pod.Spec.NodeSelector = nil
+			pod.Spec.NodeName = *nodeName
+			pod, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
 
-			if pod.Spec.Affinity == nil {
-				return fmt.Errorf("pod affinity is nil")
-			}
+			Expect(err).ToNot(HaveOccurred())
+			utils.VerifyPodIsGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
-			expectedNodeSelectorTerm := v1.NodeSelectorTerm{
-				MatchFields: []v1.NodeSelectorRequirement{
-					{
-						Key:      "metadata.name",
-						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{*nodeName},
-					},
-				},
-			}
-			nodeSelectorTerms := pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
-
-			found := false
-			for _, nodeSelectorTerm := range nodeSelectorTerms {
-				if apiequality.Semantic.DeepEqual(nodeSelectorTerm, expectedNodeSelectorTerm) {
-					found = true
+			By("Update arq to fit pod")
+			Eventually(func() error {
+				currApplicationAwareResourceQuota, err := f.AaqClient.AaqV1alpha1().ApplicationAwareResourceQuotas(f.Namespace.Name).Get(ctx, ApplicationAwareResourceQuota.Name, metav1.GetOptions{})
+				if err != nil {
+					return err
 				}
-			}
-
-			if !found {
-				return fmt.Errorf("did not found expected node affinity")
-			}
-
-			return nil
-		}, 2*time.Minute, 1*time.Second).ShouldNot(HaveOccurred())
-
-		By("Ensuring the pod landed on the right node")
-		Eventually(func() error {
-			pod, err = f.K8sClient.CoreV1().Pods(pod.Namespace).Get(context.Background(), pod.Name, metav1.GetOptions{})
-			if err != nil {
+				currApplicationAwareResourceQuota.Spec.Hard[v1.ResourceMemory] = resource.MustParse("600Mi")
+				_, err = f.AaqClient.AaqV1alpha1().ApplicationAwareResourceQuotas(f.Namespace.Name).Update(ctx, currApplicationAwareResourceQuota, metav1.UpdateOptions{})
 				return err
-			}
+			}, 2*time.Minute, 1*time.Second).Should(BeNil())
+			utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 
-			if pod.Status.Phase != v1.PodRunning {
-				return fmt.Errorf("the pod is not running yet, has phase: %s", string(pod.Status.Phase))
-			}
+			By("Ensuring that the pod has proper node affinity")
+			Eventually(func() error {
+				pod, err = f.K8sClient.CoreV1().Pods(pod.Namespace).Get(context.Background(), pod.Name, metav1.GetOptions{})
+				if err != nil {
+					return err
+				}
 
-			if pod.Spec.NodeName != *nodeName {
-				return fmt.Errorf("pod had landed on the wrong node. Expected: %s, Actual: %s", *nodeName, pod.Spec.NodeName)
-			}
+				if pod.Spec.Affinity == nil {
+					return fmt.Errorf("pod affinity is nil")
+				}
 
-			return nil
-		}, 2*time.Minute, 1*time.Second).ShouldNot(HaveOccurred())
+				expectedNodeSelectorTerm := v1.NodeSelectorTerm{
+					MatchFields: []v1.NodeSelectorRequirement{
+						{
+							Key:      "metadata.name",
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{*nodeName},
+						},
+					},
+				}
+				nodeSelectorTerms := pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+
+				found := false
+				for _, nodeSelectorTerm := range nodeSelectorTerms {
+					if apiequality.Semantic.DeepEqual(nodeSelectorTerm, expectedNodeSelectorTerm) {
+						found = true
+					}
+				}
+
+				if !found {
+					return fmt.Errorf("did not found expected node affinity")
+				}
+
+				return nil
+			}, 2*time.Minute, 1*time.Second).ShouldNot(HaveOccurred())
+
+			By("Ensuring the pod landed on the right node")
+			Eventually(func() error {
+				pod, err = f.K8sClient.CoreV1().Pods(pod.Namespace).Get(context.Background(), pod.Name, metav1.GetOptions{})
+				if err != nil {
+					return err
+				}
+
+				if pod.Status.Phase != v1.PodRunning {
+					return fmt.Errorf("the pod is not running yet, has phase: %s", string(pod.Status.Phase))
+				}
+
+				if pod.Spec.NodeName != *nodeName {
+					return fmt.Errorf("pod had landed on the wrong node. Expected: %s, Actual: %s", *nodeName, pod.Spec.NodeName)
+				}
+
+				return nil
+			}, 2*time.Minute, 1*time.Second).ShouldNot(HaveOccurred())
+		})
 	})
 })
 
