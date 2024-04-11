@@ -1363,6 +1363,43 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		}, 2*time.Minute, 1*time.Second).Should(BeNil())
 		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 	})
+
+	It("[Serial] should skip pods with .spec.nodeName set", Serial, func(ctx context.Context) {
+		By("Counting existing ApplicationAwareResourceQuota")
+		c, err := countApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
+		Expect(err).ToNot(HaveOccurred())
+
+		By("Creating a ApplicationAwareResourceQuota")
+		quotaName := "test-quota"
+		ApplicationAwareResourceQuota := newTestApplicationAwareResourceQuota(quotaName)
+		ApplicationAwareResourceQuota, err = createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, ApplicationAwareResourceQuota)
+		Expect(err).ToNot(HaveOccurred())
+
+		By("Ensuring Application Aware Resource Quota status is calculated")
+		usedResources := v1.ResourceList{}
+		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		Expect(err).ToNot(HaveOccurred())
+
+		By("Choosing a node to target")
+		nodeList, err := f.K8sClient.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{})
+		Expect(err).ToNot(HaveOccurred())
+		nodeName := utils.GetSchedulableNode(nodeList)
+		Expect(nodeName).ToNot(BeNil())
+		Expect(*nodeName).ToNot(BeEmpty())
+
+		By("Creating a Pod that doesn't fits quota")
+		podName := "test-pod"
+		requests := v1.ResourceList{}
+		requests[v1.ResourceMemory] = resource.MustParse("600Mi") //quota has only 500Mi
+		pod := utils.NewTestPodForQuota(podName, requests, nil)
+		pod.Spec.NodeSelector = nil
+		pod.Spec.NodeName = *nodeName
+		pod, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
+
+		Expect(err).ToNot(HaveOccurred())
+		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
+	})
 })
 
 var _ = Describe("ApplicationAwareResourceQuota", func() {
