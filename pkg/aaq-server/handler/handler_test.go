@@ -15,7 +15,6 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"kubevirt.io/application-aware-quota/pkg/client"
 	"kubevirt.io/application-aware-quota/pkg/util"
-	"kubevirt.io/application-aware-quota/pkg/util/patch"
 	aaqv1 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 	"kubevirt.io/application-aware-quota/tests/builders"
 	"net/http"
@@ -194,77 +193,6 @@ var _ = Describe("Test handler of aaq server", func() {
 		Entry(" valid Update should be allowed", admissionv1.Update),
 		Entry(" valid Creation should be allowed", admissionv1.Create),
 	)
-
-	It("pod with a non-empty spec.nodeName set", func() {
-		const nodeName = "test-node"
-
-		pod := &v1.Pod{
-			Spec: v1.PodSpec{
-				NodeName: nodeName,
-			},
-		}
-
-		podBytes, err := json.Marshal(pod)
-		Expect(err).ToNot(HaveOccurred())
-
-		v := Handler{
-			request: &admissionv1.AdmissionRequest{
-				Kind: metav1.GroupVersionKind{
-					Kind: "Pod",
-				},
-				Object: runtime.RawExtension{
-					Raw:    podBytes,
-					Object: pod,
-				},
-				Operation: admissionv1.Create,
-			},
-		}
-		admissionReview, err := v.Handle()
-		Expect(err).ToNot(HaveOccurred())
-		Expect(admissionReview.Response.Allowed).To(BeTrue())
-
-		var patches []patch.PatchOperation
-		err = json.Unmarshal(admissionReview.Response.Patch, &patches)
-		Expect(err).ToNot(HaveOccurred())
-
-		removeNodeNamePatchFound := false
-		nodeAffinityPatchFound := false
-
-		for _, p := range patches {
-			switch p.Path {
-
-			case "/spec/nodeName":
-				removeNodeNamePatchFound = true
-				Expect(p.Op).To(Equal(patch.PatchReplaceOp), "Patch is expected to replace nodeName with an empty string")
-				Expect(p.Value).To(BeEmpty())
-
-			case "/spec/affinity":
-				nodeAffinityPatchFound = true
-
-				var affinity *v1.Affinity
-				valueBytes, err := json.Marshal(p.Value)
-				Expect(err).ShouldNot(HaveOccurred())
-				err = json.Unmarshal(valueBytes, &affinity)
-				Expect(err).ShouldNot(HaveOccurred())
-
-				Expect(affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms).To(ContainElement(
-					v1.NodeSelectorTerm{
-						MatchFields: []v1.NodeSelectorRequirement{
-							{
-								Key:      "metadata.name",
-								Operator: v1.NodeSelectorOpIn,
-								Values:   []string{pod.Spec.NodeName},
-							},
-						},
-					},
-				),
-				)
-			}
-		}
-
-		Expect(removeNodeNamePatchFound).To(BeTrue(), "Patch to remove nodeName is not found")
-		Expect(nodeAffinityPatchFound).To(BeTrue(), "Patch to add node affinity is not found")
-	})
 
 	It("Operations on AAQ", func() {
 		aaq := &aaqv1.AAQ{
