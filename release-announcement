@@ -13,14 +13,14 @@ Pre-built AAQ containers are published on Quay.io and can be viewed at:
 Notable changes
 ---------------
 
-Bump golang.org/x/net to v0.23.0
+API repository
 
 Contributors
 ------------
 
 1 people contributed to this release:
 
-Barakmor1
+Barakmore
 
 Additional Resources
 --------------------
