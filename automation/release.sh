@@ -13,7 +13,7 @@ function ensure_gh_cli_installed() {
 
     trap 'cleanup_gh_install' EXIT SIGINT SIGTERM
 
-    # install gh cli for uploading release artifacts, with prompt disabled to enforce non-interactive mode
+    # install gh cli for uploading release artifacts, with prompt disabled to enforce non-interactive mode.
     gh_cli_dir=$(mktemp -d)
     (
         cd  "$gh_cli_dir/"
