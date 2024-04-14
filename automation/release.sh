@@ -69,6 +69,9 @@ function main() {
 
     build_release_artifacts
     update_github_release
+
+    bash hack/publish-staging.sh
+
 }
 
 main "$@"
