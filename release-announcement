@@ -1,8 +1,8 @@
-This release follows 12b02a7e9275bbbfc8b5b2a762395d683e1d42d3 and consists of 0 changes, contributed by
-0 people, leading to 714 files changed, 9290 insertions(+), 47838 deletions(-).
+This release follows 8bc07275d96fde2b0a06cf3492120e15cde9d6fc and consists of 0 changes, contributed by
+0 people, leading to.
 
 The source code and selected binaries are available for download at:
-<https://github.com/kubevirt/application-aware-quota/releases/tag/b6040fdc66c7dccafacc919e7e42f2f390fa5448>.
+<https://github.com/kubevirt/application-aware-quota/releases/tag/2ccbb2219ad001e5934dadd571524427617181e4>.
 
 Pre-built AAQ containers are published on Quay.io and can be viewed at:
 <https://quay.io/repository/kubevirt/aaq-controller/>
@@ -13,23 +13,14 @@ Pre-built AAQ containers are published on Quay.io and can be viewed at:
 Notable changes
 ---------------
 
-Introduction of plugable policies
-Support pods with a non-empty .pod.nodeName by replacing with node affinity
-
-BugFixes:
-Disallow creating two AAQ CR instances
-Ensure namespace existence is verified and forget key if not found Before we start the reconciliation loop to prevent key infinite reenqueueing.
-Add aaq-gate-controller as observer to the namespace-quotas mapping Sometimes the gate controller miss some events as they do not appear in the namespace-quotas mapping. Adding the gate controller …￼
-ARQ-Controller,RQ-Controller: Bugfix arq should be enqueued when arq.spec.scope/arq.status.hard are modifed￼
-Update usage func of vmi
+Bump golang.org/x/net to v0.23.0
 
 Contributors
 ------------
 
-2 people contributed to this release:
+1 people contributed to this release:
 
 Barakmor1
-iholder101
 
 Additional Resources
 --------------------
