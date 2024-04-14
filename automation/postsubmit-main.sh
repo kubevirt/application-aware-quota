@@ -11,3 +11,4 @@ export DOCKER_TAG=""
 make manifests
 make build-functest
 
+bash hack/publish-staging.sh
