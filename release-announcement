@@ -1,8 +1,8 @@
-This release follows 8bc07275d96fde2b0a06cf3492120e15cde9d6fc and consists of 0 changes, contributed by
-0 people, leading to.
+This release follows c00d0effbd5b5f6bd45e24706e5af965c5f9c82b and consists of 4 changes, contributed by
+1 people, leading to 5 files changed, 120 insertions(+), 3 deletions(-).
 
 The source code and selected binaries are available for download at:
-<https://github.com/kubevirt/application-aware-quota/releases/tag/2ccbb2219ad001e5934dadd571524427617181e4>.
+<https://github.com/kubevirt/application-aware-quota/releases/tag/d5edb88d79835af003cdd1f7844b05b855c2f3d0>.
 
 Pre-built AAQ containers are published on Quay.io and can be viewed at:
 <https://quay.io/repository/kubevirt/aaq-controller/>
@@ -13,14 +13,15 @@ Pre-built AAQ containers are published on Quay.io and can be viewed at:
 Notable changes
 ---------------
 
-API repository
+Introduce library for easy side car implementation
+
 
 Contributors
 ------------
 
 1 people contributed to this release:
 
-Barakmore
+         4	bmordeha <bmordeha@redhat.com>
 
 Additional Resources
 --------------------
