@@ -1,8 +1,8 @@
-This release follows c00d0effbd5b5f6bd45e24706e5af965c5f9c82b and consists of 4 changes, contributed by
-1 people, leading to 5 files changed, 120 insertions(+), 3 deletions(-).
+This release follows 8bc07275d96fde2b0a06cf3492120e15cde9d6fc and consists of 7 changes, contributed by
+1 people, leading to 1145 files changed, 592730 insertions(+), 53 deletions(-).
 
 The source code and selected binaries are available for download at:
-<https://github.com/kubevirt/application-aware-quota/releases/tag/d5edb88d79835af003cdd1f7844b05b855c2f3d0>.
+<https://github.com/kubevirt/application-aware-quota/releases/tag/a241255a4e2768b869840e5aad47d5e846cf66e2>.
 
 Pre-built AAQ containers are published on Quay.io and can be viewed at:
 <https://quay.io/repository/kubevirt/aaq-controller/>
@@ -21,7 +21,7 @@ Contributors
 
 1 people contributed to this release:
 
-         4	bmordeha <bmordeha@redhat.com>
+         7	bmordeha <bmordeha@redhat.com>
 
 Additional Resources
 --------------------
