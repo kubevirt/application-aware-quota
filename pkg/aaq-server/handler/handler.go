@@ -18,6 +18,7 @@ import (
 
 const (
 	allowPodRequest               = "Pod has successfully gated"
+	allowPodRequestWithNodeName   = "Pod skips quota since .spec.nodeName is set"
 	allowArqRequest               = "ApplicationAwareResourceQuota request is valid"
 	allowAcrqRequest              = "ApplicationAwareClusterResourceQuota request is valid"
 	validatingResourceQuotaPrefix = "aaq-validating-rq-"
@@ -71,6 +72,10 @@ func (v Handler) mutatePod() (*admissionv1.AdmissionReview, error) {
 		return nil, err
 	}
 
+	if pod.Spec.NodeName != "" {
+		return reviewResponse(v.request.UID, true, http.StatusAccepted, allowPodRequestWithNodeName), nil
+	}
+
 	schedulingGates := pod.Spec.SchedulingGates
 	if schedulingGates == nil {
 		schedulingGates = []v1.PodSchedulingGate{}
@@ -83,47 +88,6 @@ func (v Handler) mutatePod() (*admissionv1.AdmissionReview, error) {
 			Path:  "/spec/schedulingGates",
 			Value: schedulingGates,
 		},
-	}
-
-	if pod.Spec.NodeName != "" {
-		affinity := pod.Spec.Affinity
-		affinityPatchOp := patch.PatchReplaceOp
-
-		if affinity == nil {
-			affinity = &v1.Affinity{}
-			affinityPatchOp = patch.PatchAddOp
-		}
-		if affinity.NodeAffinity == nil {
-			affinity.NodeAffinity = &v1.NodeAffinity{}
-		}
-		if affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
-			affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &v1.NodeSelector{}
-		}
-		affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = append(
-			affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms,
-			v1.NodeSelectorTerm{
-				MatchFields: []v1.NodeSelectorRequirement{
-					{
-						Key:      "metadata.name",
-						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{pod.Spec.NodeName},
-					},
-				},
-			},
-		)
-
-		patches = append(patches,
-			patch.PatchOperation{
-				Op:    affinityPatchOp,
-				Path:  "/spec/affinity",
-				Value: affinity,
-			},
-			patch.PatchOperation{
-				Op:    patch.PatchReplaceOp,
-				Path:  "/spec/nodeName",
-				Value: "",
-			},
-		)
 	}
 
 	patchBytes, err := patch.GeneratePatchPayload(patches...)

@@ -1364,7 +1364,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 	})
 
-	It("[Serial] should replace .spec.nodeName with node affinity", Serial, func(ctx context.Context) {
+	It("[Serial] should skip pods with .spec.nodeName set", Serial, func(ctx context.Context) {
 		By("Counting existing ApplicationAwareResourceQuota")
 		c, err := countApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
 		Expect(err).ToNot(HaveOccurred())
@@ -1398,73 +1398,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		pod, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
 
 		Expect(err).ToNot(HaveOccurred())
-		utils.VerifyPodIsGated(f.K8sClient, f.Namespace.Name, pod.Name)
-
-		By("Update arq to fit pod")
-		Eventually(func() error {
-			currApplicationAwareResourceQuota, err := f.AaqClient.AaqV1alpha1().ApplicationAwareResourceQuotas(f.Namespace.Name).Get(ctx, ApplicationAwareResourceQuota.Name, metav1.GetOptions{})
-			if err != nil {
-				return err
-			}
-			currApplicationAwareResourceQuota.Spec.Hard[v1.ResourceMemory] = resource.MustParse("600Mi")
-			_, err = f.AaqClient.AaqV1alpha1().ApplicationAwareResourceQuotas(f.Namespace.Name).Update(ctx, currApplicationAwareResourceQuota, metav1.UpdateOptions{})
-			return err
-		}, 2*time.Minute, 1*time.Second).Should(BeNil())
 		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
-
-		By("Ensuring that the pod has proper node affinity")
-		Eventually(func() error {
-			pod, err = f.K8sClient.CoreV1().Pods(pod.Namespace).Get(context.Background(), pod.Name, metav1.GetOptions{})
-			if err != nil {
-				return err
-			}
-
-			if pod.Spec.Affinity == nil {
-				return fmt.Errorf("pod affinity is nil")
-			}
-
-			expectedNodeSelectorTerm := v1.NodeSelectorTerm{
-				MatchFields: []v1.NodeSelectorRequirement{
-					{
-						Key:      "metadata.name",
-						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{*nodeName},
-					},
-				},
-			}
-			nodeSelectorTerms := pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
-
-			found := false
-			for _, nodeSelectorTerm := range nodeSelectorTerms {
-				if apiequality.Semantic.DeepEqual(nodeSelectorTerm, expectedNodeSelectorTerm) {
-					found = true
-				}
-			}
-
-			if !found {
-				return fmt.Errorf("did not found expected node affinity")
-			}
-
-			return nil
-		}, 2*time.Minute, 1*time.Second).ShouldNot(HaveOccurred())
-
-		By("Ensuring the pod landed on the right node")
-		Eventually(func() error {
-			pod, err = f.K8sClient.CoreV1().Pods(pod.Namespace).Get(context.Background(), pod.Name, metav1.GetOptions{})
-			if err != nil {
-				return err
-			}
-
-			if pod.Status.Phase != v1.PodRunning {
-				return fmt.Errorf("the pod is not running yet, has phase: %s", string(pod.Status.Phase))
-			}
-
-			if pod.Spec.NodeName != *nodeName {
-				return fmt.Errorf("pod had landed on the wrong node. Expected: %s, Actual: %s", *nodeName, pod.Spec.NodeName)
-			}
-
-			return nil
-		}, 2*time.Minute, 1*time.Second).ShouldNot(HaveOccurred())
 	})
 })
 
