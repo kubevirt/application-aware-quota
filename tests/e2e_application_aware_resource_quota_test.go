@@ -1367,6 +1367,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 	Context("[Serial] with a taint on the node", func() {
 		const taintKey = "testTaint"
 		var nodeName *string
+		var originalNodeTaints []v1.Taint
 
 		BeforeEach(func() {
 			By("Choosing a node to target")
@@ -1380,6 +1381,14 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 			node, err := f.K8sClient.CoreV1().Nodes().Get(context.Background(), *nodeName, metav1.GetOptions{})
 			Expect(err).ToNot(HaveOccurred())
 
+			By("Backing up original node taints")
+			originalNodeTaints = make([]v1.Taint, len(node.Spec.Taints))
+			for i, taint := range node.Spec.Taints {
+				originalNodeTaints[i] = taint
+				originalNodeTaints[i].TimeAdded = nil
+			}
+
+			By("Adding a taint to the node")
 			node.Spec.Taints = append(node.Spec.Taints, v1.Taint{Key: taintKey, Value: "testValue", Effect: v1.TaintEffectNoSchedule})
 			node, err = f.K8sClient.CoreV1().Nodes().Update(context.Background(), node, metav1.UpdateOptions{})
 			Expect(err).ToNot(HaveOccurred())
@@ -1390,17 +1399,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 			node, err := f.K8sClient.CoreV1().Nodes().Get(context.Background(), *nodeName, metav1.GetOptions{})
 			Expect(err).ToNot(HaveOccurred())
 
-			taintIdx := -1
-			for i, taint := range node.Spec.Taints {
-				if taint.Key == taintKey {
-					taintIdx = i
-					break
-				}
-			}
-
-			Expect(taintIdx).To(BeNumerically(">=", 0), "test taint is not found")
-			// remove taint
-			node.Spec.Taints = append(node.Spec.Taints[:taintIdx], node.Spec.Taints[taintIdx+1:]...)
+			node.Spec.Taints = originalNodeTaints
 
 			Eventually(func() error {
 				_, err = f.K8sClient.CoreV1().Nodes().Update(context.Background(), node, metav1.UpdateOptions{})
