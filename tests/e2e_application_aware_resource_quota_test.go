@@ -1377,9 +1377,14 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 			Expect(nodeName).ToNot(BeNil())
 			Expect(*nodeName).ToNot(BeEmpty())
 
-			By("Adding a taint to the node")
-			node, err := f.K8sClient.CoreV1().Nodes().Get(context.Background(), *nodeName, metav1.GetOptions{})
-			Expect(err).ToNot(HaveOccurred())
+			var node *v1.Node
+			for _, n := range nodeList.Items {
+				if n.Name == *nodeName {
+					node = n.DeepCopy()
+					break
+				}
+			}
+			Expect(node).ToNot(BeNil())
 
 			By("Backing up original node taints")
 			originalNodeTaints = make([]v1.Taint, len(node.Spec.Taints))
@@ -1389,19 +1394,31 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 			}
 
 			By("Adding a taint to the node")
-			node.Spec.Taints = append(node.Spec.Taints, v1.Taint{Key: taintKey, Value: "testValue", Effect: v1.TaintEffectNoSchedule})
-			node, err = f.K8sClient.CoreV1().Nodes().Update(context.Background(), node, metav1.UpdateOptions{})
-			Expect(err).ToNot(HaveOccurred())
+			Eventually(func() error {
+				node, err := f.K8sClient.CoreV1().Nodes().Get(context.Background(), *nodeName, metav1.GetOptions{})
+				if err != nil {
+					return err
+				}
+
+				node.Spec.Taints = append(node.Spec.Taints, v1.Taint{Key: taintKey, Value: "testValue", Effect: v1.TaintEffectNoSchedule})
+				node, err = f.K8sClient.CoreV1().Nodes().Update(context.Background(), node, metav1.UpdateOptions{})
+				if err != nil {
+					return err
+				}
+
+				return nil
+			}).WithTimeout(30*time.Second).WithPolling(5*time.Second).ShouldNot(HaveOccurred(), "cannot remove the NoSchedule taint from the node")
+
 		})
 
 		AfterEach(func() {
 			By("Removing a taint from the node")
-			node, err := f.K8sClient.CoreV1().Nodes().Get(context.Background(), *nodeName, metav1.GetOptions{})
-			Expect(err).ToNot(HaveOccurred())
-
-			node.Spec.Taints = originalNodeTaints
-
 			Eventually(func() error {
+				node, err := f.K8sClient.CoreV1().Nodes().Get(context.Background(), *nodeName, metav1.GetOptions{})
+				Expect(err).ToNot(HaveOccurred())
+
+				node.Spec.Taints = originalNodeTaints
+
 				_, err = f.K8sClient.CoreV1().Nodes().Update(context.Background(), node, metav1.UpdateOptions{})
 				return err
 			}).WithTimeout(30*time.Second).WithPolling(5*time.Second).ShouldNot(HaveOccurred(), "cannot remove the NoSchedule taint from the node")
