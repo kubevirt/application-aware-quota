@@ -1472,34 +1472,30 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 					return err
 				}
 
-				if pod.Spec.Affinity == nil {
-					return fmt.Errorf("pod affinity is nil")
-				}
-
-				expectedNodeSelectorTerm := v1.NodeSelectorTerm{
-					MatchFields: []v1.NodeSelectorRequirement{
-						{
-							Key:      "metadata.name",
-							Operator: v1.NodeSelectorOpIn,
-							Values:   []string{*nodeName},
-						},
-					},
-				}
-				nodeSelectorTerms := pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
-
-				found := false
-				for _, nodeSelectorTerm := range nodeSelectorTerms {
-					if apiequality.Semantic.DeepEqual(nodeSelectorTerm, expectedNodeSelectorTerm) {
-						found = true
-					}
-				}
-
-				if !found {
-					return fmt.Errorf("did not found expected node affinity")
-				}
-
 				return nil
 			}, 2*time.Minute, 1*time.Second).ShouldNot(HaveOccurred())
+
+			Expect(pod.Spec.Affinity).ToNot(BeNil())
+
+			expectedNodeSelectorTerm := v1.NodeSelectorTerm{
+				MatchFields: []v1.NodeSelectorRequirement{
+					{
+						Key:      "metadata.name",
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{*nodeName},
+					},
+				},
+			}
+			nodeSelectorTerms := pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+
+			found := false
+			for _, nodeSelectorTerm := range nodeSelectorTerms {
+				if apiequality.Semantic.DeepEqual(nodeSelectorTerm, expectedNodeSelectorTerm) {
+					found = true
+				}
+			}
+
+			Expect(found).To(BeTrue(), "did not found expected node affinity")
 
 			By("Ensuring the pod landed on the right node")
 			Eventually(func() error {
