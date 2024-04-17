@@ -229,6 +229,7 @@ var _ = Describe("Test handler of aaq server", func() {
 
 		removeNodeNamePatchFound := false
 		nodeAffinityPatchFound := false
+		wildcardTolerationPatchFound := false
 
 		for _, p := range patches {
 			switch p.Path {
@@ -259,11 +260,29 @@ var _ = Describe("Test handler of aaq server", func() {
 					},
 				),
 				)
+
+			case "/spec/tolerations":
+				wildcardTolerationPatchFound = true
+
+				var tolerations []v1.Toleration
+				valueBytes, err := json.Marshal(p.Value)
+				Expect(err).ShouldNot(HaveOccurred())
+				err = json.Unmarshal(valueBytes, &tolerations)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				Expect(tolerations).To(ContainElement(
+					v1.Toleration{
+						Key:      "", // i.e. any key
+						Operator: v1.TolerationOpExists,
+						Effect:   v1.TaintEffectNoSchedule,
+					},
+				))
 			}
 		}
 
 		Expect(removeNodeNamePatchFound).To(BeTrue(), "Patch to remove nodeName is not found")
 		Expect(nodeAffinityPatchFound).To(BeTrue(), "Patch to add node affinity is not found")
+		Expect(wildcardTolerationPatchFound).To(BeTrue(), "Patch to a wildcard NoSchedule toleration is not found")
 	})
 
 	It("Operations on AAQ", func() {

@@ -85,46 +85,7 @@ func (v Handler) mutatePod() (*admissionv1.AdmissionReview, error) {
 		},
 	}
 
-	if pod.Spec.NodeName != "" {
-		affinity := pod.Spec.Affinity
-		affinityPatchOp := patch.PatchReplaceOp
-
-		if affinity == nil {
-			affinity = &v1.Affinity{}
-			affinityPatchOp = patch.PatchAddOp
-		}
-		if affinity.NodeAffinity == nil {
-			affinity.NodeAffinity = &v1.NodeAffinity{}
-		}
-		if affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
-			affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &v1.NodeSelector{}
-		}
-		affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = append(
-			affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms,
-			v1.NodeSelectorTerm{
-				MatchFields: []v1.NodeSelectorRequirement{
-					{
-						Key:      "metadata.name",
-						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{pod.Spec.NodeName},
-					},
-				},
-			},
-		)
-
-		patches = append(patches,
-			patch.PatchOperation{
-				Op:    affinityPatchOp,
-				Path:  "/spec/affinity",
-				Value: affinity,
-			},
-			patch.PatchOperation{
-				Op:    patch.PatchReplaceOp,
-				Path:  "/spec/nodeName",
-				Value: "",
-			},
-		)
-	}
+	patches = append(patches, generatePatchesForPodWithNodeName(pod)...)
 
 	patchBytes, err := patch.GeneratePatchPayload(patches...)
 	if err != nil {
@@ -258,4 +219,62 @@ func getResourcesNames(resourceList v1.ResourceList) []v1.ResourceName {
 		keys = append(keys, key)
 	}
 	return keys
+}
+
+func generatePatchesForPodWithNodeName(pod v1.Pod) []patch.PatchOperation {
+	if pod.Spec.NodeName == "" {
+		return nil
+	}
+
+	affinity := pod.Spec.Affinity
+
+	if affinity == nil {
+		affinity = &v1.Affinity{}
+	}
+	if affinity.NodeAffinity == nil {
+		affinity.NodeAffinity = &v1.NodeAffinity{}
+	}
+	if affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
+		affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &v1.NodeSelector{}
+	}
+	affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = append(
+		affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms,
+		v1.NodeSelectorTerm{
+			MatchFields: []v1.NodeSelectorRequirement{
+				{
+					Key:      "metadata.name",
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{pod.Spec.NodeName},
+				},
+			},
+		},
+	)
+
+	tolerations := pod.Spec.Tolerations
+	if tolerations == nil {
+		tolerations = []v1.Toleration{}
+	}
+	tolerations = append(tolerations, v1.Toleration{
+		Key:      "", // i.e. any key
+		Operator: v1.TolerationOpExists,
+		Effect:   v1.TaintEffectNoSchedule,
+	})
+
+	return []patch.PatchOperation{
+		{
+			Op:    patch.PatchAddOp,
+			Path:  "/spec/affinity",
+			Value: affinity,
+		},
+		{
+			Op:    patch.PatchReplaceOp,
+			Path:  "/spec/nodeName",
+			Value: "",
+		},
+		{
+			Op:    patch.PatchAddOp,
+			Path:  "/spec/tolerations",
+			Value: tolerations,
+		},
+	}
 }
