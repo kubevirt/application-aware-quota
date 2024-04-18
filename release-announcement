@@ -1,8 +1,8 @@
-This release follows 8bc07275d96fde2b0a06cf3492120e15cde9d6fc and consists of 7 changes, contributed by
-1 people, leading to 1145 files changed, 592730 insertions(+), 53 deletions(-).
+This release follows a104ad3468c958a147442740d2b032d3ae066fb8 and consists of 10 changes, contributed by
+2 people, leading to 3 files changed, 196 insertions(+), 108 deletions(-).
 
 The source code and selected binaries are available for download at:
-<https://github.com/kubevirt/application-aware-quota/releases/tag/a241255a4e2768b869840e5aad47d5e846cf66e2>.
+<https://github.com/kubevirt/application-aware-quota/releases/tag/e270f00864b58c51a7ba9fab146ff729f6253db0>.
 
 Pre-built AAQ containers are published on Quay.io and can be viewed at:
 <https://quay.io/repository/kubevirt/aaq-controller/>
@@ -13,15 +13,14 @@ Pre-built AAQ containers are published on Quay.io and can be viewed at:
 Notable changes
 ---------------
 
-Introduce library for easy side car implementation
-
+Add a wildcard NoSchedule toleration for pods with .spec.nodeName set
 
 Contributors
 ------------
 
-1 people contributed to this release:
+2 people contributed to this release:
 
-         7	bmordeha <bmordeha@redhat.com>
+         9	Itamar Holder <iholder@redhat.com>
 
 Additional Resources
 --------------------
