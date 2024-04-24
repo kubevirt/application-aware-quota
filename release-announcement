@@ -1,8 +1,8 @@
-This release follows a104ad3468c958a147442740d2b032d3ae066fb8 and consists of 10 changes, contributed by
-2 people, leading to 3 files changed, 196 insertions(+), 108 deletions(-).
+This release follows 05d27a9f96356be37ee5549ae060956ae097e02f and consists of 2 changes, contributed by
+2 people, leading to 49 files changed, 1044 insertions(+), 168 deletions(-).
 
 The source code and selected binaries are available for download at:
-<https://github.com/kubevirt/application-aware-quota/releases/tag/e270f00864b58c51a7ba9fab146ff729f6253db0>.
+<https://github.com/kubevirt/application-aware-quota/releases/tag/7aef6396e9db2c93ad7ffb6b4586b7e1818135d7>.
 
 Pre-built AAQ containers are published on Quay.io and can be viewed at:
 <https://quay.io/repository/kubevirt/aaq-controller/>
@@ -13,14 +13,15 @@ Pre-built AAQ containers are published on Quay.io and can be viewed at:
 Notable changes
 ---------------
 
-Add a wildcard NoSchedule toleration for pods with .spec.nodeName set
+CVE-2023-45288 fix: Bump golang.org/x/net to v0.23.0
+
 
 Contributors
 ------------
 
 2 people contributed to this release:
 
-         9	Itamar Holder <iholder@redhat.com>
+         1	bmordeha <bmordeha@redhat.com>
 
 Additional Resources
 --------------------
