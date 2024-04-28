@@ -12,7 +12,7 @@ require (
 
 require (
 	k8s.io/kubernetes v1.26.3
-	kubevirt.io/application-aware-quota-api/libsidecar v0.0.0-20240415103652-57d4de60e6f2
+	kubevirt.io/application-aware-quota-api/libsidecar v0.0.0-20240508092127-ac6757c09496
 )
 
 require (
