@@ -53,3 +53,23 @@ for target in ${PUSH_TARGETS[@]}; do
         ${cri_cmd} push ${insecure} ${IMAGE}
     fi
 done
+
+cd example_sidecars
+PUSH_EXAMPLE_SIDECARS=("$LABEL_SIDECAR_IMAGE_NAME")
+for target in ${PUSH_EXAMPLE_SIDECARS[@]}; do
+    cd ${target}
+    BIN_NAME="${target}"
+    IMAGE="${DOCKER_PREFIX}/${BIN_NAME}:${DOCKER_TAG}"
+
+    if [ "${opt}" == "build" ]; then
+        (
+            pwd
+            ${cri_cmd} "${opt}" -t ${IMAGE} . -f Dockerfile.${BIN_NAME}
+        )
+    elif [ "${opt}" == "push" ]; then
+        ${cri_cmd} "${opt}" ${insecure} "${IMAGE}"
+    elif [ "${opt}" == "publish" ]; then
+        ${cri_cmd} push ${insecure} ${IMAGE}
+    fi
+    cd ..
+done
