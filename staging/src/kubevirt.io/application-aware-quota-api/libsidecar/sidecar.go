@@ -20,7 +20,7 @@ const (
 )
 
 type SidecarCalculator interface {
-	PodUsageFunc(podToEvaluate *corev1.Pod, existingPods []*corev1.Pod) (corev1.ResourceList, error, bool)
+	PodUsageFunc(podToEvaluate *corev1.Pod, existingPods []*corev1.Pod) (corev1.ResourceList, bool, error)
 }
 
 func RunServer(scc SidecarCalculator) {
@@ -83,7 +83,7 @@ func (s *Server) PodUsageFunc(_ context.Context, request *aaqsidecarevaluate.Pod
 		existingPods = append(existingPods, currPod)
 	}
 
-	rl, err, match := s.sidecarCalculator.PodUsageFunc(podToEvaluate, existingPods)
+	rl, match, err := s.sidecarCalculator.PodUsageFunc(podToEvaluate, existingPods)
 
 	rlData, err := json.Marshal(rl)
 	if err != nil {
