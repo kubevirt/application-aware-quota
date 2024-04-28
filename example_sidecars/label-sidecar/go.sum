@@ -251,6 +251,8 @@ k8s.io/utils v0.0.0-20230726121419-3b25d923346b h1:sgn3ZU783SCgtaSJjpcVVlRqd6GSn
 k8s.io/utils v0.0.0-20230726121419-3b25d923346b/go.mod h1:OLgZIPagt7ERELqWJFomSt595RzquPNLL48iOWgYOg0=
 kubevirt.io/application-aware-quota-api/libsidecar v0.0.0-20240415103652-57d4de60e6f2 h1:NQPyPg1tR8wZ/AwHtiyBsJXrYcWHxiS/Hnp8neN/2wo=
 kubevirt.io/application-aware-quota-api/libsidecar v0.0.0-20240415103652-57d4de60e6f2/go.mod h1:yHyo21bySW801PhJts+3DttJ0r6Gz4UNIFFi/t73ICM=
+kubevirt.io/application-aware-quota-api/libsidecar v0.0.0-20240508092127-ac6757c09496 h1:NLRNGGt0TT/+EcsYobCi5A+V2zK4bFB2/jeuGHoZzbY=
+kubevirt.io/application-aware-quota-api/libsidecar v0.0.0-20240508092127-ac6757c09496/go.mod h1:yHyo21bySW801PhJts+3DttJ0r6Gz4UNIFFi/t73ICM=
 sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd h1:EDPBXCAspyGV4jQlpZSudPeMmr1bNJefnuqLsRAsHZo=
 sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd/go.mod h1:B8JuhiUyNFVKdsE8h686QcCxMaH6HrOAZj4vswFpcB0=
 sigs.k8s.io/structured-merge-diff/v4 v4.4.1 h1:150L+0vs/8DA78h1u02ooW1/fFq/Lwr+sGiqlzvrtq4=
