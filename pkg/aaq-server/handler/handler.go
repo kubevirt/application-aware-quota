@@ -11,7 +11,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"kubevirt.io/application-aware-quota/pkg/client"
 	"kubevirt.io/application-aware-quota/pkg/util"
-	"kubevirt.io/application-aware-quota/pkg/util/patch"
 	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 	"net/http"
 )
@@ -70,29 +69,19 @@ func (v Handler) mutatePod() (*admissionv1.AdmissionReview, error) {
 	if err := json.Unmarshal(v.request.Object.Raw, &pod); err != nil {
 		return nil, err
 	}
-
 	schedulingGates := pod.Spec.SchedulingGates
 	if schedulingGates == nil {
 		schedulingGates = []v1.PodSchedulingGate{}
 	}
 	schedulingGates = append(schedulingGates, v1.PodSchedulingGate{Name: util.AAQGate})
 
-	patches := []patch.PatchOperation{
-		{
-			Op:    patch.PatchAddOp,
-			Path:  "/spec/schedulingGates",
-			Value: schedulingGates,
-		},
-	}
-
-	patches = append(patches, generatePatchesForPodWithNodeName(pod)...)
-
-	patchBytes, err := patch.GeneratePatchPayload(patches...)
+	schedulingGatesBytes, err := json.Marshal(schedulingGates)
 	if err != nil {
 		return nil, err
 	}
 
-	return reviewResponseWithPatch(v.request.UID, true, http.StatusAccepted, allowPodRequest, patchBytes), nil
+	patch := fmt.Sprintf(`[{"op": "add", "path": "/spec/schedulingGates", "value": %s}]`, string(schedulingGatesBytes))
+	return reviewResponseWithPatch(v.request.UID, true, http.StatusAccepted, allowPodRequest, []byte(patch)), nil
 }
 
 func reviewResponseWithPatch(uid types.UID, allowed bool, httpCode int32,
@@ -219,62 +208,4 @@ func getResourcesNames(resourceList v1.ResourceList) []v1.ResourceName {
 		keys = append(keys, key)
 	}
 	return keys
-}
-
-func generatePatchesForPodWithNodeName(pod v1.Pod) []patch.PatchOperation {
-	if pod.Spec.NodeName == "" {
-		return nil
-	}
-
-	affinity := pod.Spec.Affinity
-
-	if affinity == nil {
-		affinity = &v1.Affinity{}
-	}
-	if affinity.NodeAffinity == nil {
-		affinity.NodeAffinity = &v1.NodeAffinity{}
-	}
-	if affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
-		affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &v1.NodeSelector{}
-	}
-	affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = append(
-		affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms,
-		v1.NodeSelectorTerm{
-			MatchFields: []v1.NodeSelectorRequirement{
-				{
-					Key:      "metadata.name",
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{pod.Spec.NodeName},
-				},
-			},
-		},
-	)
-
-	tolerations := pod.Spec.Tolerations
-	if tolerations == nil {
-		tolerations = []v1.Toleration{}
-	}
-	tolerations = append(tolerations, v1.Toleration{
-		Key:      "", // i.e. any key
-		Operator: v1.TolerationOpExists,
-		Effect:   v1.TaintEffectNoSchedule,
-	})
-
-	return []patch.PatchOperation{
-		{
-			Op:    patch.PatchAddOp,
-			Path:  "/spec/affinity",
-			Value: affinity,
-		},
-		{
-			Op:    patch.PatchReplaceOp,
-			Path:  "/spec/nodeName",
-			Value: "",
-		},
-		{
-			Op:    patch.PatchAddOp,
-			Path:  "/spec/tolerations",
-			Value: tolerations,
-		},
-	}
 }
