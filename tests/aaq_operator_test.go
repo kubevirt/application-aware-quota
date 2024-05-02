@@ -626,6 +626,69 @@ var _ = Describe("ALL Operator tests", func() {
 			}, 90*time.Second, 5*time.Second).ShouldNot(HaveOccurred())
 
 		})
+
+		It("if namespace selector is not set, should use the default target label", func() {
+			By("Updating AAQ to use a nil namespace selector")
+			Eventually(func() error {
+				currCr, err := utils.GetAAQ(f)
+				if err != nil {
+					return err
+				}
+				newCr := currCr.DeepCopy()
+				newCr.Spec.NamespaceSelector = nil
+				_, err = f.AaqClient.AaqV1alpha1().AAQs().Update(context.TODO(), newCr, metav1.UpdateOptions{})
+				return err
+			}).WithTimeout(90*time.Second).WithPolling(5*time.Second).ShouldNot(HaveOccurred(), "cannot update AAQ")
+
+			expectedNamespaceSelector := &metav1.LabelSelector{
+				MatchExpressions: []metav1.LabelSelectorRequirement{
+					{Key: cluster.DefaultNamespaceSelectorLabel, Operator: metav1.LabelSelectorOpExists},
+				},
+			}
+
+			Eventually(func() error {
+				mwc, err := f.K8sClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.Background(), cluster.MutatingWebhookConfigurationName, metav1.GetOptions{})
+				if err != nil {
+					return err
+				}
+				if !reflect.DeepEqual(mwc.Webhooks[0].NamespaceSelector, expectedNamespaceSelector) {
+					return fmt.Errorf("namespace selector does not target the default label. actual: %v, expected: %v", *mwc.Webhooks[0].NamespaceSelector, *expectedNamespaceSelector)
+				}
+				return nil
+			}).WithTimeout(90*time.Second).WithPolling(5*time.Second).ShouldNot(HaveOccurred(), "default namespace selector is not as expected")
+		})
+
+		It("if namespace selector is empty, should target any namespace", func() {
+			By("Updating AAQ to use a nil namespace selector")
+			Eventually(func() error {
+				currCr, err := utils.GetAAQ(f)
+				if err != nil {
+					return err
+				}
+				newCr := currCr.DeepCopy()
+				newCr.Spec.NamespaceSelector = &metav1.LabelSelector{}
+				_, err = f.AaqClient.AaqV1alpha1().AAQs().Update(context.TODO(), newCr, metav1.UpdateOptions{})
+				return err
+			}).WithTimeout(90*time.Second).WithPolling(5*time.Second).ShouldNot(HaveOccurred(), "cannot update AAQ")
+
+			Eventually(func() error {
+				mwc, err := f.K8sClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.Background(), cluster.MutatingWebhookConfigurationName, metav1.GetOptions{})
+				if err != nil {
+					return err
+				}
+				selector := mwc.Webhooks[0].NamespaceSelector
+
+				if selector == nil {
+					return nil
+				}
+
+				if len(selector.MatchLabels) != 0 || len(selector.MatchExpressions) != 0 {
+					return fmt.Errorf("namespace selector should be empty. actual: %v", *mwc.Webhooks[0].NamespaceSelector)
+				}
+				
+				return nil
+			}).WithTimeout(90*time.Second).WithPolling(5*time.Second).ShouldNot(HaveOccurred(), "default namespace selector is not as expected")
+		})
 	})
 })
 
