@@ -7,8 +7,13 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	ginkgo_reporters "github.com/onsi/ginkgo/v2/reporters"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"kubevirt.io/application-aware-quota/pkg/aaq-operator/resources/cluster"
+	clientset "kubevirt.io/application-aware-quota/pkg/generated/aaq/clientset/versioned"
+	aaqv1 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 	"kubevirt.io/application-aware-quota/tests/flags"
 	qe_reporters "kubevirt.io/qe-tools/pkg/ginkgo-reporters"
+	"reflect"
 	"testing"
 	"time"
 
@@ -24,7 +29,10 @@ const (
 	nsDeletedTimeout = 270 * time.Second
 )
 
-var afterSuiteReporters = []Reporter{}
+var (
+	afterSuiteReporters          = []Reporter{}
+	originalAAQNamespaceSelector *metav1.LabelSelector
+)
 
 var (
 	kubectlPath  = flag.String("kubectl-path-aaq", "kubectl", "The path to the kubectl binary")
@@ -117,6 +125,18 @@ func BuildTestSuite() {
 		if qe_reporters.JunitOutput != "" {
 			afterSuiteReporters = append(afterSuiteReporters, qe_reporters.NewJunitReporter())
 		}
+
+		fmt.Fprintf(ginkgo.GinkgoWriter, "Modifying AAQ to target all namespaces\n")
+		aaq, err := getRunningAAQ(framework.ClientsInstance.AaqClient)
+		if err != nil {
+			ginkgo.Fail("cannot get the running AAQ instance: " + err.Error())
+		}
+		originalAAQNamespaceSelector = aaq.Spec.NamespaceSelector
+
+		err = updateAAQNamespaceSelector(framework.ClientsInstance.AaqClient, framework.ClientsInstance.K8sClient, &metav1.LabelSelector{})
+		if err != nil {
+			ginkgo.Fail("cannot update AAQ namespace selector: " + err.Error())
+		}
 	})
 
 	AfterSuite(func() {
@@ -125,6 +145,11 @@ func BuildTestSuite() {
 			nsList, _ := k8sClient.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{LabelSelector: framework.NsPrefixLabel})
 			return nsList.Items
 		}, nsDeletedTimeout, pollInterval).Should(BeEmpty())
+
+		err := updateAAQNamespaceSelector(framework.ClientsInstance.AaqClient, framework.ClientsInstance.K8sClient, originalAAQNamespaceSelector)
+		if err != nil {
+			ginkgo.Fail("cannot restore AAQ namespace selector: " + err.Error())
+		}
 	})
 
 	var _ = ReportAfterSuite("TestTests", func(report Report) {
@@ -133,4 +158,54 @@ func BuildTestSuite() {
 		}
 	})
 
+}
+
+func getRunningAAQ(aaqClient *clientset.Clientset) (*aaqv1.AAQ, error) {
+	aaqList, err := aaqClient.AaqV1alpha1().AAQs().List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("cannot list AAQ objects")
+	}
+
+	if len(aaqList.Items) != 1 {
+		return nil, fmt.Errorf("expecting a single AAQ instance, actual: %d", len(aaqList.Items))
+	}
+
+	return aaqList.Items[0].DeepCopy(), nil
+}
+
+func updateAAQNamespaceSelector(aaqClient *clientset.Clientset, k8sClient *kubernetes.Clientset, selector *metav1.LabelSelector) error {
+	// Ensure AAQ is deployed and overwrite default namespace selector to target any namespace
+	aaqWebhook, err := k8sClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.Background(), cluster.MutatingWebhookConfigurationName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	originalWebhookSelector := aaqWebhook.Webhooks[0].NamespaceSelector
+
+	Eventually(func() error {
+		aaq, err := getRunningAAQ(aaqClient)
+		if err != nil {
+			return err
+		}
+
+		aaq.Spec.NamespaceSelector = selector
+
+		_, err = aaqClient.AaqV1alpha1().AAQs().Update(context.Background(), aaq, metav1.UpdateOptions{})
+		return err
+	}).WithTimeout(30*time.Second).WithPolling(time.Second).ShouldNot(HaveOccurred(), "cannot update AAQ object's namespace selector'")
+
+	Eventually(func() error {
+		aaqWebhook, err := k8sClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.Background(), cluster.MutatingWebhookConfigurationName, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+
+		if reflect.DeepEqual(aaqWebhook.Webhooks[0].NamespaceSelector, originalWebhookSelector) {
+			return fmt.Errorf("expecting namespace selector to be updated")
+		}
+
+		return nil
+	}).WithTimeout(30*time.Second).WithPolling(time.Second).ShouldNot(HaveOccurred(), fmt.Sprintf("webhook namespace selector is not updated"))
+
+	return nil
 }
