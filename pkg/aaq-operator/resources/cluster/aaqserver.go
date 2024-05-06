@@ -17,6 +17,7 @@ const (
 	MutatingWebhookConfigurationName   = "gating-mutator"
 	validatingWebhookConfigurationName = "aaq-validator"
 	AaqServerServiceName               = "aaq-server"
+	DefaultNamespaceSelectorLabel      = "application-aware-quota/enable"
 )
 
 func createStaticAAQLockResources(args *FactoryArgs) []client.Object {
@@ -93,6 +94,15 @@ func createGatingMutatingWebhook(namespace string, c client.Client, l logr.Logge
 
 	hooks := []admissionregistrationv1.MutatingWebhook{}
 	if includeHooks {
+		namespaceSelector := cr.Spec.NamespaceSelector
+		if namespaceSelector == nil {
+			namespaceSelector = &metav1.LabelSelector{
+				MatchExpressions: []metav1.LabelSelectorRequirement{
+					{Key: DefaultNamespaceSelectorLabel, Operator: metav1.LabelSelectorOpExists},
+				},
+			}
+		}
+
 		hooks = []admissionregistrationv1.MutatingWebhook{
 			{
 				Name:                    "gater.cqo.kubevirt.io",
@@ -100,7 +110,7 @@ func createGatingMutatingWebhook(namespace string, c client.Client, l logr.Logge
 				FailurePolicy:           &failurePolicy,
 				SideEffects:             &sideEffect,
 				MatchPolicy:             &exactPolicy,
-				NamespaceSelector:       cr.Spec.NamespaceSelector,
+				NamespaceSelector:       namespaceSelector,
 				Rules: []admissionregistrationv1.RuleWithOperations{{
 					Operations: []admissionregistrationv1.OperationType{
 						admissionregistrationv1.Create,
