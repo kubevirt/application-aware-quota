@@ -2367,7 +2367,7 @@ spec:
                 type: object
               namespaceSelector:
                 description: namespaces where pods should be gated before scheduling
-                  Defaults to targeting namespaces with an "application-aware-quota/enable"
+                  Defaults to targeting namespaces with an "application-aware-quota/enable-gating"
                   label key.
                 properties:
                   matchExpressions:
