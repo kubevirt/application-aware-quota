@@ -17,7 +17,7 @@ const (
 	MutatingWebhookConfigurationName   = "gating-mutator"
 	validatingWebhookConfigurationName = "aaq-validator"
 	AaqServerServiceName               = "aaq-server"
-	DefaultNamespaceSelectorLabel      = "application-aware-quota/enable"
+	DefaultNamespaceSelectorLabel      = "application-aware-quota/enable-gating"
 )
 
 func createStaticAAQLockResources(args *FactoryArgs) []client.Object {
