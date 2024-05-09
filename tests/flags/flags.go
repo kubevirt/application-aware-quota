@@ -101,7 +101,7 @@ func NormalizeFlags() {
 	}
 
 	if KubeVirtUtilityRepoPrefix == "" {
-		KubeVirtUtilityRepoPrefix = KubeVirtRepoPrefix
+		KubeVirtUtilityRepoPrefix = "registry:5000"
 	}
 
 	if PreviousUtilityRegistry == "" {
