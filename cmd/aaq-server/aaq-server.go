@@ -8,6 +8,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 	"kubevirt.io/application-aware-quota/pkg/aaq-server"
+	select_gating_namespaces "kubevirt.io/application-aware-quota/pkg/aaq-server/select-gating-namespaces"
 	"kubevirt.io/application-aware-quota/pkg/certificates/bootstrap"
 	"kubevirt.io/application-aware-quota/pkg/client"
 	"kubevirt.io/application-aware-quota/pkg/informers"
@@ -19,6 +20,7 @@ import (
 func main() {
 	flag.CommandLine.AddGoFlag(goflag.CommandLine.Lookup("v"))
 	isOnOpenshift := flag.Bool(util.IsOnOpenshift, false, "flag that suggest that we are on Openshift cluster")
+	clusterQuotaEnabled := flag.Bool(util.EnableClusterQuota, false, "flag that to let us know if we should enable clusterQuota controllers")
 	flag.Parse()
 	defer klog.Flush()
 	aaqNS := util.GetNamespace()
@@ -33,6 +35,9 @@ func main() {
 	defer cancel()
 	stop := ctx.Done()
 
+	executor := select_gating_namespaces.NewSelectedNamespaceControllerExecutor(*clusterQuotaEnabled, stop)
+	executor.Run()
+	nsChecker := executor.GetQuotaNamespaceChecker()
 	secretInformer := informers.GetSecretInformer(aaqCli, aaqNS)
 	go secretInformer.Run(stop)
 	if !cache.WaitForCacheSync(stop, secretInformer.HasSynced) {
@@ -56,6 +61,7 @@ func main() {
 		secretCertManager,
 		aaqCli,
 		*isOnOpenshift,
+		nsChecker,
 	)
 	if err != nil {
 		klog.Fatalf("UploadProxy failed to initialize: %v\n", errors.WithStack(err))

@@ -6,6 +6,7 @@ import (
 	"io"
 	"k8s.io/client-go/util/certificate"
 	"k8s.io/klog/v2"
+	"kubevirt.io/application-aware-quota/pkg/aaq-server/select-gating-namespaces"
 	"kubevirt.io/application-aware-quota/pkg/client"
 	"kubevirt.io/application-aware-quota/pkg/util"
 	"net/http"
@@ -23,12 +24,13 @@ type Server interface {
 }
 
 type AAQServer struct {
-	bindAddress       string
-	bindPort          uint
-	secretCertManager certificate.Manager
-	handler           http.Handler
-	aaqNS             string
-	isOnOpenshift     bool
+	bindAddress           string
+	bindPort              uint
+	secretCertManager     certificate.Manager
+	handler               http.Handler
+	aaqNS                 string
+	isOnOpenshift         bool
+	quotaNamespaceChecker select_gating_namespaces.QuotaNamespaceChecker
 }
 
 // AaqServer returns an initialized uploadProxyApp
@@ -38,13 +40,15 @@ func AaqServer(aaqNS string,
 	secretCertManager certificate.Manager,
 	aaqCli client.AAQClient,
 	isOnOpenshift bool,
+	quotaNamespaceChecker select_gating_namespaces.QuotaNamespaceChecker,
 ) (Server, error) {
 	app := &AAQServer{
-		secretCertManager: secretCertManager,
-		bindAddress:       bindAddress,
-		bindPort:          bindPort,
-		aaqNS:             aaqNS,
-		isOnOpenshift:     isOnOpenshift,
+		secretCertManager:     secretCertManager,
+		bindAddress:           bindAddress,
+		bindPort:              bindPort,
+		aaqNS:                 aaqNS,
+		isOnOpenshift:         isOnOpenshift,
+		quotaNamespaceChecker: quotaNamespaceChecker,
 	}
 	app.initHandler(aaqCli)
 
@@ -58,7 +62,7 @@ func (app *AAQServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (app *AAQServer) initHandler(aaqCli client.AAQClient) {
 	mux := http.NewServeMux()
 	mux.HandleFunc(healthzPath, app.handleHealthzRequest)
-	mux.Handle(ServePath, NewAaqServerHandler(app.aaqNS, aaqCli, app.isOnOpenshift))
+	mux.Handle(ServePath, NewAaqServerHandler(app.aaqNS, aaqCli, app.isOnOpenshift, app.quotaNamespaceChecker))
 	app.handler = cors.AllowAll().Handler(mux)
 
 }

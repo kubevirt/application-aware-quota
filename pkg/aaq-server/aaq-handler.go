@@ -7,18 +7,20 @@ import (
 	admissionv1 "k8s.io/api/admission/v1"
 	"k8s.io/klog/v2"
 	handlerv1 "kubevirt.io/application-aware-quota/pkg/aaq-server/handler"
+	select_gating_namespaces "kubevirt.io/application-aware-quota/pkg/aaq-server/select-gating-namespaces"
 	"kubevirt.io/application-aware-quota/pkg/client"
 	"net/http"
 )
 
 type AaqServerHandler struct {
-	aaqCli        client.AAQClient
-	aaqNS         string
-	isOnOpenshift bool
+	aaqCli                client.AAQClient
+	aaqNS                 string
+	isOnOpenshift         bool
+	quotaNamespaceChecker select_gating_namespaces.QuotaNamespaceChecker
 }
 
-func NewAaqServerHandler(aaqNS string, aaqCli client.AAQClient, isOnOpenshift bool) *AaqServerHandler {
-	return &AaqServerHandler{aaqCli, aaqNS, isOnOpenshift}
+func NewAaqServerHandler(aaqNS string, aaqCli client.AAQClient, isOnOpenshift bool, quotaNamespaceChecker select_gating_namespaces.QuotaNamespaceChecker) *AaqServerHandler {
+	return &AaqServerHandler{aaqCli, aaqNS, isOnOpenshift, quotaNamespaceChecker}
 }
 
 func (ash *AaqServerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -28,7 +30,7 @@ func (ash *AaqServerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	handler := handlerv1.NewHandler(in.Request, ash.aaqCli, ash.aaqNS, ash.isOnOpenshift)
+	handler := handlerv1.NewHandler(in.Request, ash.aaqCli, ash.aaqNS, ash.isOnOpenshift, ash.quotaNamespaceChecker)
 
 	out, err := handler.Handle()
 	if err != nil {
