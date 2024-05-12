@@ -16,15 +16,11 @@ import (
 )
 
 func createAAQControllerResources(args *FactoryArgs) []client.Object {
-	cr, _ := utils2.GetActiveAAQ(args.Client)
-	if cr == nil {
-		return nil
-	}
 	return []client.Object{
 		createAAQControllerServiceAccount(),
 		createControllerRoleBinding(),
 		createControllerRole(),
-		createAAQControllerDeployment(args.ControllerImage, args.Verbosity, args.PullPolicy, args.ImagePullSecrets, args.PriorityClassName, args.InfraNodePlacement, cr.Spec.Configuration.AllowApplicationAwareClusterResourceQuota, args.OnOpenshift, cr.Spec.Configuration.VmiCalculatorConfiguration.ConfigName, args.Client),
+		createAAQControllerDeployment(args.ControllerImage, args.Verbosity, args.PullPolicy, args.ImagePullSecrets, args.PriorityClassName, args.InfraNodePlacement, args.AllowApplicationAwareClusterResourceQuota, args.OnOpenshift, args.VmiCalcConfigName, args.Client),
 	}
 }
 func createControllerRoleBinding() *rbacv1.RoleBinding {
