@@ -37,6 +37,7 @@ var _ = Describe("Test aaq serve functions", func() {
 			secretCertManager,
 			cli,
 			false,
+			&fakeNamespaceChecker{},
 		)
 		req, err := http.NewRequest("GET", healthzPath, nil)
 		Expect(err).ToNot(HaveOccurred())
@@ -67,6 +68,7 @@ var _ = Describe("Test aaq serve functions", func() {
 			secretCertManager,
 			cli,
 			false,
+			&fakeNamespaceChecker{},
 		)
 
 		// Create a new ApplicationAwareResourceQuota create request
@@ -127,3 +129,10 @@ var _ = Describe("Test aaq serve functions", func() {
 		Expect(status).To(Equal(http.StatusOK))
 	})
 })
+
+type fakeNamespaceChecker struct {
+}
+
+func (qnsc *fakeNamespaceChecker) IsSelectedNamespace(ns string) bool {
+	return true
+}

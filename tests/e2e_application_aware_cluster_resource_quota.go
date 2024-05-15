@@ -9,6 +9,7 @@ import (
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"kubevirt.io/application-aware-quota/tests/builders"
 	"kubevirt.io/application-aware-quota/tests/framework"
+	"kubevirt.io/application-aware-quota/tests/libaaq"
 	"kubevirt.io/application-aware-quota/tests/utils"
 	"time"
 )
@@ -25,16 +26,8 @@ var _ = Describe("ApplicationAwareAppliedClusterResourceQuota", func() {
 			_, err := f.AaqClient.AaqV1alpha1().AAQs().Update(context.Background(), aaq, v12.UpdateOptions{})
 			Expect(err).ToNot(HaveOccurred())
 			Eventually(func() bool {
-				ready, err := utils.AaqControllerReady(f.K8sClient, f.AAQInstallNs)
-				Expect(err).ToNot(HaveOccurred())
-				return ready
-			}, 1*time.Minute, 1*time.Second).ShouldNot(BeTrue(), "config change should trigger redeployment of the controller")
-			Eventually(func() bool {
-				ready, err := utils.AaqControllerReady(f.K8sClient, f.AAQInstallNs)
-				Expect(err).ToNot(HaveOccurred())
-				return ready
+				return libaaq.IsAaqWorkloadsReadyForAtLeast5Seconds(f.K8sClient, f.AAQInstallNs)
 			}, 10*time.Minute, 1*time.Second).Should(BeTrue(), "aaq-controller should be ready with the new config Eventually")
-
 		}
 		labelSelector = &v12.LabelSelector{
 			MatchLabels: map[string]string{"foo": "foo"},
