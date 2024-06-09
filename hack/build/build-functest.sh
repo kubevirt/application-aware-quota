@@ -22,3 +22,4 @@ mkdir -p ${TESTS_OUT_DIR}/
 export GO111MODULE=${GO111MODULE:-off}
 ginkgo build ${AAQ_DIR}/tests/
 mv ${AAQ_DIR}/tests/tests.test ${TESTS_OUT_DIR}/
+cp -f /go/bin/ginkgo ${TESTS_OUT_DIR}/
