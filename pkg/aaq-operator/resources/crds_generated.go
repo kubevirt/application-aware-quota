@@ -2366,9 +2366,7 @@ spec:
                     type: array
                 type: object
               namespaceSelector:
-                description: namespaces where pods should be gated before scheduling
-                  Defaults to targeting namespaces with an "application-aware-quota/enable-gating"
-                  label key.
+                description: 'Deprecated: This field is ignored.'
                 properties:
                   matchExpressions:
                     description: matchExpressions is a list of label selector requirements.

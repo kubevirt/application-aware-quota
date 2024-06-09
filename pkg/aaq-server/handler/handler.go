@@ -9,6 +9,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	select_gating_namespaces "kubevirt.io/application-aware-quota/pkg/aaq-server/select-gating-namespaces"
 	"kubevirt.io/application-aware-quota/pkg/client"
 	"kubevirt.io/application-aware-quota/pkg/util"
 	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
@@ -27,29 +28,36 @@ const (
 )
 
 type Handler struct {
-	request       *admissionv1.AdmissionRequest
-	aaqCli        client.AAQClient
-	aaqNS         string
-	isOnOpenshift bool
+	request               *admissionv1.AdmissionRequest
+	aaqCli                client.AAQClient
+	aaqNS                 string
+	isOnOpenshift         bool
+	quotaNamespaceChecker select_gating_namespaces.QuotaNamespaceChecker
 }
 
-func NewHandler(Request *admissionv1.AdmissionRequest, aaqCli client.AAQClient, aaqNS string, isOnOpenshift bool) *Handler {
+func NewHandler(Request *admissionv1.AdmissionRequest, aaqCli client.AAQClient, aaqNS string, isOnOpenshift bool, quotaNamespaceChecker select_gating_namespaces.QuotaNamespaceChecker) *Handler {
 	return &Handler{
-		request:       Request,
-		aaqCli:        aaqCli,
-		aaqNS:         aaqNS,
-		isOnOpenshift: isOnOpenshift,
+		request:               Request,
+		aaqCli:                aaqCli,
+		aaqNS:                 aaqNS,
+		isOnOpenshift:         isOnOpenshift,
+		quotaNamespaceChecker: quotaNamespaceChecker,
 	}
 }
 
 func (v Handler) Handle() (*admissionv1.AdmissionReview, error) {
-	if v.shouldMutate() {
-		return v.mutatePod()
-	}
-
 	switch v.request.Kind.Kind {
 	case "Pod":
-		return v.validatePodUpdate()
+		switch v.request.Operation {
+		case admissionv1.Create:
+			if v.quotaNamespaceChecker.IsSelectedNamespace(v.request.Namespace) {
+				return v.mutatePod()
+			} else {
+				return reviewResponse(v.request.UID, true, http.StatusAccepted, allowPodRequest), nil
+			}
+		case admissionv1.Update:
+			return v.validatePodUpdate()
+		}
 	case "ApplicationAwareResourceQuota":
 		return v.validateApplicationAwareResourceQuota()
 	case "ApplicationAwareClusterResourceQuota":
@@ -58,10 +66,6 @@ func (v Handler) Handle() (*admissionv1.AdmissionReview, error) {
 		return reviewResponse(v.request.UID, false, http.StatusForbidden, onlySingleAAQInstaceIsAllowed), nil
 	}
 	return nil, fmt.Errorf("AAQ webhook doesn't recongnize request: %+v", v.request)
-}
-
-func (v Handler) shouldMutate() bool {
-	return v.request.Kind.Kind == "Pod" && v.request.Operation == admissionv1.Create
 }
 
 func (v Handler) mutatePod() (*admissionv1.AdmissionReview, error) {

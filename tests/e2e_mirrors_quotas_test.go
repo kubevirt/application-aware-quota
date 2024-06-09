@@ -215,12 +215,8 @@ var _ = Describe("ApplicationAwareAppliedClusterResourceQuota mirrors Applicatio
 			_, err := f.AaqClient.AaqV1alpha1().AAQs().Update(context.Background(), aaq, v12.UpdateOptions{})
 			Expect(err).ToNot(HaveOccurred())
 			Eventually(func() bool {
-				return libaaq.AaqControllerReady(f.K8sClient, f.AAQInstallNs)
+				return libaaq.IsAaqWorkloadsReadyForAtLeast5Seconds(f.K8sClient, f.AAQInstallNs)
 			}, 1*time.Minute, 1*time.Second).ShouldNot(BeTrue(), "config change should trigger redeployment of the controller")
-			Eventually(func() bool {
-				return libaaq.AaqControllerReady(f.K8sClient, f.AAQInstallNs)
-			}, 10*time.Minute, 1*time.Second).Should(BeTrue(), "aaq-controller should be ready with the new config Eventually")
-
 		}
 		labelSelector = &v12.LabelSelector{
 			MatchLabels: map[string]string{"foo": "foo"},

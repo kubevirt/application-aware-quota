@@ -17,7 +17,6 @@ const (
 	MutatingWebhookConfigurationName   = "gating-mutator"
 	validatingWebhookConfigurationName = "aaq-validator"
 	AaqServerServiceName               = "aaq-server"
-	DefaultNamespaceSelectorLabel      = "application-aware-quota/enable-gating"
 )
 
 func createStaticAAQLockResources(args *FactoryArgs) []client.Object {
@@ -60,6 +59,42 @@ func getAaqServerClusterPolicyRules() []rbacv1.PolicyRule {
 				"create",
 			},
 		},
+		{
+			APIGroups: []string{
+				"aaq.kubevirt.io",
+			},
+			Resources: []string{
+				"applicationawareresourcequotas",
+			},
+			Verbs: []string{
+				"watch",
+				"list",
+			},
+		},
+		{
+			APIGroups: []string{
+				"aaq.kubevirt.io",
+			},
+			Resources: []string{
+				"applicationawareclusterresourcequotas",
+			},
+			Verbs: []string{
+				"watch",
+				"list",
+			},
+		},
+		{
+			APIGroups: []string{
+				"",
+			},
+			Resources: []string{
+				"namespaces",
+			},
+			Verbs: []string{
+				"list",
+				"watch",
+			},
+		},
 	}
 }
 
@@ -71,10 +106,6 @@ func createAPIServerClusterRole() *rbacv1.ClusterRole {
 	return util.ResourceBuilder.CreateClusterRole(aaqServerResourceName, getAaqServerClusterPolicyRules())
 }
 func createGatingMutatingWebhook(namespace string, c client.Client, l logr.Logger) *admissionregistrationv1.MutatingWebhookConfiguration {
-	cr, _ := util.GetActiveAAQ(c)
-	if cr == nil {
-		return nil
-	}
 	includeHooks := true
 	serverDeployment, err := util.GetDeployment(c, aaqServerResourceName, namespace)
 	if err != nil || serverDeployment == nil || serverDeployment.Status.ReadyReplicas < 1 {
@@ -94,15 +125,6 @@ func createGatingMutatingWebhook(namespace string, c client.Client, l logr.Logge
 
 	hooks := []admissionregistrationv1.MutatingWebhook{}
 	if includeHooks {
-		namespaceSelector := cr.Spec.NamespaceSelector
-		if namespaceSelector == nil {
-			namespaceSelector = &metav1.LabelSelector{
-				MatchExpressions: []metav1.LabelSelectorRequirement{
-					{Key: DefaultNamespaceSelectorLabel, Operator: metav1.LabelSelectorOpExists},
-				},
-			}
-		}
-
 		hooks = []admissionregistrationv1.MutatingWebhook{
 			{
 				Name:                    "gater.cqo.kubevirt.io",
@@ -110,7 +132,6 @@ func createGatingMutatingWebhook(namespace string, c client.Client, l logr.Logge
 				FailurePolicy:           &failurePolicy,
 				SideEffects:             &sideEffect,
 				MatchPolicy:             &exactPolicy,
-				NamespaceSelector:       namespaceSelector,
 				Rules: []admissionregistrationv1.RuleWithOperations{{
 					Operations: []admissionregistrationv1.OperationType{
 						admissionregistrationv1.Create,

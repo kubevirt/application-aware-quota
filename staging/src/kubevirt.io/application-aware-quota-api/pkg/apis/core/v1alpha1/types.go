@@ -144,8 +144,8 @@ type AAQSpec struct {
 	CertConfig *AAQCertConfig `json:"certConfig,omitempty"`
 	// PriorityClass of the AAQ control plane
 	PriorityClass *AAQPriorityClass `json:"priorityClass,omitempty"`
-	// namespaces where pods should be gated before scheduling
-	// Defaults to targeting namespaces with an "application-aware-quota/enable-gating" label key.
+	// +kubebuilder:deprecatedversion:warning="NamespaceSelector field is ignored"
+	// Deprecated: This field is ignored.
 	NamespaceSelector *metav1.LabelSelector `json:"namespaceSelector,omitempty"`
 	// holds aaq configurations.
 	Configuration AAQConfiguration `json:"configuration,omitempty"`

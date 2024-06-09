@@ -8,7 +8,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/kubernetes"
 	aaqclientset "kubevirt.io/application-aware-quota/pkg/generated/aaq/clientset/versioned"
 	"kubevirt.io/application-aware-quota/tests/builders"
 	"kubevirt.io/application-aware-quota/tests/framework"
@@ -37,8 +36,8 @@ var _ = Describe("ApplicationAwareQuota plugable policies", func() {
 			}, 60*time.Second, 1*time.Second).ShouldNot(HaveOccurred(), "waiting for aaq policies update")
 
 			Eventually(func() bool {
-				return isAaqControllerReadyForAtLeast5Seconds(f.K8sClient, f.AAQInstallNs)
-			}, 120*time.Second, 1*time.Second).Should(BeTrue(), "waiting for aaq controller to be ready for at least 5 seconds")
+				return libaaq.IsAaqWorkloadsReadyForAtLeast5Seconds(f.K8sClient, f.AAQInstallNs)
+			}, 240*time.Second, 1*time.Second).Should(BeTrue(), "waiting for aaq controller to be ready for at least 5 seconds")
 		})
 
 		It("should be able to change the configuration from double counting to triple counting", func() {
@@ -73,8 +72,8 @@ var _ = Describe("ApplicationAwareQuota plugable policies", func() {
 			}, 60*time.Second, 1*time.Second).ShouldNot(HaveOccurred(), "waiting for aaq policies update")
 
 			Eventually(func() bool {
-				return isAaqControllerReadyForAtLeast5Seconds(f.K8sClient, f.AAQInstallNs)
-			}, 120*time.Second, 1*time.Second).Should(BeTrue(), "waiting for aaq controller to be ready for at least 5 seconds")
+				return libaaq.IsAaqWorkloadsReadyForAtLeast5Seconds(f.K8sClient, f.AAQInstallNs)
+			}, 240*time.Second, 1*time.Second).Should(BeTrue(), "waiting for aaq controller to be ready for at least 5 seconds")
 
 			By("Ensuring Application Aware Resource Quota status include triple counting")
 			expectedCounting.Add(requests[v1.ResourceMemory])
@@ -113,19 +112,6 @@ func newAppsPodForQuota(name string, requests v1.ResourceList, withAppLabel bool
 		p.Annotations = map[string]string{libaaq.AnnotationAppAnnotation: "true"}
 	}
 	return p
-}
-
-func isAaqControllerReadyForAtLeast5Seconds(k8sClient *kubernetes.Clientset, aaqInstallNs string) bool {
-	startTime := time.Now()
-	for {
-		if !libaaq.AaqControllerReady(k8sClient, aaqInstallNs) {
-			return false
-		}
-		if time.Since(startTime) >= 5*time.Second {
-			return true
-		}
-		time.Sleep(1 * time.Second)
-	}
 }
 
 // wait for Application Aware Resource Quota status to be calculated

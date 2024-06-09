@@ -21,7 +21,7 @@ func createAAQServerResources(args *FactoryArgs) []client.Object {
 		createAAQServerRoleBinding(),
 		createAAQServerServiceAccount(),
 		createAAQServerService(),
-		createAAQServerDeployment(args.AaqServerImage, args.PullPolicy, args.ImagePullSecrets, args.PriorityClassName, args.Verbosity, args.InfraNodePlacement, args.OnOpenshift),
+		createAAQServerDeployment(args.AaqServerImage, args.PullPolicy, args.ImagePullSecrets, args.PriorityClassName, args.Verbosity, args.InfraNodePlacement, args.OnOpenshift, args.AllowApplicationAwareClusterResourceQuota),
 	}
 }
 
@@ -45,7 +45,7 @@ func createAAQServerService() *corev1.Service {
 	return service
 }
 
-func createAAQServerDeployment(image, pullPolicy string, imagePullSecrets []corev1.LocalObjectReference, priorityClassName string, verbosity string, infraNodePlacement *sdkapi.NodePlacement, onOpenshift bool) *appsv1.Deployment {
+func createAAQServerDeployment(image, pullPolicy string, imagePullSecrets []corev1.LocalObjectReference, priorityClassName string, verbosity string, infraNodePlacement *sdkapi.NodePlacement, onOpenshift bool, enableClusterQuota bool) *appsv1.Deployment {
 	defaultMode := corev1.ConfigMapVolumeSourceDefaultMode
 	deployment := utils2.CreateDeployment(utils2.AaqServerResourceName, utils2.AAQLabel, utils2.AaqServerResourceName, utils2.AaqServerResourceName, imagePullSecrets, 2, infraNodePlacement)
 	if priorityClassName != "" {
@@ -62,6 +62,9 @@ func createAAQServerDeployment(image, pullPolicy string, imagePullSecrets []core
 	container.Ports = createAAQServerPorts()
 	if onOpenshift {
 		container.Args = append(container.Args, []string{"--" + utils2.IsOnOpenshift, "true"}...)
+	}
+	if enableClusterQuota {
+		container.Args = append(container.Args, []string{"--" + utils2.EnableClusterQuota, "true"}...)
 	}
 	container.Env = []corev1.EnvVar{
 		{

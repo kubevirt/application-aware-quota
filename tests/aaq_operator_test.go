@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	schedulev1 "k8s.io/api/scheduling/v1"
-	"kubevirt.io/application-aware-quota/pkg/aaq-operator/resources/cluster"
 	resourcesutils "kubevirt.io/application-aware-quota/pkg/util"
 	"kubevirt.io/application-aware-quota/tests/utils"
 	"reflect"
@@ -575,119 +574,6 @@ var _ = Describe("ALL Operator tests", func() {
 			By("Verifying the AAQ control plane is updated")
 			verifyPodPriorityClass(aaqControllerPodPrefix, osUserCrit.Name, AAQControllerLabelSelector)
 			verifyPodPriorityClass(aaqServerPodPrefix, osUserCrit.Name, AAQServerLabelSelector)
-		})
-	})
-	Context("Gating tests", func() {
-		var cr *aaqv1.AAQ
-		var err error
-		f := framework.NewFramework("operator-delete-mtq-test")
-
-		BeforeEach(func() {
-			cr, err = utils.GetAAQ(f)
-			Expect(err).ToNot(HaveOccurred())
-		})
-
-		AfterEach(func() {
-			Eventually(func() error {
-				currCr, err := utils.GetAAQ(f)
-				if err != nil {
-					return err
-				}
-				currCr.Spec.NamespaceSelector = cr.Spec.NamespaceSelector
-				_, err = f.AaqClient.AaqV1alpha1().AAQs().Update(context.TODO(), currCr, metav1.UpdateOptions{})
-				return err
-			}, 90*time.Second, 5*time.Second).ShouldNot(HaveOccurred())
-		})
-
-		It("Should be able to modify gated namespaces", func() {
-			labelSelector := &metav1.LabelSelector{
-				MatchLabels: map[string]string{"namespace": "fakenamespace"},
-			}
-			Eventually(func() error {
-				currCr, err := utils.GetAAQ(f)
-				if err != nil {
-					return err
-				}
-				newCr := currCr.DeepCopy()
-				newCr.Spec.NamespaceSelector = labelSelector
-				_, err = f.AaqClient.AaqV1alpha1().AAQs().Update(context.TODO(), newCr, metav1.UpdateOptions{})
-				return err
-			}, 90*time.Second, 5*time.Second).ShouldNot(HaveOccurred())
-
-			Eventually(func() error {
-				mwc, err := f.K8sClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.Background(), cluster.MutatingWebhookConfigurationName, metav1.GetOptions{})
-				if err != nil {
-					return err
-				}
-				if !reflect.DeepEqual(mwc.Webhooks[0].NamespaceSelector, labelSelector) {
-					return fmt.Errorf("NamespaceSelector of MutatingWebhookConfigurations should be propagated")
-				}
-				return nil
-			}, 90*time.Second, 5*time.Second).ShouldNot(HaveOccurred())
-
-		})
-
-		It("if namespace selector is not set, should use the default target label", func() {
-			By("Updating AAQ to use a nil namespace selector")
-			Eventually(func() error {
-				currCr, err := utils.GetAAQ(f)
-				if err != nil {
-					return err
-				}
-				newCr := currCr.DeepCopy()
-				newCr.Spec.NamespaceSelector = nil
-				_, err = f.AaqClient.AaqV1alpha1().AAQs().Update(context.TODO(), newCr, metav1.UpdateOptions{})
-				return err
-			}).WithTimeout(90*time.Second).WithPolling(5*time.Second).ShouldNot(HaveOccurred(), "cannot update AAQ")
-
-			expectedNamespaceSelector := &metav1.LabelSelector{
-				MatchExpressions: []metav1.LabelSelectorRequirement{
-					{Key: cluster.DefaultNamespaceSelectorLabel, Operator: metav1.LabelSelectorOpExists},
-				},
-			}
-
-			Eventually(func() error {
-				mwc, err := f.K8sClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.Background(), cluster.MutatingWebhookConfigurationName, metav1.GetOptions{})
-				if err != nil {
-					return err
-				}
-				if !reflect.DeepEqual(mwc.Webhooks[0].NamespaceSelector, expectedNamespaceSelector) {
-					return fmt.Errorf("namespace selector does not target the default label. actual: %v, expected: %v", *mwc.Webhooks[0].NamespaceSelector, *expectedNamespaceSelector)
-				}
-				return nil
-			}).WithTimeout(90*time.Second).WithPolling(5*time.Second).ShouldNot(HaveOccurred(), "default namespace selector is not as expected")
-		})
-
-		It("if namespace selector is empty, should target any namespace", func() {
-			By("Updating AAQ to use a nil namespace selector")
-			Eventually(func() error {
-				currCr, err := utils.GetAAQ(f)
-				if err != nil {
-					return err
-				}
-				newCr := currCr.DeepCopy()
-				newCr.Spec.NamespaceSelector = &metav1.LabelSelector{}
-				_, err = f.AaqClient.AaqV1alpha1().AAQs().Update(context.TODO(), newCr, metav1.UpdateOptions{})
-				return err
-			}).WithTimeout(90*time.Second).WithPolling(5*time.Second).ShouldNot(HaveOccurred(), "cannot update AAQ")
-
-			Eventually(func() error {
-				mwc, err := f.K8sClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.Background(), cluster.MutatingWebhookConfigurationName, metav1.GetOptions{})
-				if err != nil {
-					return err
-				}
-				selector := mwc.Webhooks[0].NamespaceSelector
-
-				if selector == nil {
-					return nil
-				}
-
-				if len(selector.MatchLabels) != 0 || len(selector.MatchExpressions) != 0 {
-					return fmt.Errorf("namespace selector should be empty. actual: %v", *mwc.Webhooks[0].NamespaceSelector)
-				}
-				
-				return nil
-			}).WithTimeout(90*time.Second).WithPolling(5*time.Second).ShouldNot(HaveOccurred(), "default namespace selector is not as expected")
 		})
 	})
 })

@@ -15,12 +15,13 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"kubevirt.io/application-aware-quota/pkg/client"
 	"kubevirt.io/application-aware-quota/pkg/util"
+	"kubevirt.io/application-aware-quota/pkg/util/patch"
 	"kubevirt.io/application-aware-quota/tests/builders"
 	"net/http"
 )
 
 var _ = Describe("Test handler of aaq server", func() {
-	It("Pod should be gated", func() {
+	DescribeTable("Pod should ", func(selectedNs bool) {
 		pod := &v1.Pod{}
 		podBytes, err := json.Marshal(pod)
 		Expect(err).ToNot(HaveOccurred())
@@ -36,13 +37,35 @@ var _ = Describe("Test handler of aaq server", func() {
 				},
 				Operation: admissionv1.Create,
 			},
+			quotaNamespaceChecker: &fakeNamespaceChecker{selectedNs},
 		}
 		admissionReview, err := v.Handle()
 		Expect(err).ToNot(HaveOccurred())
 		Expect(admissionReview.Response.Allowed).To(BeTrue())
 		Expect(admissionReview.Response.Result.Code).To(Equal(int32(http.StatusAccepted)))
 		Expect(admissionReview.Response.Result.Message).To(Equal(allowPodRequest))
-	})
+
+		if selectedNs {
+			var patches []patch.PatchOperation
+			err = json.Unmarshal(admissionReview.Response.Patch, &patches)
+			Expect(patches).To(Equal([]patch.PatchOperation{
+				{
+					Op:   patch.PatchAddOp,
+					Path: "/spec/schedulingGates",
+					Value: []interface{}{
+						map[string]interface{}{
+							"name": util.AAQGate,
+						},
+					},
+				},
+			}))
+		} else {
+			Expect(admissionReview.Response.Patch).To(BeNil())
+		}
+	},
+		Entry(" be gated if the namespace is a selected namespace", true),
+		Entry(" not be gated if the namespace is not a selected namespace", false),
+	)
 
 	DescribeTable("Pod Ungating should", func(ourController bool) {
 		pod := &v1.Pod{
@@ -193,3 +216,11 @@ var _ = Describe("Test handler of aaq server", func() {
 		Entry(" valid Creation should be allowed", admissionv1.Create),
 	)
 })
+
+type fakeNamespaceChecker struct {
+	respond bool
+}
+
+func (qnsc *fakeNamespaceChecker) IsSelectedNamespace(ns string) bool {
+	return qnsc.respond
+}

@@ -73,6 +73,8 @@ func (r *ReconcileAAQ) getNamespacedArgs(cr *aaqv1.AAQ) *aaqnamespaced.FactoryAr
 		}
 		result.InfraNodePlacement = &cr.Spec.Infra
 		result.Client = r.client
+		result.AllowApplicationAwareClusterResourceQuota = cr.Spec.Configuration.AllowApplicationAwareClusterResourceQuota
+		result.VmiCalcConfigName = cr.Spec.Configuration.VmiCalculatorConfiguration.ConfigName
 	}
 
 	return &result

@@ -46,6 +46,13 @@ var _ = Describe("AAQ Server", func() {
 	})
 
 	It("Shouldn't remove another gate from pod when adding our gate", func() {
+		By("Creating arq to make sure pods are gated in the test namespace")
+		arq := builders.NewArqBuilder().WithName("arq").WithResource(v1.ResourcePods, resource.MustParse("1")).Build()
+		_, err := f.AaqClient.AaqV1alpha1().ApplicationAwareResourceQuotas(f.Namespace.GetName()).Create(context.Background(), arq, matav1.CreateOptions{})
+		usedResources := v1.ResourceList{}
+		usedResources[v1.ResourcePods] = resource.MustParse("0")
+		err = waitForApplicationAwareResourceQuota(context.Background(), f.AaqClient, f.Namespace.Name, arq.Name, usedResources)
+
 		sg := v1.PodSchedulingGate{Name: "testSg"}
 		podName := "simple-pod"
 		pod := &v1.Pod{
@@ -70,7 +77,7 @@ var _ = Describe("AAQ Server", func() {
 				},
 			},
 		}
-		_, err := f.K8sClient.CoreV1().Pods(f.Namespace.GetName()).Create(context.Background(), pod, matav1.CreateOptions{})
+		_, err = f.K8sClient.CoreV1().Pods(f.Namespace.GetName()).Create(context.Background(), pod, matav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
 
 		Eventually(func() []v1.PodSchedulingGate {

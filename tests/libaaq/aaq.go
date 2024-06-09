@@ -9,6 +9,7 @@ import (
 	"kubevirt.io/application-aware-quota/pkg/util"
 	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 	"kubevirt.io/application-aware-quota/tests/flags"
+	"time"
 )
 
 type PlugablePolicyName string
@@ -25,11 +26,6 @@ const (
 )
 
 type configName string
-
-func AllowApplicationAwareClusterResourceQuota(aaq *v1alpha1.AAQ) *v1alpha1.AAQ {
-	aaq.Spec.Configuration.AllowApplicationAwareClusterResourceQuota = true
-	return aaq
-}
 
 func AddPlugablePolicy(aaq *v1alpha1.AAQ, pp PlugablePolicyName, c configName) *v1alpha1.AAQ {
 	aaq.Spec.Configuration.SidecarEvaluators = append(aaq.Spec.Configuration.SidecarEvaluators, corev1.Container{
@@ -74,8 +70,36 @@ func plugablePolicyFromRegistryFor(registry string, name PlugablePolicyName) str
 	panic(fmt.Sprintf("Unsupported registry disk %s", name))
 }
 
-func AaqControllerReady(clientset *kubernetes.Clientset, aaqInstallNs string) bool {
+func aaqWorkloadsReady(clientset *kubernetes.Clientset, aaqInstallNs string) bool {
+	return aaqControllerReady(clientset, aaqInstallNs) && aaqServerReady(clientset, aaqInstallNs)
+}
+
+func IsAaqWorkloadsReadyForAtLeast5Seconds(k8sClient *kubernetes.Clientset, aaqInstallNs string) bool {
+	startTime := time.Now()
+	for {
+		if !aaqWorkloadsReady(k8sClient, aaqInstallNs) {
+			return false
+		}
+		if time.Since(startTime) >= 5*time.Second {
+			return true
+		}
+		time.Sleep(1 * time.Second)
+	}
+}
+
+func aaqControllerReady(clientset *kubernetes.Clientset, aaqInstallNs string) bool {
 	deployment, err := clientset.AppsV1().Deployments(aaqInstallNs).Get(context.TODO(), util.ControllerPodName, v12.GetOptions{})
+	if err != nil {
+		panic(err)
+	}
+	if *deployment.Spec.Replicas != deployment.Status.ReadyReplicas {
+		return false
+	}
+	return true
+}
+
+func aaqServerReady(clientset *kubernetes.Clientset, aaqInstallNs string) bool {
+	deployment, err := clientset.AppsV1().Deployments(aaqInstallNs).Get(context.TODO(), util.AaqServerPodName, v12.GetOptions{})
 	if err != nil {
 		panic(err)
 	}
