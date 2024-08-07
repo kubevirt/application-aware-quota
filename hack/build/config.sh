@@ -24,7 +24,7 @@ AAQ_NAMESPACE=${AAQ_NAMESPACE:-aaq}
 CR_NAME=${CR_NAME:-aaq}
 
 # update this whenever new builder tag is created
-BUILDER_IMAGE=${BUILDER_IMAGE:-quay.io/kubevirt/kubevirt-aaq-bazel-builder:2404031311-8eccf82}
+BUILDER_IMAGE=${BUILDER_IMAGE:-quay.io/kubevirt/kubevirt-aaq-bazel-builder:2408110736-45e7a8b}
 
 function parseTestOpts() {
     pkgs=""
