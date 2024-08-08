@@ -122,7 +122,8 @@ func (r *ReconcileAAQ) watchSecurityContextConstraints() error {
 		Limit: 1,
 	})
 	if err == nil {
-		return r.controller.Watch(source.Kind(r.getCache(), &secv1.SecurityContextConstraints{}), enqueueAAQ(r.client))
+		var scc client.Object = &secv1.SecurityContextConstraints{}
+		return r.controller.Watch(source.Kind(r.getCache(), scc, enqueueAAQ(r.client)))
 	}
 	if meta.IsNoMatchError(err) {
 		log.Info("Not watching SecurityContextConstraints")
