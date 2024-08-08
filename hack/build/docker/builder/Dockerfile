@@ -34,29 +34,26 @@ RUN pip3 install --upgrade j2cli operator-courier==2.1.11 && \
 	ln -s /opt/gradle/gradle-6.6/bin/gradle /usr/local/bin/gradle && \
 	rm gradle-6.6-bin.zip
 
-ENV GIMME_GO_VERSION=1.20.5 GOPATH="/go" GO111MODULE="on"
+ENV GIMME_GO_VERSION=1.22.6 GOPATH="/go" GO111MODULE="on"
 
 RUN mkdir -p /gimme && curl -sL https://raw.githubusercontent.com/travis-ci/gimme/master/gimme | HOME=/gimme bash >> /etc/profile.d/gimme.sh
 
 RUN \
 	source /etc/profile.d/gimme.sh && \
 	eval $(go env) && \
-	go install github.com/onsi/ginkgo/ginkgo@v1.14.1 && \
-	go install golang.org/x/tools/cmd/goimports@latest && \
+	go install github.com/onsi/ginkgo/v2/ginkgo@v2.12.0 && \
 	go install mvdan.cc/sh/cmd/shfmt@latest && \
 	go install github.com/mattn/goveralls@latest && \
 	go install golang.org/x/lint/golint@latest && \
     go install -v github.com/golang/protobuf/protoc-gen-go@1643683 && \
 	go install github.com/rmohr/go-swagger-utils/swagger-doc@latest && \
-	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.11.3 && \
+	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.14.0 && \
 	go install github.com/securego/gosec/v2/cmd/gosec@latest && \
 	rm -rf "${GOPATH}/pkg"
 
-ENV BAZEL_VERSION 5.3.1
 
 COPY output-bazel-arch.sh /output-bazel-arch.sh
 
-RUN curl -L -o /usr/bin/bazel https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-linux-$(sh /output-bazel-arch.sh) && chmod u+x /usr/bin/bazel
 
 # Until we use a version including the fix for this Bazel issue:
 # https://github.com/bazelbuild/bazel/issues/11554
