@@ -644,7 +644,7 @@ var _ = Describe("AaqEvaluator", func() {
 		})
 		DescribeTable("Test pod UsageResourceResize when ", func(pod *corev1.Pod, usageFgEnabled corev1.ResourceList, usageFgDisabled corev1.ResourceList) {
 			for _, enabled := range []bool{true, false} {
-				defer featuregatetesting.SetFeatureGateDuringTest(nil, feature.DefaultFeatureGate, "InPlacePodVerticalScaling", enabled)()
+				featuregatetesting.SetFeatureGateDuringTest(GinkgoTB(), feature.DefaultFeatureGate, "InPlacePodVerticalScaling", enabled)
 				actual, err := eval.Usage(pod)
 				Expect(err).ToNot(HaveOccurred())
 				usage := usageFgEnabled
