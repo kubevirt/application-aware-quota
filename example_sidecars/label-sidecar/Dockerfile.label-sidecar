@@ -1,5 +1,5 @@
 # Builder stage
-FROM golang:1.20-alpine as builder
+FROM docker.io/library/golang:1.22-alpine as builder
 
 # Install make
 RUN apk update && apk add make
@@ -16,7 +16,7 @@ WORKDIR /workdir/app
 RUN make label_sidecar
 
 # Final stage
-FROM golang:1.20-alpine
+FROM docker.io/library/golang:1.22-alpine
 
 # Copy the binary from the builder stage to the final image
 COPY --from=builder /workdir/app/label_sidecar /app/label_sidecar
