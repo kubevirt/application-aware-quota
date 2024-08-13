@@ -18,7 +18,7 @@ var _ = Describe("ApplicationAwareAppliedClusterResourceQuota", func() {
 	var labelSelector *v12.LabelSelector
 
 	BeforeEach(func() {
-		aaq, err := f.AaqClient.AaqV1alpha1().AAQs().Get(context.Background(), "aaq", v12.GetOptions{})
+		aaq, err := utils.GetAAQ(f)
 		Expect(err).ToNot(HaveOccurred())
 		if !aaq.Spec.Configuration.AllowApplicationAwareClusterResourceQuota {
 			aaq.Spec.Configuration.AllowApplicationAwareClusterResourceQuota = true
