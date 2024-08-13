@@ -37,7 +37,19 @@ var _ = Describe("ApplicationAwareQuota plugable policies", func() {
 			}, 60*time.Second, 1*time.Second).ShouldNot(HaveOccurred(), "waiting for aaq policies update")
 
 			Eventually(func() bool {
-				return isAaqControllerReadyForAtLeast5Seconds(f.K8sClient, f.AAQInstallNs)
+				if isAaqControllerReadyForAtLeast5Seconds(f.K8sClient, f.AAQInstallNs) {
+					return true
+				}
+				aaqControllerPods := utils.GetAAQControllerPods(f.K8sClient, f.AAQInstallNs)
+				for _, p := range aaqControllerPods.Items {
+					for _, cs := range p.Status.ContainerStatuses {
+						if cs.Name == string(libaaq.LabelSidecar) && cs.State.Waiting != nil &&
+							(cs.State.Waiting.Reason == "ImagePullBackOff" || cs.State.Waiting.Reason == "ErrImagePull") {
+							Skip("label-sidecar doesn't exist in the current environment")
+						}
+					}
+				}
+				return false
 			}, 120*time.Second, 1*time.Second).Should(BeTrue(), "waiting for aaq controller to be ready for at least 5 seconds")
 		})
 

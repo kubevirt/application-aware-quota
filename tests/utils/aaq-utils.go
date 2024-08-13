@@ -3,7 +3,10 @@ package utils
 import (
 	"context"
 	"fmt"
+	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"kubevirt.io/application-aware-quota/pkg/util"
 	aaqv1 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
@@ -30,4 +33,14 @@ func AaqControllerReady(clientset *kubernetes.Clientset, aaqInstallNs string) (b
 		return false, nil
 	}
 	return true, nil
+}
+
+func GetAAQControllerPods(clientset *kubernetes.Clientset, aaqInstallNs string) *corev1.PodList {
+	labelSelector := metav1.LabelSelector{MatchLabels: map[string]string{"aaq.kubevirt.io": "aaq-controller"}}
+	aaqPods, err := clientset.CoreV1().Pods(aaqInstallNs).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: labels.Set(labelSelector.MatchLabels).String(),
+	})
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), "failed listing aaq pods")
+	ExpectWithOffset(1, aaqPods.Items).ToNot(BeEmpty(), "no aaq pods found")
+	return aaqPods
 }
