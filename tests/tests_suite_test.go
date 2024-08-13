@@ -174,14 +174,6 @@ func getRunningAAQ(aaqClient *clientset.Clientset) (*aaqv1.AAQ, error) {
 }
 
 func updateAAQNamespaceSelector(aaqClient *clientset.Clientset, k8sClient *kubernetes.Clientset, selector *metav1.LabelSelector) error {
-	// Ensure AAQ is deployed and overwrite default namespace selector to target any namespace
-	aaqWebhook, err := k8sClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.Background(), cluster.MutatingWebhookConfigurationName, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-
-	originalWebhookSelector := aaqWebhook.Webhooks[0].NamespaceSelector
-
 	Eventually(func() error {
 		aaq, err := getRunningAAQ(aaqClient)
 		if err != nil {
@@ -200,7 +192,7 @@ func updateAAQNamespaceSelector(aaqClient *clientset.Clientset, k8sClient *kuber
 			return err
 		}
 
-		if reflect.DeepEqual(aaqWebhook.Webhooks[0].NamespaceSelector, originalWebhookSelector) {
+		if !reflect.DeepEqual(aaqWebhook.Webhooks[0].NamespaceSelector, selector) {
 			return fmt.Errorf("expecting namespace selector to be updated")
 		}
 
