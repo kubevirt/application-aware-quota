@@ -103,6 +103,12 @@ func BuildTestSuite() {
 		}
 		framework.ClientsInstance.AaqClient = cs
 
+		crqcs, err := framework.ClientsInstance.GetCrqClient()
+		if err != nil {
+			ginkgo.Fail(fmt.Sprintf("ERROR, unable to create AaqClient: %v", err))
+		}
+		framework.ClientsInstance.CrqClient = crqcs
+
 		crClient, err := framework.ClientsInstance.GetCrClient()
 		if err != nil {
 			ginkgo.Fail(fmt.Sprintf("ERROR, unable to create CrClient: %v", err))

@@ -8,8 +8,9 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	clientset "kubevirt.io/application-aware-quota/pkg/generated/aaq/clientset/versioned"
+	"kubevirt.io/application-aware-quota/pkg/generated/cluster-resource-quota/clientset/versioned"
 	virtclientset "kubevirt.io/application-aware-quota/pkg/generated/kubevirt/clientset/versioned"
-
+	"kubevirt.io/application-aware-quota/tests/utils"
 	"net/http"
 
 	"os"
@@ -83,6 +84,8 @@ type Clients struct {
 	K8sClient *kubernetes.Clientset
 	// AaqClient provides our AAQ client pointer
 	AaqClient *aaqclientset.Clientset
+	// CrqClient provides our crq client pointer
+	CrqClient *versioned.Clientset
 	// CrClient is a controller runtime client
 	CrClient crclient.Client
 	// RestConfig provides a pointer to our REST client config.
@@ -163,7 +166,7 @@ func (f *Framework) AfterEach() {
 	if ginkgo.CurrentSpecReport().Failed() {
 		f.reporter.FailureCount++
 		fmt.Fprintf(ginkgo.GinkgoWriter, "On failure, artifacts will be collected in %s/%d_*\n", f.reporter.artifactsDir, f.reporter.FailureCount)
-		f.reporter.Dump(f.K8sClient, ginkgo.CurrentSpecReport().RunTime)
+		f.reporter.Dump(f, ginkgo.CurrentSpecReport().RunTime)
 	}
 }
 
@@ -256,6 +259,19 @@ func (c *Clients) GetAaqClient() (*clientset.Clientset, error) {
 		return nil, err
 	}
 	return aaqClient, nil
+}
+
+// GetMtqClient gets an instance of a kubernetes client that includes all the MTQ extensions.
+func (c *Clients) GetCrqClient() (*versioned.Clientset, error) {
+	cfg, err := clientcmd.BuildConfigFromFlags(c.KubeURL, c.KubeConfig)
+	if err != nil {
+		return nil, err
+	}
+	crqClient, err := versioned.NewForConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return crqClient, nil
 }
 
 // GetCrClient returns a controller runtime client
@@ -431,7 +447,7 @@ func NewKubernetesReporter() *KubernetesReporter {
 
 // Dump dumps the current state of the cluster. The relevant logs are collected starting
 // from the since parameter.
-func (r *KubernetesReporter) Dump(kubeCli *kubernetes.Clientset, since time.Duration) {
+func (r *KubernetesReporter) Dump(f *Framework, since time.Duration) {
 	// If we got not directory, print to stderr
 	if r.artifactsDir == "" {
 		return
@@ -447,14 +463,22 @@ func (r *KubernetesReporter) Dump(kubeCli *kubernetes.Clientset, since time.Dura
 		return
 	}
 
-	r.logEvents(kubeCli, since)
-	r.logNodes(kubeCli)
-	r.logPVCs(kubeCli)
-	r.logPVs(kubeCli)
-	r.logPods(kubeCli)
-	r.logServices(kubeCli)
-	r.logEndpoints(kubeCli)
-	r.logLogs(kubeCli, since)
+	r.logEvents(f.K8sClient, since)
+	r.logNodes(f.K8sClient)
+	r.logPVCs(f.K8sClient)
+	r.logPVs(f.K8sClient)
+	r.logPods(f.K8sClient)
+	r.logServices(f.K8sClient)
+	r.logEndpoints(f.K8sClient)
+	r.logResourceQuotas(f.K8sClient)
+	r.logApplicationAwareResourceQuotas(f.AaqClient)
+	aaq, err := utils.GetAAQ(f)
+	gomega.Expect(err).ToNot(gomega.HaveOccurred())
+	if aaq.Spec.Configuration.AllowApplicationAwareClusterResourceQuota {
+		r.logApplicationAwareClusterResourceQuotas(f.AaqClient)
+		r.logClusterResourceQuotas(f.CrqClient)
+	}
+	r.logLogs(f.K8sClient, since)
 }
 
 // Cleanup cleans up the current content of the artifactsDir
@@ -481,6 +505,94 @@ func (r *KubernetesReporter) logPods(kubeCli *kubernetes.Clientset) {
 	}
 
 	j, err := json.MarshalIndent(pods, "", "    ")
+	if err != nil {
+		return
+	}
+	fmt.Fprintln(f, string(j))
+}
+
+func (r *KubernetesReporter) logResourceQuotas(kubeCli *kubernetes.Clientset) {
+	f, err := os.OpenFile(filepath.Join(r.artifactsDir, fmt.Sprintf("%d_resourcequotas.log", r.FailureCount)),
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to open the file: %v", err)
+		return
+	}
+	defer f.Close()
+
+	resourceQuotas, err := kubeCli.CoreV1().ResourceQuotas(v1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to fetch resourceQuotas: %v\n", err)
+		return
+	}
+
+	j, err := json.MarshalIndent(resourceQuotas, "", "    ")
+	if err != nil {
+		return
+	}
+	fmt.Fprintln(f, string(j))
+}
+
+func (r *KubernetesReporter) logApplicationAwareResourceQuotas(aaqcli *aaqclientset.Clientset) {
+	f, err := os.OpenFile(filepath.Join(r.artifactsDir, fmt.Sprintf("%d_applicationawareresourcequotas.log", r.FailureCount)),
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to open the file: %v", err)
+		return
+	}
+	defer f.Close()
+
+	arqs, err := aaqcli.AaqV1alpha1().ApplicationAwareResourceQuotas(v1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to fetch resourceQuotas: %v\n", err)
+		return
+	}
+
+	j, err := json.MarshalIndent(arqs, "", "    ")
+	if err != nil {
+		return
+	}
+	fmt.Fprintln(f, string(j))
+}
+
+func (r *KubernetesReporter) logApplicationAwareClusterResourceQuotas(aaqcli *aaqclientset.Clientset) {
+	f, err := os.OpenFile(filepath.Join(r.artifactsDir, fmt.Sprintf("%d_applicationawareclusterresourcequotas.log", r.FailureCount)),
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to open the file: %v", err)
+		return
+	}
+	defer f.Close()
+
+	acrqs, err := aaqcli.AaqV1alpha1().ApplicationAwareAppliedClusterResourceQuotas(v1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to fetch resourceQuotas: %v\n", err)
+		return
+	}
+
+	j, err := json.MarshalIndent(acrqs, "", "    ")
+	if err != nil {
+		return
+	}
+	fmt.Fprintln(f, string(j))
+}
+
+func (r *KubernetesReporter) logClusterResourceQuotas(CrqClient *versioned.Clientset) {
+	f, err := os.OpenFile(filepath.Join(r.artifactsDir, fmt.Sprintf("%d_clusterresourcequota.log", r.FailureCount)),
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to open the file: %v", err)
+		return
+	}
+	defer f.Close()
+
+	crqs, err := CrqClient.QuotaV1().ClusterResourceQuotas().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to fetch resourceQuotas: %v\n", err)
+		return
+	}
+
+	j, err := json.MarshalIndent(crqs, "", "    ")
 	if err != nil {
 		return
 	}
