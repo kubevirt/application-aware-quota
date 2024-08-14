@@ -23,13 +23,13 @@ var _ = Describe("ApplicationAwareQuota plugable policies", func() {
 	Context("label-sidecar evaluator", func() {
 		ctx := context.Background()
 		BeforeEach(func() {
-			currAAQ, err := utils.GetAAQ(f)
+			currAAQ, err := utils.GetAAQ(f.AaqClient)
 			Expect(err).ToNot(HaveOccurred())
 			if libaaq.CheckIfPlugablePolicyExistInAAQ(currAAQ, libaaq.LabelSidecar, libaaq.Double) {
 				return
 			}
 			Eventually(func() error {
-				currAAQ, err = utils.GetAAQ(f)
+				currAAQ, err = utils.GetAAQ(f.AaqClient)
 				Expect(err).ToNot(HaveOccurred())
 				currAAQ = libaaq.AddPlugablePolicy(currAAQ, libaaq.LabelSidecar, libaaq.Double)
 				_, err = f.AaqClient.AaqV1alpha1().AAQs().Update(context.Background(), currAAQ, v12.UpdateOptions{})
@@ -76,7 +76,7 @@ var _ = Describe("ApplicationAwareQuota plugable policies", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(func() error {
-				aaq, err := utils.GetAAQ(f)
+				aaq, err := utils.GetAAQ(f.AaqClient)
 				Expect(err).ToNot(HaveOccurred())
 				aaq.Spec.Configuration.SidecarEvaluators = []v1.Container{}
 				aaq = libaaq.AddPlugablePolicy(aaq, libaaq.LabelSidecar, libaaq.Triple)
