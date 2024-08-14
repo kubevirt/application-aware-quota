@@ -207,7 +207,7 @@ var _ = Describe("ApplicationAwareAppliedClusterResourceQuota mirrors Applicatio
 	var labelSelector *v12.LabelSelector
 
 	BeforeEach(func() {
-		aaq, err := utils.GetAAQ(f)
+		aaq, err := utils.GetAAQ(f.AaqClient)
 		Expect(err).ToNot(HaveOccurred())
 		if !aaq.Spec.Configuration.AllowApplicationAwareClusterResourceQuota {
 			aaq.Spec.Configuration.AllowApplicationAwareClusterResourceQuota = true

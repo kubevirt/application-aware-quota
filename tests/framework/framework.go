@@ -472,7 +472,7 @@ func (r *KubernetesReporter) Dump(f *Framework, since time.Duration) {
 	r.logEndpoints(f.K8sClient)
 	r.logResourceQuotas(f.K8sClient)
 	r.logApplicationAwareResourceQuotas(f.AaqClient)
-	aaq, err := utils.GetAAQ(f)
+	aaq, err := utils.GetAAQ(f.AaqClient)
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 	if aaq.Spec.Configuration.AllowApplicationAwareClusterResourceQuota {
 		r.logApplicationAwareClusterResourceQuotas(f.AaqClient)
