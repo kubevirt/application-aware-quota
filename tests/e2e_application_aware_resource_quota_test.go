@@ -70,7 +70,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 
 		By("Ensuring Application Aware Resource Quota status is calculated")
 		usedResources := v1.ResourceList{}
-		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
+		usedResources["count/applicationawareresourcequotas.aaq.kubevirt.io"] = resource.MustParse(strconv.Itoa(c + 1))
 		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 	})
@@ -88,7 +88,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 
 		By("Ensuring Application Aware Resource Quota status is calculated")
 		usedResources := v1.ResourceList{}
-		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
+		usedResources["count/applicationawareresourcequotas.aaq.kubevirt.io"] = resource.MustParse(strconv.Itoa(c + 1))
 		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
@@ -109,7 +109,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 
 		By("Ensuring Application Aware Resource Quota status captures service creation")
 		usedResources = v1.ResourceList{}
-		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
+		usedResources["count/applicationawareresourcequotas.aaq.kubevirt.io"] = resource.MustParse(strconv.Itoa(c + 1))
 		usedResources[v1.ResourceServices] = resource.MustParse("2")
 		usedResources[v1.ResourceServicesNodePorts] = resource.MustParse("1")
 		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
@@ -162,7 +162,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 
 		By("Ensuring Application Aware Resource Quota status is calculated")
 		usedResources := v1.ResourceList{}
-		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
+		usedResources["count/applicationawareresourcequotas.aaq.kubevirt.io"] = resource.MustParse(strconv.Itoa(c + 1))
 		usedResources[v1.ResourceSecrets] = resource.MustParse(defaultSecrets)
 		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
@@ -203,7 +203,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 
 		By("Ensuring Application Aware Resource Quota status is calculated")
 		usedResources := v1.ResourceList{}
-		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
+		usedResources["count/applicationawareresourcequotas.aaq.kubevirt.io"] = resource.MustParse(strconv.Itoa(c + 1))
 		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
@@ -223,7 +223,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		podToUpdate := pod
 
 		By("Ensuring ApplicationAwareResourceQuota status captures the pod usage")
-		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
+		usedResources["count/applicationawareresourcequotas.aaq.kubevirt.io"] = resource.MustParse(strconv.Itoa(c + 1))
 		usedResources[v1.ResourcePods] = resource.MustParse("1")
 		usedResources[v1.ResourceCPU] = requests[v1.ResourceCPU]
 		usedResources[v1.ResourceMemory] = requests[v1.ResourceMemory]
@@ -275,7 +275,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Ensuring Application Aware Resource Quota status released the pod usage")
-		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
+		usedResources["count/applicationawareresourcequotas.aaq.kubevirt.io"] = resource.MustParse(strconv.Itoa(c + 1))
 		usedResources[v1.ResourcePods] = resource.MustParse("0")
 		usedResources[v1.ResourceCPU] = resource.MustParse("0")
 		usedResources[v1.ResourceMemory] = resource.MustParse("0")
@@ -318,7 +318,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 
 		By("Ensuring Application Aware Resource Quota status is calculated")
 		usedResources := v1.ResourceList{}
-		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
+		usedResources["count/applicationawareresourcequotas.aaq.kubevirt.io"] = resource.MustParse(strconv.Itoa(c + 1))
 		usedResources[v1.ResourceConfigMaps] = resource.MustParse(defaultConfigMaps)
 		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
@@ -330,7 +330,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 
 		By("Ensuring Application Aware Resource Quota status captures configMap creation")
 		usedResources = v1.ResourceList{}
-		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
+		usedResources["count/applicationawareresourcequotas.aaq.kubevirt.io"] = resource.MustParse(strconv.Itoa(c + 1))
 		usedResources[v1.ResourceConfigMaps] = resource.MustParse(hardConfigMaps)
 		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
@@ -358,7 +358,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 
 		By("Ensuring Application Aware Resource Quota status is calculated")
 		usedResources := v1.ResourceList{}
-		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
+		usedResources["count/applicationawareresourcequotas.aaq.kubevirt.io"] = resource.MustParse(strconv.Itoa(c + 1))
 		usedResources[v1.ResourceReplicationControllers] = resource.MustParse("0")
 		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
@@ -407,7 +407,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 
 		By("Ensuring Application Aware Resource Quota status is calculated")
 		usedResources := v1.ResourceList{}
-		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
+		usedResources["count/applicationawareresourcequotas.aaq.kubevirt.io"] = resource.MustParse(strconv.Itoa(c + 1))
 		usedResources[v1.ResourceName("count/replicasets.apps")] = resource.MustParse("0")
 		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
@@ -446,7 +446,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 
 		By("Ensuring Application Aware Resource Quota status is calculated")
 		usedResources := v1.ResourceList{}
-		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
+		usedResources["count/applicationawareresourcequotas.aaq.kubevirt.io"] = resource.MustParse(strconv.Itoa(c + 1))
 		usedResources[v1.ResourcePersistentVolumeClaims] = resource.MustParse("0")
 		usedResources[v1.ResourceRequestsStorage] = resource.MustParse("0")
 		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
@@ -488,7 +488,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 
 		By("Ensuring Application Aware Resource Quota status is calculated")
 		usedResources := v1.ResourceList{}
-		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
+		usedResources["count/applicationawareresourcequotas.aaq.kubevirt.io"] = resource.MustParse(strconv.Itoa(c + 1))
 		usedResources[v1.ResourcePersistentVolumeClaims] = resource.MustParse("0")
 		usedResources[v1.ResourceRequestsStorage] = resource.MustParse("0")
 		usedResources[core.V1ResourceByStorageClass(classGold, v1.ResourcePersistentVolumeClaims)] = resource.MustParse("0")
@@ -560,7 +560,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 
 		By("Ensuring Application Aware Resource Quota status is calculated since the managed quota should be created")
 		usedResources := v1.ResourceList{}
-		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
+		usedResources["count/applicationawareresourcequotas.aaq.kubevirt.io"] = resource.MustParse(strconv.Itoa(c + 1))
 		usedResources[v1.ResourceName(countResourceName)] = resource.MustParse("1")
 		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
@@ -1257,7 +1257,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 
 		By("Ensuring Application Aware Resource Quota status is calculated")
 		usedResources := v1.ResourceList{}
-		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
+		usedResources["count/applicationawareresourcequotas.aaq.kubevirt.io"] = resource.MustParse(strconv.Itoa(c + 1))
 		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
@@ -1297,7 +1297,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 
 		By("Ensuring Application Aware Resource Quota status is calculated")
 		usedResources := v1.ResourceList{}
-		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
+		usedResources["count/applicationawareresourcequotas.aaq.kubevirt.io"] = resource.MustParse(strconv.Itoa(c + 1))
 		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
@@ -1336,7 +1336,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 
 		By("Ensuring Application Aware Resource Quota status is calculated")
 		usedResources := v1.ResourceList{}
-		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
+		usedResources["count/applicationawareresourcequotas.aaq.kubevirt.io"] = resource.MustParse(strconv.Itoa(c + 1))
 		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
@@ -1812,7 +1812,7 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 
 		By("Ensuring Application Aware Resource Quota status is calculated")
 		usedResources := v1.ResourceList{}
-		usedResources[v1.ResourceQuotas] = resource.MustParse(strconv.Itoa(c + 1))
+		usedResources["count/applicationawareresourcequotas.aaq.kubevirt.io"] = resource.MustParse(strconv.Itoa(c + 1))
 		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 
@@ -1914,6 +1914,7 @@ func newTestApplicationAwareResourceQuota(name string) *v1alpha1.ApplicationAwar
 	hard[core.V1ResourceByStorageClass(classGold, v1.ResourceRequestsStorage)] = resource.MustParse("10Gi")
 	// test quota on discovered resource type
 	hard[v1.ResourceName("count/replicasets.apps")] = resource.MustParse("5")
+	hard[v1.ResourceName("count/applicationawareresourcequotas.aaq.kubevirt.io")] = resource.MustParse("2")
 	// test quota on extended resource
 	hard[v1.ResourceName(v1.DefaultResourceRequestsPrefix+extendedResourceName)] = resource.MustParse("3")
 	return &v1alpha1.ApplicationAwareResourceQuota{
