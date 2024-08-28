@@ -47,7 +47,7 @@ var _ = Describe("ALL Operator tests", func() {
 			// Condition flags can be found here with their meaning https://github.com/kubevirt/hyperconverged-cluster-operator/blob/main/docs/conditions.md
 			It("Condition flags on CR should be healthy and operating", func() {
 				Eventually(func() error {
-					aaqObject, err := utils.GetAAQ(f)
+					aaqObject, err := utils.GetAAQ(f.AaqClient)
 					Expect(err).ToNot(HaveOccurred())
 					conditionMap := sdk.GetConditionValues(aaqObject.Status.Conditions)
 					if conditionMap[conditions.ConditionAvailable] != corev1.ConditionTrue {
@@ -123,7 +123,7 @@ var _ = Describe("ALL Operator tests", func() {
 		})
 
 		It("should deploy components that tolerate CriticalAddonsOnly taint", func() {
-			aaq, err := utils.GetAAQ(f)
+			aaq, err := utils.GetAAQ(f.AaqClient)
 			Expect(err).ToNot(HaveOccurred())
 			criticalAddonsToleration := corev1.Toleration{
 				Key:      "CriticalAddonsOnly",
@@ -177,7 +177,7 @@ var _ = Describe("ALL Operator tests", func() {
 		var aaqPods *corev1.PodList
 
 		BeforeEach(func() {
-			cr, err = utils.GetAAQ(f)
+			cr, err = utils.GetAAQ(f.AaqClient)
 			Expect(err).ToNot(HaveOccurred())
 			aaqPods = getAAQPods(f)
 		})
@@ -205,7 +205,7 @@ var _ = Describe("ALL Operator tests", func() {
 		f := framework.NewFramework("operator-delete-aaq-test")
 
 		BeforeEach(func() {
-			currentCR, err := utils.GetAAQ(f)
+			currentCR, err := utils.GetAAQ(f.AaqClient)
 			Expect(err).ToNot(HaveOccurred())
 
 			aaqBackup = &aaqv1.AAQ{
@@ -346,7 +346,7 @@ var _ = Describe("ALL Operator tests", func() {
 		f := framework.NewFramework("operator-cert-config-test")
 
 		BeforeEach(func() {
-			aaqBackup, err = utils.GetAAQ(f)
+			aaqBackup, err = utils.GetAAQ(f.AaqClient)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
@@ -393,7 +393,7 @@ var _ = Describe("ALL Operator tests", func() {
 			}
 
 			Eventually(func() error {
-				cr, err := utils.GetAAQ(f)
+				cr, err := utils.GetAAQ(f.AaqClient)
 				Expect(err).ToNot(HaveOccurred())
 				cr.Spec.CertConfig = &aaqv1.AAQCertConfig{
 					CA: &aaqv1.CertConfig{
@@ -501,7 +501,7 @@ var _ = Describe("ALL Operator tests", func() {
 			if len(list.Items) < 3 {
 				Skip("This test require at least 3 nodes")
 			}
-			aaq, err := utils.GetAAQ(f)
+			aaq, err := utils.GetAAQ(f.AaqClient)
 			Expect(err).ToNot(HaveOccurred())
 			if aaq.Spec.PriorityClass != nil {
 				By(fmt.Sprintf("Current priority class is: [%s]", *aaq.Spec.PriorityClass))
@@ -512,7 +512,7 @@ var _ = Describe("ALL Operator tests", func() {
 			if aaq == nil {
 				return
 			}
-			cr, err := utils.GetAAQ(f)
+			cr, err := utils.GetAAQ(f.AaqClient)
 			Expect(err).ToNot(HaveOccurred())
 
 			cr.Spec.PriorityClass = aaq.Spec.PriorityClass
@@ -553,7 +553,7 @@ var _ = Describe("ALL Operator tests", func() {
 		})
 
 		It("should use kubernetes priority class if set", func() {
-			cr, err := utils.GetAAQ(f)
+			cr, err := utils.GetAAQ(f.AaqClient)
 			Expect(err).ToNot(HaveOccurred())
 			By("Setting the priority class to system cluster critical, which is known to exist")
 			cr.Spec.PriorityClass = &systemClusterCritical
@@ -583,13 +583,13 @@ var _ = Describe("ALL Operator tests", func() {
 		f := framework.NewFramework("operator-delete-mtq-test")
 
 		BeforeEach(func() {
-			cr, err = utils.GetAAQ(f)
+			cr, err = utils.GetAAQ(f.AaqClient)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
 		AfterEach(func() {
 			Eventually(func() error {
-				currCr, err := utils.GetAAQ(f)
+				currCr, err := utils.GetAAQ(f.AaqClient)
 				if err != nil {
 					return err
 				}
@@ -604,7 +604,7 @@ var _ = Describe("ALL Operator tests", func() {
 				MatchLabels: map[string]string{"namespace": "fakenamespace"},
 			}
 			Eventually(func() error {
-				currCr, err := utils.GetAAQ(f)
+				currCr, err := utils.GetAAQ(f.AaqClient)
 				if err != nil {
 					return err
 				}
@@ -630,7 +630,7 @@ var _ = Describe("ALL Operator tests", func() {
 		It("if namespace selector is not set, should use the default target label", func() {
 			By("Updating AAQ to use a nil namespace selector")
 			Eventually(func() error {
-				currCr, err := utils.GetAAQ(f)
+				currCr, err := utils.GetAAQ(f.AaqClient)
 				if err != nil {
 					return err
 				}
@@ -661,7 +661,7 @@ var _ = Describe("ALL Operator tests", func() {
 		It("if namespace selector is empty, should target any namespace", func() {
 			By("Updating AAQ to use a nil namespace selector")
 			Eventually(func() error {
-				currCr, err := utils.GetAAQ(f)
+				currCr, err := utils.GetAAQ(f.AaqClient)
 				if err != nil {
 					return err
 				}

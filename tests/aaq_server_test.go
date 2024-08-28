@@ -86,7 +86,7 @@ var _ = Describe("AAQ Server", func() {
 	})
 
 	It("should be invalid to create two AAQ instances", func() {
-		currentAaq, err := utils.GetAAQ(f)
+		currentAaq, err := utils.GetAAQ(f.AaqClient)
 		Expect(err).ToNot(HaveOccurred())
 
 		secondAaq := &aaqv1.AAQ{

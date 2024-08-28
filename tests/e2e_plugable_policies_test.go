@@ -23,13 +23,13 @@ var _ = Describe("ApplicationAwareQuota plugable policies", func() {
 	Context("label-sidecar evaluator", func() {
 		ctx := context.Background()
 		BeforeEach(func() {
-			currAAQ, err := utils.GetAAQ(f)
+			currAAQ, err := utils.GetAAQ(f.AaqClient)
 			Expect(err).ToNot(HaveOccurred())
 			if libaaq.CheckIfPlugablePolicyExistInAAQ(currAAQ, libaaq.LabelSidecar, libaaq.Double) {
 				return
 			}
 			Eventually(func() error {
-				currAAQ, err = utils.GetAAQ(f)
+				currAAQ, err = utils.GetAAQ(f.AaqClient)
 				Expect(err).ToNot(HaveOccurred())
 				currAAQ = libaaq.AddPlugablePolicy(currAAQ, libaaq.LabelSidecar, libaaq.Double)
 				_, err = f.AaqClient.AaqV1alpha1().AAQs().Update(context.Background(), currAAQ, v12.UpdateOptions{})
@@ -37,7 +37,19 @@ var _ = Describe("ApplicationAwareQuota plugable policies", func() {
 			}, 60*time.Second, 1*time.Second).ShouldNot(HaveOccurred(), "waiting for aaq policies update")
 
 			Eventually(func() bool {
-				return isAaqControllerReadyForAtLeast5Seconds(f.K8sClient, f.AAQInstallNs)
+				if isAaqControllerReadyForAtLeast5Seconds(f.K8sClient, f.AAQInstallNs) {
+					return true
+				}
+				aaqControllerPods := utils.GetAAQControllerPods(f.K8sClient, f.AAQInstallNs)
+				for _, p := range aaqControllerPods.Items {
+					for _, cs := range p.Status.ContainerStatuses {
+						if cs.Name == string(libaaq.LabelSidecar) && cs.State.Waiting != nil &&
+							(cs.State.Waiting.Reason == "ImagePullBackOff" || cs.State.Waiting.Reason == "ErrImagePull") {
+							Skip("label-sidecar doesn't exist in the current environment")
+						}
+					}
+				}
+				return false
 			}, 120*time.Second, 1*time.Second).Should(BeTrue(), "waiting for aaq controller to be ready for at least 5 seconds")
 		})
 
@@ -64,7 +76,7 @@ var _ = Describe("ApplicationAwareQuota plugable policies", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(func() error {
-				aaq, err := utils.GetAAQ(f)
+				aaq, err := utils.GetAAQ(f.AaqClient)
 				Expect(err).ToNot(HaveOccurred())
 				aaq.Spec.Configuration.SidecarEvaluators = []v1.Container{}
 				aaq = libaaq.AddPlugablePolicy(aaq, libaaq.LabelSidecar, libaaq.Triple)
