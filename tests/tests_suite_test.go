@@ -20,13 +20,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	corev1 "k8s.io/api/core/v1"
 	"kubevirt.io/application-aware-quota/tests/framework"
-)
-
-const (
-	pollInterval     = 2 * time.Second
-	nsDeletedTimeout = 270 * time.Second
 )
 
 var (
@@ -107,6 +101,12 @@ func BuildTestSuite() {
 		}
 		framework.ClientsInstance.AaqClient = cs
 
+		crqcs, err := framework.ClientsInstance.GetCrqClient()
+		if err != nil {
+			ginkgo.Fail(fmt.Sprintf("ERROR, unable to create AaqClient: %v", err))
+		}
+		framework.ClientsInstance.CrqClient = crqcs
+
 		crClient, err := framework.ClientsInstance.GetCrClient()
 		if err != nil {
 			ginkgo.Fail(fmt.Sprintf("ERROR, unable to create CrClient: %v", err))
@@ -141,14 +141,11 @@ func BuildTestSuite() {
 
 	AfterSuite(func() {
 		k8sClient := framework.ClientsInstance.K8sClient
-		Eventually(func() []corev1.Namespace {
-			nsList, _ := k8sClient.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{LabelSelector: framework.NsPrefixLabel})
-			return nsList.Items
-		}, nsDeletedTimeout, pollInterval).Should(BeEmpty())
-
-		err := updateAAQNamespaceSelector(framework.ClientsInstance.AaqClient, framework.ClientsInstance.K8sClient, originalAAQNamespaceSelector)
-		if err != nil {
-			ginkgo.Fail("cannot restore AAQ namespace selector: " + err.Error())
+		nsList, err := k8sClient.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{LabelSelector: framework.NsPrefixLabel})
+		Expect(err).ShouldNot(HaveOccurred())
+		for _, ns := range nsList.Items {
+			err := k8sClient.CoreV1().Namespaces().Delete(context.TODO(), ns.Name, metav1.DeleteOptions{})
+			Expect(err).ShouldNot(HaveOccurred())
 		}
 	})
 
@@ -174,22 +171,15 @@ func getRunningAAQ(aaqClient *clientset.Clientset) (*aaqv1.AAQ, error) {
 }
 
 func updateAAQNamespaceSelector(aaqClient *clientset.Clientset, k8sClient *kubernetes.Clientset, selector *metav1.LabelSelector) error {
-	// Ensure AAQ is deployed and overwrite default namespace selector to target any namespace
-	aaqWebhook, err := k8sClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.Background(), cluster.MutatingWebhookConfigurationName, metav1.GetOptions{})
-	if err != nil {
-		return err
+	aaq, err := getRunningAAQ(aaqClient)
+	Expect(err).ToNot(HaveOccurred())
+	if reflect.DeepEqual(aaq.Spec.NamespaceSelector, selector) {
+		return nil
 	}
-
-	originalWebhookSelector := aaqWebhook.Webhooks[0].NamespaceSelector
-
 	Eventually(func() error {
 		aaq, err := getRunningAAQ(aaqClient)
-		if err != nil {
-			return err
-		}
-
+		Expect(err).ToNot(HaveOccurred())
 		aaq.Spec.NamespaceSelector = selector
-
 		_, err = aaqClient.AaqV1alpha1().AAQs().Update(context.Background(), aaq, metav1.UpdateOptions{})
 		return err
 	}).WithTimeout(30*time.Second).WithPolling(time.Second).ShouldNot(HaveOccurred(), "cannot update AAQ object's namespace selector'")
@@ -200,7 +190,7 @@ func updateAAQNamespaceSelector(aaqClient *clientset.Clientset, k8sClient *kuber
 			return err
 		}
 
-		if reflect.DeepEqual(aaqWebhook.Webhooks[0].NamespaceSelector, originalWebhookSelector) {
+		if !reflect.DeepEqual(aaqWebhook.Webhooks[0].NamespaceSelector, selector) {
 			return fmt.Errorf("expecting namespace selector to be updated")
 		}
 
