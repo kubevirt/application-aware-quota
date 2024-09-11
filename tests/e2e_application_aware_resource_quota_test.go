@@ -6,6 +6,7 @@ import (
 	"fmt"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/utils/ptr"
 	"kubevirt.io/application-aware-quota/pkg/aaq-operator/resources"
 	aaqclientset "kubevirt.io/application-aware-quota/pkg/generated/aaq/clientset/versioned"
 	testsutils "kubevirt.io/application-aware-quota/pkg/tests-utils"
@@ -1820,7 +1821,24 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 			ObjectMeta: metav1.ObjectMeta{Name: "pod-test", Namespace: f.Namespace.Name},
 			Status:     v1.PodStatus{Phase: v1.PodRunning},
 			Spec: v1.PodSpec{
-				Containers: []v1.Container{{Name: "ctr", Image: "image", Resources: testsutils.GetResourceRequirements(testsutils.GetResourceList("500m", "50Gi"), testsutils.GetResourceList("", ""))}},
+				Containers: []v1.Container{
+					{
+						Name:      "ctr",
+						Image:     "image",
+						Resources: testsutils.GetResourceRequirements(testsutils.GetResourceList("500m", "50Gi"), testsutils.GetResourceList("", "")),
+						SecurityContext: &v1.SecurityContext{
+							Privileged:               ptr.To(false),
+							AllowPrivilegeEscalation: ptr.To(false),
+							RunAsNonRoot:             ptr.To(true),
+							SeccompProfile: &v1.SeccompProfile{
+								Type: v1.SeccompProfileTypeRuntimeDefault,
+							},
+							Capabilities: &v1.Capabilities{
+								Drop: []v1.Capability{"ALL"},
+							},
+						},
+					},
+				},
 			},
 		}
 		blockedPod, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, blockedPod, metav1.CreateOptions{})
@@ -1943,6 +1961,17 @@ func newTestPodForQuotaWithPriority(f *framework.Framework, name string, request
 						Requests: requests,
 						Limits:   limits,
 					},
+					SecurityContext: &v1.SecurityContext{
+						Privileged:               ptr.To(false),
+						AllowPrivilegeEscalation: ptr.To(false),
+						RunAsNonRoot:             ptr.To(true),
+						SeccompProfile: &v1.SeccompProfile{
+							Type: v1.SeccompProfileTypeRuntimeDefault,
+						},
+						Capabilities: &v1.Capabilities{
+							Drop: []v1.Capability{"ALL"},
+						},
+					},
 				},
 			},
 			PriorityClassName: pclass,
@@ -1968,6 +1997,17 @@ func newTestPodWithAffinityForQuota(f *framework.Framework, name string, affinit
 					Name:      "pause",
 					Image:     "busybox",
 					Resources: v1.ResourceRequirements{},
+					SecurityContext: &v1.SecurityContext{
+						Privileged:               ptr.To(false),
+						AllowPrivilegeEscalation: ptr.To(false),
+						RunAsNonRoot:             ptr.To(true),
+						SeccompProfile: &v1.SeccompProfile{
+							Type: v1.SeccompProfileTypeRuntimeDefault,
+						},
+						Capabilities: &v1.Capabilities{
+							Drop: []v1.Capability{"ALL"},
+						},
+					},
 				},
 			},
 		},

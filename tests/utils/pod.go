@@ -15,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/utils/ptr"
 )
 
 const (
@@ -328,6 +329,17 @@ func NewTestPodForQuota(name string, requests v1.ResourceList, limits v1.Resourc
 					Resources: v1.ResourceRequirements{
 						Requests: requests,
 						Limits:   limits,
+					},
+					SecurityContext: &v1.SecurityContext{
+						Privileged:               ptr.To(false),
+						AllowPrivilegeEscalation: ptr.To(false),
+						RunAsNonRoot:             ptr.To(true),
+						SeccompProfile: &v1.SeccompProfile{
+							Type: v1.SeccompProfileTypeRuntimeDefault,
+						},
+						Capabilities: &v1.Capabilities{
+							Drop: []v1.Capability{"ALL"},
+						},
 					},
 				},
 			},
