@@ -9,6 +9,7 @@ import (
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/utils/ptr"
 	aaqclientset "kubevirt.io/application-aware-quota/pkg/generated/aaq/clientset/versioned"
 	"kubevirt.io/application-aware-quota/tests/builders"
 	"kubevirt.io/application-aware-quota/tests/framework"
@@ -113,6 +114,17 @@ func newAppsPodForQuota(name string, requests v1.ResourceList, withAppLabel bool
 					Image: "busybox",
 					Resources: v1.ResourceRequirements{
 						Requests: requests,
+					},
+					SecurityContext: &v1.SecurityContext{
+						Privileged:               ptr.To(false),
+						AllowPrivilegeEscalation: ptr.To(false),
+						RunAsNonRoot:             ptr.To(true),
+						SeccompProfile: &v1.SeccompProfile{
+							Type: v1.SeccompProfileTypeRuntimeDefault,
+						},
+						Capabilities: &v1.Capabilities{
+							Drop: []v1.Capability{"ALL"},
+						},
 					},
 				},
 			},

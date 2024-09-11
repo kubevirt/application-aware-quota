@@ -7,6 +7,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	matav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 	"kubevirt.io/application-aware-quota/pkg/util"
 	aaqv1 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 	"kubevirt.io/application-aware-quota/tests/builders"
@@ -64,6 +65,17 @@ var _ = Describe("AAQ Server", func() {
 						Resources: v1.ResourceRequirements{
 							Requests: v1.ResourceList{
 								v1.ResourceMemory: resource.MustParse("200Mi"),
+							},
+						},
+						SecurityContext: &v1.SecurityContext{
+							Privileged:               ptr.To(false),
+							AllowPrivilegeEscalation: ptr.To(false),
+							RunAsNonRoot:             ptr.To(true),
+							SeccompProfile: &v1.SeccompProfile{
+								Type: v1.SeccompProfileTypeRuntimeDefault,
+							},
+							Capabilities: &v1.Capabilities{
+								Drop: []v1.Capability{"ALL"},
 							},
 						},
 					},
