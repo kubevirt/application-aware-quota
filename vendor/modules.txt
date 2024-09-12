@@ -1071,7 +1071,7 @@ k8s.io/kubernetes/pkg/features
 k8s.io/kubernetes/pkg/quota/v1/evaluator/core
 k8s.io/kubernetes/pkg/util/node
 k8s.io/kubernetes/pkg/util/parsers
-# k8s.io/utils v0.0.0-20230505201702-9f6742963106
+# k8s.io/utils v0.0.0-20240902221715-702e33fdd3c3
 ## explicit; go 1.18
 k8s.io/utils/buffer
 k8s.io/utils/clock
@@ -1082,6 +1082,7 @@ k8s.io/utils/internal/third_party/forked/golang/net
 k8s.io/utils/lru
 k8s.io/utils/net
 k8s.io/utils/pointer
+k8s.io/utils/ptr
 k8s.io/utils/strings/slices
 k8s.io/utils/trace
 # kubevirt.io/api v1.2.0
