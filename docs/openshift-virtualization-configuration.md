@@ -31,8 +31,8 @@ handle live migrations and manage VM infrastructure overhead. This also couples 
 VM implementation, making them dependent on infrastructure overhead that can change unexpectedly.
 
 ### Solution: AAQ Operator
-By default, AAQ Operator allocates resources for VM-associated pods, appending a `/vmi` suffix to
-`requests/limits.cpu` and `requests/limits.memory` compute resources, derived from the VM's RAM size and CPU threads.
+By default, the AAQ operator allocates resources for VM-associated pods, appending a `/vmi` suffix to
+`requests/limits.cpu` and `requests/limits.memory` compute resources, derived from the VM's RAM and CPU.
 
 For both limits and requests with the `/vmi` suffix, the same values will apply because, unlike pods, virtual
 machines are already limited to the virtual memory and virtual CPU that were allocated to them.
@@ -97,7 +97,7 @@ spec:
 
 These new quotas are controller-based rather than admission-based. Here’s how they work:
 
-1. [Scheduling Gates](https://kubernetes.io/docs/concepts/scheduling-eviction/pod-scheduling-readiness/): a scheduling gates is added to    the created pod via a mutating webhook.
+1. [Scheduling Gates](https://kubernetes.io/docs/concepts/scheduling-eviction/pod-scheduling-readiness/): a scheduling gate is added to the created pod via a mutating webhook.
    See the "Configure AAQ Operator" section below for more information
 2. Controller Evaluation: a controller evaluates whether
    there is sufficient room for the pod according to the quota.
@@ -112,7 +112,7 @@ For non-compute resources, the quota acts like the standard ResourceQuota.
 non-schedulable resources are supported by both AAQ quota and AAQ cluster 
 quota by managing a k8s resource quota behind the scenes.
 
-The primary purpose of these managed quotas is to set unified quotas for bot native and extended 
+The primary purpose of these managed quotas is to set unified quotas for both native and extended 
 accounting resources, eliminating the need to manage both ResourceQuota and AAQ quota, or
 ClusterResourceQuota and AAQ cluster quota separately.
 
@@ -132,7 +132,7 @@ The applicationAwareConfig object within the HyperConverged resource's spec allo
    * `VirtualResources` - Counts compute resources based on the VM's specifications, using the VM's RAM size for memory and virtual CPUs for processing.
    * `DedicatedVirtualResources` (default) - Similar to VirtualResources, but separates resource tracking for VM-associated pods by adding a `/vmi` suffix to CPU and memory resource names (e.g., `requests.cpu/vmi`, `limits.memory/vmi`), distinguishing them from other pods.
 * `namespaceSelector` - determines in which namespaces AAQ's scheduling gate will be added to pods at creation time.
-        This field follows the standard selector format.
+        This field follows the standard selector format. if a namespace selector is not being defined, AAQ would target namespaces with the `application-aware-quota/enable-gating` label as default.
 * `allowApplicationAwareClusterResourceQuota` (default = false) -  Set to true to enable the creation and management of AAQ's cluster quotas.
 
 Example CLI command to configure AAQ:
