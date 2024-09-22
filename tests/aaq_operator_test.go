@@ -39,7 +39,7 @@ const (
 	aaqServerPodPrefix     = "aaq-server-"
 )
 
-var _ = Describe("ALL Operator tests", func() {
+var _ = Describe("ALL Operator tests", Serial, func() {
 	Context("[Destructive]", func() {
 		var _ = Describe("Operator tests", func() {
 			f := framework.NewFramework("operator-test")
@@ -685,7 +685,7 @@ var _ = Describe("ALL Operator tests", func() {
 				if len(selector.MatchLabels) != 0 || len(selector.MatchExpressions) != 0 {
 					return fmt.Errorf("namespace selector should be empty. actual: %v", *mwc.Webhooks[0].NamespaceSelector)
 				}
-				
+
 				return nil
 			}).WithTimeout(90*time.Second).WithPolling(5*time.Second).ShouldNot(HaveOccurred(), "default namespace selector is not as expected")
 		})
