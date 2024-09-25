@@ -472,6 +472,8 @@ func (r *KubernetesReporter) Dump(f *Framework, since time.Duration) {
 	r.logEndpoints(f.K8sClient)
 	r.logResourceQuotas(f.K8sClient)
 	r.logApplicationAwareResourceQuotas(f.AaqClient)
+	r.logDeployments(f.K8sClient, f.AAQInstallNs)
+	r.logAAQs(f.AaqClient)
 	aaq, err := utils.GetAAQ(f.AaqClient)
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 	if aaq.Spec.Configuration.AllowApplicationAwareClusterResourceQuota {
@@ -533,6 +535,28 @@ func (r *KubernetesReporter) logResourceQuotas(kubeCli *kubernetes.Clientset) {
 	fmt.Fprintln(f, string(j))
 }
 
+func (r *KubernetesReporter) logDeployments(kubeCli *kubernetes.Clientset, aaqNs string) {
+	f, err := os.OpenFile(filepath.Join(r.artifactsDir, fmt.Sprintf("%d_deployments.log", r.FailureCount)),
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to open the file: %v", err)
+		return
+	}
+	defer f.Close()
+
+	deployments, err := kubeCli.AppsV1().Deployments(aaqNs).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to fetch Deployments: %v\n", err)
+		return
+	}
+
+	j, err := json.MarshalIndent(deployments, "", "    ")
+	if err != nil {
+		return
+	}
+	fmt.Fprintln(f, string(j))
+}
+
 func (r *KubernetesReporter) logApplicationAwareResourceQuotas(aaqcli *aaqclientset.Clientset) {
 	f, err := os.OpenFile(filepath.Join(r.artifactsDir, fmt.Sprintf("%d_applicationawareresourcequotas.log", r.FailureCount)),
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -549,6 +573,28 @@ func (r *KubernetesReporter) logApplicationAwareResourceQuotas(aaqcli *aaqclient
 	}
 
 	j, err := json.MarshalIndent(arqs, "", "    ")
+	if err != nil {
+		return
+	}
+	fmt.Fprintln(f, string(j))
+}
+
+func (r *KubernetesReporter) logAAQs(aaqcli *aaqclientset.Clientset) {
+	f, err := os.OpenFile(filepath.Join(r.artifactsDir, fmt.Sprintf("%d_aaq.log", r.FailureCount)),
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to open the file: %v", err)
+		return
+	}
+	defer f.Close()
+
+	aaqs, err := aaqcli.AaqV1alpha1().AAQs().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to fetch aaqs: %v\n", err)
+		return
+	}
+
+	j, err := json.MarshalIndent(aaqs, "", "    ")
 	if err != nil {
 		return
 	}
