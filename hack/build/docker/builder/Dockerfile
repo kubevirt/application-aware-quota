@@ -24,24 +24,21 @@ RUN 	dnf -y install dnf-plugins-core && \
 	nbdkit-devel \
 	unzip \
     protobuf-compiler \
-	java-11-openjdk-devel \
 	&& dnf clean all
 
-RUN pip3 install --upgrade j2cli operator-courier==2.1.11 && \
-	curl -sL https://services.gradle.org/distributions/gradle-6.6-bin.zip -o gradle-6.6-bin.zip && \
-	mkdir /opt/gradle && \
-	unzip -d /opt/gradle gradle-6.6-bin.zip && \
-	ln -s /opt/gradle/gradle-6.6/bin/gradle /usr/local/bin/gradle && \
-	rm gradle-6.6-bin.zip
 
-ENV GIMME_GO_VERSION=1.22.6 GOPATH="/go" GO111MODULE="on"
 
-RUN mkdir -p /gimme && curl -sL https://raw.githubusercontent.com/travis-ci/gimme/master/gimme | HOME=/gimme bash >> /etc/profile.d/gimme.sh
+ENV GIMME_GO_VERSION=1.22.6 GOPATH="/go" GO111MODULE="on" GOLANGCI_LINT_VERSION=v1.60.1
 
+# reference to master is for an external repo and can't yet be changed
+RUN mkdir -p /gimme && curl -sL \
+    https://raw.githubusercontent.com/travis-ci/gimme/master/gimme | \
+    HOME=/gimme bash >> /etc/profile.d/gimme.sh \
+
+# Install persistent go packages
 RUN \
 	source /etc/profile.d/gimme.sh && \
 	eval $(go env) && \
-	go install github.com/onsi/ginkgo/v2/ginkgo@v2.12.0 && \
 	go install mvdan.cc/sh/cmd/shfmt@latest && \
 	go install github.com/mattn/goveralls@latest && \
 	go install golang.org/x/lint/golint@latest && \
@@ -50,6 +47,11 @@ RUN \
 	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.14.0 && \
 	go install github.com/securego/gosec/v2/cmd/gosec@latest && \
 	rm -rf "${GOPATH}/pkg"
+
+RUN set -x && \
+    source /etc/profile.d/gimme.sh && \
+    go install -v mvdan.cc/gofumpt@v0.6.0 && \
+    curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b "$(go env GOROOT)"/bin $GOLANGCI_LINT_VERSION
 
 COPY output-bazel-arch.sh /output-bazel-arch.sh
 
@@ -61,6 +63,6 @@ ADD entrypoint.sh /entrypoint.sh
 
 ADD entrypoint-bazel.sh /entrypoint-bazel.sh
 
-COPY rsyncd.conf /etc/rsyncd.conf
+ADD rsyncd.conf /etc/rsyncd.conf
 
 ENTRYPOINT ["/entrypoint.sh"]
