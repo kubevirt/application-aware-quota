@@ -33,7 +33,7 @@ ENV GIMME_GO_VERSION=1.22.6 GOPATH="/go" GO111MODULE="on" GOLANGCI_LINT_VERSION=
 # reference to master is for an external repo and can't yet be changed
 RUN mkdir -p /gimme && curl -sL \
     https://raw.githubusercontent.com/travis-ci/gimme/master/gimme | \
-    HOME=/gimme bash >> /etc/profile.d/gimme.sh \
+    HOME=/gimme bash >> /etc/profile.d/gimme.sh
 
 # Install persistent go packages
 RUN \
