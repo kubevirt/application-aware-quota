@@ -14,7 +14,7 @@
 #See the License for the specific language governing permissions and
 #limitations under the License.
 
-set -eo pipefail
+set -exo pipefail
 
 readonly MAX_AAQ_WAIT_RETRY=30
 readonly AAQ_WAIT_TIME=10
@@ -84,9 +84,8 @@ if [ $retry_counter -eq $MAX_AAQ_WAIT_RETRY ]; then
     exit 1
 fi
 
-test_command="${TESTS_OUT_DIR}/tests.test -test.timeout 360m ${test_args}"
-echo "$test_command"
 (
-    cd ${AAQ_DIR}/tests
-    ${test_command}
+    export TESTS_WORKDIR=${AAQ_DIR}/tests
+    ginkgo_args="--trace --timeout=8h --v"
+    ${TESTS_OUT_DIR}/ginkgo ${ginkgo_args} ${TESTS_OUT_DIR}/tests.test -- ${test_args}
 )
