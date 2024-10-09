@@ -18,11 +18,12 @@ set -euo pipefail
 
 source hack/build/config.sh
 source hack/build/common.sh
+go build -C vendor/github.com/onsi/ginkgo/v2/ginkgo -o /usr/bin/ginkgo
 
 # parsetTestOpts sets 'pkgs' and test_args
 parseTestOpts "${@}"
 export GO111MODULE=off
 export KUBEBUILDER_CONTROLPLANE_START_TIMEOUT=120s
-test_command="env OPERATOR_DIR=${AAQ_DIR} ginkgo -v -coverprofile=.coverprofile ${pkgs} ${test_args:+-args $test_args}"
+test_command="env OPERATOR_DIR=${AAQ_DIR} /usr/bin/ginkgo -v -coverprofile=.coverprofile ${pkgs} ${test_args:+-args $test_args}"
 echo "${test_command}"
 ${test_command}
