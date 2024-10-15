@@ -22,9 +22,14 @@ import (
 	"context"
 	goflag "flag"
 	"fmt"
+	"io/ioutil"
+	golog "log"
+	"net/http"
+	"os"
+	"strconv"
+
 	"github.com/emicklei/go-restful/v3"
 	flag "github.com/spf13/pflag"
-	"io/ioutil"
 	k8sv1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -41,7 +46,7 @@ import (
 	acrq_controller "kubevirt.io/application-aware-quota/pkg/aaq-controller/additional-cluster-quota-controllers/acrq-controller"
 	"kubevirt.io/application-aware-quota/pkg/aaq-controller/additional-cluster-quota-controllers/clusterquotamapping"
 	crq_controller "kubevirt.io/application-aware-quota/pkg/aaq-controller/additional-cluster-quota-controllers/crq-controller"
-	"kubevirt.io/application-aware-quota/pkg/aaq-controller/arq-controller"
+	arq_controller "kubevirt.io/application-aware-quota/pkg/aaq-controller/arq-controller"
 	built_in_usage_calculators "kubevirt.io/application-aware-quota/pkg/aaq-controller/built-in-usage-calculators"
 	"kubevirt.io/application-aware-quota/pkg/aaq-controller/leaderelectionconfig"
 	rq_controller "kubevirt.io/application-aware-quota/pkg/aaq-controller/rq-controller"
@@ -51,10 +56,6 @@ import (
 	"kubevirt.io/application-aware-quota/pkg/informers"
 	"kubevirt.io/application-aware-quota/pkg/util"
 	v1alpha12 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
-	golog "log"
-	"net/http"
-	"os"
-	"strconv"
 )
 
 type AaqControllerApp struct {
@@ -159,6 +160,10 @@ func Execute() {
 			klog.Warningf("failed to wait for caches to sync")
 		}
 		evaluatorsRegistry.Add(built_in_usage_calculators.NewVirtLauncherCalculator(vmiInformer, migrationInformer, v1alpha12.VmiCalcConfigName(*launcherConfig)))
+	}
+	switch v1alpha12.VmiCalcConfigName(*launcherConfig) {
+	case v1alpha12.VirtualResources, v1alpha12.DedicatedVirtualResources:
+		evaluatorsRegistry.Add(built_in_usage_calculators.NewCDIFilterCalculator(v1alpha12.VirtualResources))
 	}
 	app.calcRegistry = evaluatorsRegistry
 	namespaceLister := v12.NewNamespaceLister(app.nsInformer.GetIndexer())

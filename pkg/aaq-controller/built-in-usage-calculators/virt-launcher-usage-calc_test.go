@@ -1,6 +1,8 @@
 package built_in_usage_calculators
 
 import (
+	"time"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
@@ -11,7 +13,6 @@ import (
 	v12 "kubevirt.io/api/core/v1"
 	testsutils "kubevirt.io/application-aware-quota/pkg/tests-utils"
 	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
-	"time"
 )
 
 var _ = Describe("Test virt-launcher calculator", func() {
@@ -376,6 +377,50 @@ func (b *PodBuilder) WithAnnotations(key, value string) *PodBuilder {
 		b.pod.Annotations = map[string]string{}
 	}
 	b.pod.Annotations[key] = value
+	return b
+}
+
+func (b *PodBuilder) WithResourcesRequestMemory(q resource.Quantity) *PodBuilder {
+	if b.pod.Spec.Containers == nil {
+		b.pod.Spec.Containers = []v1.Container{{}}
+	}
+	if b.pod.Spec.Containers[0].Resources.Requests == nil {
+		b.pod.Spec.Containers[0].Resources.Requests = v1.ResourceList{}
+	}
+	b.pod.Spec.Containers[0].Resources.Requests[v1.ResourceMemory] = q
+	return b
+}
+
+func (b *PodBuilder) WithResourcesRequestCPU(q resource.Quantity) *PodBuilder {
+	if b.pod.Spec.Containers == nil {
+		b.pod.Spec.Containers = []v1.Container{{}}
+	}
+	if b.pod.Spec.Containers[0].Resources.Requests == nil {
+		b.pod.Spec.Containers[0].Resources.Requests = v1.ResourceList{}
+	}
+	b.pod.Spec.Containers[0].Resources.Requests[v1.ResourceCPU] = q
+	return b
+}
+
+func (b *PodBuilder) WithResourcesLimitsMemory(q resource.Quantity) *PodBuilder {
+	if b.pod.Spec.Containers == nil {
+		b.pod.Spec.Containers = []v1.Container{{}}
+	}
+	if b.pod.Spec.Containers[0].Resources.Limits == nil {
+		b.pod.Spec.Containers[0].Resources.Limits = v1.ResourceList{}
+	}
+	b.pod.Spec.Containers[0].Resources.Limits[v1.ResourceMemory] = q
+	return b
+}
+
+func (b *PodBuilder) WithResourcesLimitsCPU(q resource.Quantity) *PodBuilder {
+	if b.pod.Spec.Containers == nil {
+		b.pod.Spec.Containers = []v1.Container{{}}
+	}
+	if b.pod.Spec.Containers[0].Resources.Limits == nil {
+		b.pod.Spec.Containers[0].Resources.Limits = v1.ResourceList{}
+	}
+	b.pod.Spec.Containers[0].Resources.Limits[v1.ResourceCPU] = q
 	return b
 }
 

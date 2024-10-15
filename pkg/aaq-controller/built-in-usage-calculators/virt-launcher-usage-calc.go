@@ -2,6 +2,7 @@ package built_in_usage_calculators
 
 import (
 	"fmt"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -85,7 +86,7 @@ func (launchercalc *VirtLauncherCalculator) calculateTargetUsageByConfig(pod *co
 
 func (launchercalc *VirtLauncherCalculator) CalculateUsageByConfig(pod *corev1.Pod, vmi *v15.VirtualMachineInstance, isSourceOrSingleLauncher bool) (corev1.ResourceList, error) {
 	config := launchercalc.calcConfig
-	if !validConfig(config) {
+	if !validConfig(config, MyConfigs) {
 		config = util.DefaultLauncherConfig
 	}
 	switch config {
@@ -118,8 +119,8 @@ func (launchercalc *VirtLauncherCalculator) CalculateUsageByConfig(pod *corev1.P
 	return podEvaluator.Usage(pod)
 }
 
-func validConfig(target v1alpha1.VmiCalcConfigName) bool {
-	for _, item := range MyConfigs {
+func validConfig(target v1alpha1.VmiCalcConfigName, configs []v1alpha1.VmiCalcConfigName) bool {
+	for _, item := range configs {
 		if item == target {
 			return true
 		}
