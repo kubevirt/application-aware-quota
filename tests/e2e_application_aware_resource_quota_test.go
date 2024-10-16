@@ -4,6 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/utils/ptr"
@@ -14,9 +18,6 @@ import (
 	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 	"kubevirt.io/application-aware-quota/tests/framework"
 	"kubevirt.io/application-aware-quota/tests/utils"
-	"strconv"
-	"strings"
-	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -1055,6 +1056,104 @@ var _ = Describe("ApplicationAwareResourceQuota", func() {
 
 			return false, nil
 		})
+		Expect(err).ToNot(HaveOccurred())
+	})
+
+	It("should create a ApplicationAwareResourceQuota and handle a CDI Pod", func(ctx context.Context) {
+		By("Counting existing ApplicationAwareResourceQuota")
+		c, err := countApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name)
+		Expect(err).ToNot(HaveOccurred())
+
+		By("Creating a ApplicationAwareResourceQuota")
+		quotaName := "test-quota"
+		ApplicationAwareResourceQuota := newTestApplicationAwareResourceQuota(quotaName)
+		_, err = createApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, ApplicationAwareResourceQuota)
+		Expect(err).ToNot(HaveOccurred())
+
+		By("Ensuring Application Aware Resource Quota status is calculated")
+		usedResources := v1.ResourceList{}
+		usedResources["count/applicationawareresourcequotas.aaq.kubevirt.io"] = resource.MustParse(strconv.Itoa(c + 1))
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		Expect(err).ToNot(HaveOccurred())
+
+		By("Creating a Pod that fits quota")
+		podName := "test-pod"
+		requests := v1.ResourceList{}
+		limits := v1.ResourceList{}
+		requests[v1.ResourceCPU] = resource.MustParse("500m")
+		requests[v1.ResourceMemory] = resource.MustParse("252Mi")
+		requests[v1.ResourceEphemeralStorage] = resource.MustParse("30Gi")
+		requests[v1.ResourceName(extendedResourceName)] = resource.MustParse("2")
+		limits[v1.ResourceName(extendedResourceName)] = resource.MustParse("2")
+		pod := utils.NewTestPodForQuota(podName, requests, limits)
+		pod, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Create(ctx, pod, metav1.CreateOptions{})
+		Expect(err).ToNot(HaveOccurred())
+		utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
+
+		By("Ensuring ApplicationAwareResourceQuota status captures the pod usage")
+		usedResources["count/applicationawareresourcequotas.aaq.kubevirt.io"] = resource.MustParse(strconv.Itoa(c + 1))
+		usedResources[v1.ResourcePods] = resource.MustParse("1")
+		usedResources[v1.ResourceCPU] = requests[v1.ResourceCPU]
+		usedResources[v1.ResourceMemory] = requests[v1.ResourceMemory]
+		usedResources[v1.ResourceEphemeralStorage] = requests[v1.ResourceEphemeralStorage]
+		usedResources[v1.ResourceName(v1.DefaultResourceRequestsPrefix+extendedResourceName)] = requests[v1.ResourceName(extendedResourceName)]
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		Expect(err).ToNot(HaveOccurred())
+
+		By("adding CDI app annotation")
+		Eventually(func() error {
+			pod, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Get(ctx, podName, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			pod.Labels = map[string]string{"app": "containerized-data-importer"}
+			_, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Update(ctx, pod, metav1.UpdateOptions{})
+			return err
+		}, 2*time.Minute, 2*time.Second).Should(BeNil())
+
+		By("Ensuring ApplicationAwareResourceQuota status filters the CDI pod")
+		usedResources["count/applicationawareresourcequotas.aaq.kubevirt.io"] = resource.MustParse(strconv.Itoa(c + 1))
+		usedResources[v1.ResourcePods] = resource.MustParse("0")
+		usedResources[v1.ResourceCPU] = resource.MustParse("0")
+		usedResources[v1.ResourceMemory] = resource.MustParse("0")
+		usedResources[v1.ResourceEphemeralStorage] = resource.MustParse("0")
+		usedResources[v1.ResourceName(v1.DefaultResourceRequestsPrefix+extendedResourceName)] = resource.MustParse("0")
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		Expect(err).ToNot(HaveOccurred())
+
+		By("removing CDI app annotation")
+		Eventually(func() error {
+			pod, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Get(ctx, podName, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			pod.Labels = nil
+			_, err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Update(ctx, pod, metav1.UpdateOptions{})
+			return err
+		}, 2*time.Minute, 2*time.Second).Should(BeNil())
+
+		By("Ensuring ApplicationAwareResourceQuota status captures the pod usage")
+		usedResources["count/applicationawareresourcequotas.aaq.kubevirt.io"] = resource.MustParse(strconv.Itoa(c + 1))
+		usedResources[v1.ResourcePods] = resource.MustParse("1")
+		usedResources[v1.ResourceCPU] = requests[v1.ResourceCPU]
+		usedResources[v1.ResourceMemory] = requests[v1.ResourceMemory]
+		usedResources[v1.ResourceEphemeralStorage] = requests[v1.ResourceEphemeralStorage]
+		usedResources[v1.ResourceName(v1.DefaultResourceRequestsPrefix+extendedResourceName)] = requests[v1.ResourceName(extendedResourceName)]
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
+		Expect(err).ToNot(HaveOccurred())
+
+		By("Deleting the pod")
+		err = f.K8sClient.CoreV1().Pods(f.Namespace.Name).Delete(ctx, podName, *metav1.NewDeleteOptions(0))
+		Expect(err).ToNot(HaveOccurred())
+
+		By("Ensuring Application Aware Resource Quota status released the pod usage")
+		usedResources["count/applicationawareresourcequotas.aaq.kubevirt.io"] = resource.MustParse(strconv.Itoa(c + 1))
+		usedResources[v1.ResourcePods] = resource.MustParse("0")
+		usedResources[v1.ResourceCPU] = resource.MustParse("0")
+		usedResources[v1.ResourceMemory] = resource.MustParse("0")
+		usedResources[v1.ResourceEphemeralStorage] = resource.MustParse("0")
+		usedResources[v1.ResourceName(v1.DefaultResourceRequestsPrefix+extendedResourceName)] = resource.MustParse("0")
+		err = waitForApplicationAwareResourceQuota(ctx, f.AaqClient, f.Namespace.Name, quotaName, usedResources)
 		Expect(err).ToNot(HaveOccurred())
 	})
 })
