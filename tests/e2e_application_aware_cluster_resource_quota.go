@@ -15,7 +15,6 @@ import (
 
 var _ = Describe("ApplicationAwareAppliedClusterResourceQuota", func() {
 	f := framework.NewFramework("application-aware-applied-cluster-resource-quota")
-	var labelSelector *v12.LabelSelector
 
 	BeforeEach(func() {
 		aaq, err := utils.GetAAQ(f.AaqClient)
@@ -34,24 +33,10 @@ var _ = Describe("ApplicationAwareAppliedClusterResourceQuota", func() {
 				Expect(err).ToNot(HaveOccurred())
 				return ready
 			}, 10*time.Minute, 1*time.Second).Should(BeTrue(), "aaq-controller should be ready with the new config Eventually")
-
 		}
-		labelSelector = &v12.LabelSelector{
-			MatchLabels: map[string]string{"foo": "foo"},
-		}
-		// Function to add label to a namespace
-		err = utils.AddLabelToNamespace(f.K8sClient, "default", "foo", "foo")
-		Expect(err).ToNot(HaveOccurred())
-		err = utils.AddLabelToNamespace(f.K8sClient, f.Namespace.GetName(), "foo", "foo")
-		Expect(err).ToNot(HaveOccurred())
 	})
 
 	AfterEach(func() {
-		err := utils.RemoveLabelFromNamespace(f.K8sClient, "default", "foo")
-		Expect(err).ToNot(HaveOccurred())
-		err = utils.RemoveLabelFromNamespace(f.K8sClient, f.Namespace.GetName(), "foo")
-		Expect(err).ToNot(HaveOccurred())
-
 		acrqs, err := f.AaqClient.AaqV1alpha1().ApplicationAwareClusterResourceQuotas().List(context.Background(), v12.ListOptions{})
 		Expect(err).ToNot(HaveOccurred())
 		for _, acrq := range acrqs.Items {
@@ -62,6 +47,19 @@ var _ = Describe("ApplicationAwareAppliedClusterResourceQuota", func() {
 
 	Context("Making sure AAQ Gate Controller receive events", func() {
 		It("Removing label from a namespace should change the quota-namespace mapping and trigger the gate controller", func(ctx context.Context) {
+			labelSelector := &v12.LabelSelector{
+				MatchExpressions: []v12.LabelSelectorRequirement{
+					{
+						Key:      "kubernetes.io/metadata.name",
+						Operator: v12.LabelSelectorOpIn,
+						Values:   []string{f.Namespace.GetName(), v1.NamespaceDefault},
+					},
+					{
+						Key:      "do.not/include",
+						Operator: v12.LabelSelectorOpDoesNotExist,
+					},
+				},
+			}
 			acrq := builders.NewAcrqBuilder().
 				WithName("test-quota").
 				WithLabelSelector(labelSelector).
@@ -98,7 +96,7 @@ var _ = Describe("ApplicationAwareAppliedClusterResourceQuota", func() {
 				return namespaces
 			}, 10*time.Second, 1*time.Second).Should(ContainElements("default", f.Namespace.Name), "acrq should include both default and test namespaces")
 
-			err = utils.RemoveLabelFromNamespace(f.K8sClient, f.Namespace.GetName(), "foo")
+			err = utils.AddLabelToNamespace(f.K8sClient, f.Namespace.GetName(), "do.not/include", "")
 			Expect(err).ToNot(HaveOccurred())
 
 			By("Making sure acrq include only default namespace after removing label")
@@ -110,13 +108,22 @@ var _ = Describe("ApplicationAwareAppliedClusterResourceQuota", func() {
 					namespaces = append(namespaces, ns.Namespace)
 				}
 				return namespaces
-			}, 10*time.Second, 1*time.Second).ShouldNot(ContainElements(f.Namespace.Namespace), "acrq should include both default and test namespaces")
+			}, 10*time.Second, 1*time.Second).ShouldNot(ContainElements(f.Namespace.Name), "acrq should include both default and test namespaces")
 
 			By("Verify pod is not longer effected by acrq")
 			utils.VerifyPodIsNotGated(f.K8sClient, f.Namespace.Name, pod.Name)
 		})
 
 		It("Removing a cluster quota should change the quota-namespace mapping and trigger the gate controller", func(ctx context.Context) {
+			labelSelector := &v12.LabelSelector{
+				MatchExpressions: []v12.LabelSelectorRequirement{
+					{
+						Key:      "kubernetes.io/metadata.name",
+						Operator: v12.LabelSelectorOpIn,
+						Values:   []string{f.Namespace.GetName(), v1.NamespaceDefault},
+					},
+				},
+			}
 			acrq := builders.NewAcrqBuilder().
 				WithName("test-quota").
 				WithLabelSelector(labelSelector).

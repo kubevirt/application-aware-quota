@@ -205,7 +205,6 @@ var _ = Describe("ResourceQuotas mirrors ApplicationAwareResourceQuota non-sched
 
 var _ = Describe("ApplicationAwareAppliedClusterResourceQuota mirrors ApplicationAwareClusterResourceQuota", func() {
 	f := framework.NewFramework("resourcequota")
-	var labelSelector *v12.LabelSelector
 
 	BeforeEach(func() {
 		aaq, err := utils.GetAAQ(f.AaqClient)
@@ -220,25 +219,10 @@ var _ = Describe("ApplicationAwareAppliedClusterResourceQuota mirrors Applicatio
 			Eventually(func() bool {
 				return libaaq.AaqControllerReady(f.K8sClient, f.AAQInstallNs)
 			}, 10*time.Minute, 1*time.Second).Should(BeTrue(), "aaq-controller should be ready with the new config Eventually")
-
 		}
-		labelSelector = &v12.LabelSelector{
-			MatchLabels: map[string]string{"foo": "foo"},
-		}
-		// Function to add label to a namespace
-		err = utils.AddLabelToNamespace(f.K8sClient, "default", "foo", "foo")
-		Expect(err).ToNot(HaveOccurred())
-		err = utils.AddLabelToNamespace(f.K8sClient, f.Namespace.GetName(), "foo", "foo")
-		Expect(err).ToNot(HaveOccurred())
 	})
 
 	AfterEach(func() {
-		// Function to add label to a namespace
-		err := utils.RemoveLabelFromNamespace(f.K8sClient, "default", "foo")
-		Expect(err).ToNot(HaveOccurred())
-		err = utils.RemoveLabelFromNamespace(f.K8sClient, f.Namespace.GetName(), "foo")
-		Expect(err).ToNot(HaveOccurred())
-
 		acrqs, err := f.AaqClient.AaqV1alpha1().ApplicationAwareClusterResourceQuotas().List(context.Background(), v12.ListOptions{})
 		Expect(err).ToNot(HaveOccurred())
 		for _, acrq := range acrqs.Items {
@@ -258,6 +242,15 @@ var _ = Describe("ApplicationAwareAppliedClusterResourceQuota mirrors Applicatio
 					ScopeName: v1.ResourceQuotaScopePriorityClass,
 					Operator:  v1.ScopeSelectorOpNotIn,
 					Values:    []string{"pclass1"},
+				},
+			},
+		}
+		labelSelector := &v12.LabelSelector{
+			MatchExpressions: []v12.LabelSelectorRequirement{
+				{
+					Key:      "kubernetes.io/metadata.name",
+					Operator: v12.LabelSelectorOpIn,
+					Values:   []string{f.Namespace.GetName(), v1.NamespaceDefault},
 				},
 			},
 		}
@@ -335,6 +328,19 @@ var _ = Describe("ApplicationAwareAppliedClusterResourceQuota mirrors Applicatio
 	})
 
 	It("Create a ApplicationAwareClusterResourceQuota and ensure that ApplicationAwareAppliedClusterResourceQuotas match the namespaces included in the acrq spec", func(ctx context.Context) {
+		labelSelector := &v12.LabelSelector{
+			MatchExpressions: []v12.LabelSelectorRequirement{
+				{
+					Key:      "kubernetes.io/metadata.name",
+					Operator: v12.LabelSelectorOpIn,
+					Values:   []string{f.Namespace.GetName(), v1.NamespaceDefault},
+				},
+				{
+					Key:      "do.not/include",
+					Operator: v12.LabelSelectorOpDoesNotExist,
+				},
+			},
+		}
 		acrq := builders.NewAcrqBuilder().
 			WithName("test-quota").
 			WithLabelSelector(labelSelector).
@@ -356,15 +362,8 @@ var _ = Describe("ApplicationAwareAppliedClusterResourceQuota mirrors Applicatio
 		}, 2*time.Minute, 1*time.Second).ShouldNot(HaveOccurred(), "acrq should be mirrored eventually")
 
 		By("Update testNs to not included")
-		Eventually(func() error {
-			testNs, err := f.K8sClient.CoreV1().Namespaces().Get(context.Background(), f.Namespace.GetName(), v12.GetOptions{})
-			if err != nil {
-				return err
-			}
-			testNs.Labels["foo"] = "goo"
-			_, err = f.K8sClient.CoreV1().Namespaces().Update(context.Background(), testNs, v12.UpdateOptions{})
-			return err
-		}, 2*time.Minute, 1*time.Second).ShouldNot(HaveOccurred())
+		err = utils.AddLabelToNamespace(f.K8sClient, f.Namespace.GetName(), "do.not/include", "")
+		Expect(err).ToNot(HaveOccurred())
 
 		By("Waiting for removal of testNs as it doesnt match anymore")
 		Eventually(func() bool {
@@ -376,16 +375,9 @@ var _ = Describe("ApplicationAwareAppliedClusterResourceQuota mirrors Applicatio
 			return errors.IsNotFound(err)
 		}, 2*time.Minute, 1*time.Second).Should(BeTrue(), "aacrq in the test ns should be removed eventually")
 
-		By("Add testNS again ")
-		Eventually(func() error {
-			testNs, err := f.K8sClient.CoreV1().Namespaces().Get(context.Background(), f.Namespace.GetName(), v12.GetOptions{})
-			if err != nil {
-				return err
-			}
-			testNs.Labels["foo"] = "foo"
-			_, err = f.K8sClient.CoreV1().Namespaces().Update(context.Background(), testNs, v12.UpdateOptions{})
-			return err
-		}, 2*time.Minute, 1*time.Second).ShouldNot(HaveOccurred())
+		By("Include testNs again")
+		err = utils.RemoveLabelFromNamespace(f.K8sClient, f.Namespace.GetName(), "do.not/include")
+		Expect(err).ToNot(HaveOccurred())
 
 		By("Make sure that aacrq is created again")
 		Eventually(func() error {

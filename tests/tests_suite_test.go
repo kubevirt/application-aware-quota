@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/onsi/ginkgo/v2"
 	ginkgo_reporters "github.com/onsi/ginkgo/v2/reporters"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"kubevirt.io/application-aware-quota/pkg/aaq-operator/resources/cluster"
@@ -154,6 +155,9 @@ func BuildTestSuite() {
 		Expect(err).ShouldNot(HaveOccurred())
 		for _, ns := range nsList.Items {
 			err := k8sClient.CoreV1().Namespaces().Delete(context.TODO(), ns.Name, metav1.DeleteOptions{})
+			if errors.IsNotFound(err) {
+				continue
+			}
 			Expect(err).ShouldNot(HaveOccurred())
 		}
 	})
