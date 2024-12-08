@@ -46,7 +46,7 @@ KubeVirt is an operator that enables the deployment and management of virtual ma
 containerized applications.
 
 As an administrator of a multi-tenant cluster running Virtual Machines with 
-[KubeVirt](https://github.com/kubevirt/kubevirt?tab=readme-ov-file#introduction, 
+[KubeVirt](https://github.com/kubevirt/kubevirt?tab=readme-ov-file#introduction), 
 I expect tenants to be billed only for the resources they explicitly request in the VM object. 
 However, this presents specific challenges with resource quotas:
 
@@ -131,6 +131,7 @@ These new quotas are controller-based rather than admission-based. Here’s how 
    there is sufficient room for the pod according to the quota.
 3. Quotas Update: If there is enough room, the scheduling gate is removed from 
    the pod, and the quotas used status is updated accordingly.
+   If not, an event is created explaining why the quota doesn't allow the pod's creation.
 
 ***Warning***: Pods that set `.spec.nodeName` are not allowed to use in any namespace where AAQ Operates.
 For more information please see [this discussion](https://github.com/kubernetes/enhancements/issues/3521#issuecomment-2016957473).
@@ -209,7 +210,7 @@ which handles the heavy lifting.
   ```
 
   For an example of sidecar implementation using the libsidecar library,
-  refer to [https://github.com/kubevirt/application-aware-quota/tree/main/example_sidecars/label-sidecar).
+  refer to [this link](https://github.com/kubevirt/application-aware-quota/tree/main/example_sidecars/label-sidecar).
 
 ### Deploy it on your cluster
 
