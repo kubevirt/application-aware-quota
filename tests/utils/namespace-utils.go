@@ -3,14 +3,16 @@ package utils
 import (
 	"context"
 	"fmt"
-	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"kubevirt.io/application-aware-quota/pkg/util/patch"
 )
 
 // AddLabelToNamespace adds a label to the specified namespace
 func AddLabelToNamespace(clientset *kubernetes.Clientset, namespace, key, value string) error {
 	// Get the namespace object
-	ns, err := clientset.CoreV1().Namespaces().Get(context.TODO(), namespace, v12.GetOptions{})
+	ns, err := clientset.CoreV1().Namespaces().Get(context.TODO(), namespace, v1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("error getting namespace %s: %v", namespace, err)
 	}
@@ -21,10 +23,16 @@ func AddLabelToNamespace(clientset *kubernetes.Clientset, namespace, key, value 
 	}
 	ns.Labels[key] = value
 
+	labelPatch := patch.New()
+	labelPatch.AddOption(
+		patch.WithAdd("/metadata/labels", ns.Labels),
+	)
+
+	patchBytes, err := labelPatch.GeneratePayload()
 	// Update the namespace
-	_, err = clientset.CoreV1().Namespaces().Update(context.TODO(), ns, v12.UpdateOptions{})
+	_, err = clientset.CoreV1().Namespaces().Patch(context.Background(), ns.Name, types.JSONPatchType, patchBytes, v1.PatchOptions{})
 	if err != nil {
-		return fmt.Errorf("error updating namespace %s: %v", namespace, err)
+		return fmt.Errorf("error patching namespace %s: %v", namespace, err)
 	}
 
 	return nil
@@ -33,7 +41,7 @@ func AddLabelToNamespace(clientset *kubernetes.Clientset, namespace, key, value 
 // RemoveLabelFromNamespace removes a label from the specified namespace
 func RemoveLabelFromNamespace(clientset *kubernetes.Clientset, namespace, key string) error {
 	// Get the namespace object
-	ns, err := clientset.CoreV1().Namespaces().Get(context.TODO(), namespace, v12.GetOptions{})
+	ns, err := clientset.CoreV1().Namespaces().Get(context.TODO(), namespace, v1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("error getting namespace %s: %v", namespace, err)
 	}
@@ -43,10 +51,16 @@ func RemoveLabelFromNamespace(clientset *kubernetes.Clientset, namespace, key st
 		delete(ns.Labels, key)
 	}
 
+	labelPatch := patch.New()
+	labelPatch.AddOption(
+		patch.WithAdd("/metadata/labels", ns.Labels),
+	)
+
+	patchBytes, err := labelPatch.GeneratePayload()
 	// Update the namespace
-	_, err = clientset.CoreV1().Namespaces().Update(context.TODO(), ns, v12.UpdateOptions{})
+	_, err = clientset.CoreV1().Namespaces().Patch(context.Background(), ns.Name, types.JSONPatchType, patchBytes, v1.PatchOptions{})
 	if err != nil {
-		return fmt.Errorf("error updating namespace %s: %v", namespace, err)
+		return fmt.Errorf("error patching namespace %s: %v", namespace, err)
 	}
 
 	return nil
