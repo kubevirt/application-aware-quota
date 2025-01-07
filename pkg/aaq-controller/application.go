@@ -183,7 +183,7 @@ func Execute() {
 
 	app.initArqController(stop, namespaceLister)
 	app.initAaqGateController(stop, clusterQuotaLister, namespaceLister, clusterQuotaMapper)
-	app.initRQController(stop)
+	app.initRQController(stop, namespaceLister)
 
 	if app.enableClusterQuota {
 		app.clusterQuotaMappingController.GetClusterQuotaMapper().AddListener(app.aaqGateController)
@@ -282,10 +282,13 @@ func (mca *AaqControllerApp) initAaqGateController(stop <-chan struct{},
 	)
 }
 
-func (mca *AaqControllerApp) initRQController(stop <-chan struct{}) {
+func (mca *AaqControllerApp) initRQController(stop <-chan struct{},
+	namespaceLister v12.NamespaceLister,
+) {
 	mca.rqController = rq_controller.NewRQController(mca.aaqCli,
 		mca.rqInformer,
 		mca.arqInformer,
+		namespaceLister,
 		stop,
 	)
 }
