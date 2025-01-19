@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/informers"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
+	v1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"kubevirt.io/application-aware-quota/pkg/client"
 	"kubevirt.io/application-aware-quota/pkg/generated/aaq/clientset/versioned/fake"
@@ -23,8 +24,9 @@ import (
 	"strings"
 )
 
+var testNs = "test"
+
 var _ = Describe("Test rq-controller", func() {
-	var testNs = "test"
 	Context("If arq doesn't exist ", func() {
 		var ctrl *gomock.Controller
 		BeforeEach(func() {
@@ -34,9 +36,15 @@ var _ = Describe("Test rq-controller", func() {
 			cli := client.NewMockAAQClient(ctrl)
 			fakek8sCli := k8sfake.NewSimpleClientset()
 			cli.EXPECT().CoreV1().Times(1).Return(fakek8sCli.CoreV1())
-			qc := setupRQController(cli, nil, nil)
+			qc := setupRQController(cli, nil, nil,
+				testsutils.FakeNamespaceLister{
+					Namespaces: map[string]*corev1.Namespace{
+						testNs: {
+							ObjectMeta: metav1.ObjectMeta{Name: testNs},
+						},
+					}})
 
-			err, es := qc.execute("ns/fake")
+			err, es := qc.execute(testNs + "/fake")
 			Expect(err).ToNot(HaveOccurred())
 			Expect(es).To(Equal(Forget))
 			actionSet := sets.NewString()
@@ -44,9 +52,24 @@ var _ = Describe("Test rq-controller", func() {
 				actionSet.Insert(strings.Join([]string{action.GetVerb(), action.GetResource().Resource}, "-"))
 			}
 			Expect(actionSet.Equal(sets.NewString(strings.Join([]string{"delete", "resourcequotas"}, "-")))).To(BeTrue(), fmt.Sprintf("Expected deletion action but got:\n%v\"", actionSet))
-
 		})
 
+		It("should forget key if namespace is terminating", func() {
+			cli := client.NewMockAAQClient(ctrl)
+			fakek8sCli := k8sfake.NewSimpleClientset()
+			qc := setupRQController(cli, nil, nil,
+				testsutils.FakeNamespaceLister{
+					Namespaces: map[string]*corev1.Namespace{
+						testNs: {
+							ObjectMeta: metav1.ObjectMeta{Name: testNs},
+							Status:     corev1.NamespaceStatus{Phase: corev1.NamespaceTerminating},
+						},
+					}})
+			err, es := qc.execute(testNs + "/fake")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(es).To(Equal(Forget))
+			Expect(fakek8sCli.Actions()).To(BeEmpty())
+		})
 	})
 	DescribeTable("Test execute when ", func(arq *v1alpha1.ApplicationAwareResourceQuota, rqsState []metav1.Object, expectedActionSet sets.String, expectedEnqueueState enqueueState) {
 		ctrl := gomock.NewController(GinkgoT())
@@ -57,7 +80,12 @@ var _ = Describe("Test rq-controller", func() {
 		if expectedActionSet != nil {
 			cli.EXPECT().CoreV1().Times(1).Return(fakek8sCli.CoreV1())
 		}
-		qc := setupRQController(cli, arqInformer, rqInformer)
+		qc := setupRQController(cli, arqInformer, rqInformer, testsutils.FakeNamespaceLister{
+			Namespaces: map[string]*corev1.Namespace{
+				testNs: {
+					ObjectMeta: metav1.ObjectMeta{Name: testNs},
+				},
+			}})
 		key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(arq)
 		Expect(err).ToNot(HaveOccurred())
 		err, es := qc.execute(key)
@@ -106,7 +134,7 @@ var _ = Describe("Test rq-controller", func() {
 
 })
 
-func setupRQController(clientSet client.AAQClient, arqInformer cache.SharedIndexInformer, rqInformer cache.SharedIndexInformer) *RQController {
+func setupRQController(clientSet client.AAQClient, arqInformer cache.SharedIndexInformer, rqInformer cache.SharedIndexInformer, nsLister v1.NamespaceLister) *RQController {
 	informerFactory := externalversions.NewSharedInformerFactory(fake.NewSimpleClientset(), 0)
 	kubeInformerFactory := informers.NewSharedInformerFactory(k8sfake.NewSimpleClientset(), 0)
 
@@ -121,6 +149,7 @@ func setupRQController(clientSet client.AAQClient, arqInformer cache.SharedIndex
 	qc := NewRQController(clientSet,
 		rqInformer,
 		arqInformer,
+		nsLister,
 		stop,
 	)
 	informerFactory.Start(stop)
