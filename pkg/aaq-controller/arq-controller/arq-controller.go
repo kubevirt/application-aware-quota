@@ -252,8 +252,8 @@ func (ctrl *ArqController) Execute() bool {
 
 func (ctrl *ArqController) execute(ns string) (error, enqueueState) {
 	var aaqjqc *v1alpha12.AAQJobQueueConfig
-	_, err := ctrl.namespaceLister.Get(ns)
-	if errors.IsNotFound(err) {
+	namespace, err := ctrl.namespaceLister.Get(ns)
+	if errors.IsNotFound(err) || namespace.Status.Phase == v1.NamespaceTerminating {
 		return nil, Forget
 	}
 	aaqjqcObj, exists, err := ctrl.aaqjqcInformer.GetIndexer().GetByKey(ns + "/" + arq_controller.AaqjqcName)

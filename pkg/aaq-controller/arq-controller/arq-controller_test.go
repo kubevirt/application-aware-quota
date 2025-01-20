@@ -644,6 +644,21 @@ var _ = Describe("Test arq-controller", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(es).To(Equal(Forget))
 		})
+
+		It("should forget the key if its namespace is terminating", func() {
+			cli := client.NewMockAAQClient(ctrl)
+			namespaceLister := testsutils.FakeNamespaceLister{
+				Namespaces: map[string]*corev1.Namespace{
+					"testNs": {
+						ObjectMeta: metav1.ObjectMeta{Name: "testNs"},
+						Status:     corev1.NamespaceStatus{Phase: corev1.NamespaceTerminating},
+					},
+				}}
+			qc := setupQuotaController(cli, nil, nil, namespaceLister, nil)
+			err, es := qc.execute("testNs")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(es).To(Equal(Forget))
+		})
 	})
 
 	DescribeTable("Test AddQuota when ", func(arq *v1alpha1.ApplicationAwareResourceQuota,

@@ -5,11 +5,13 @@ import (
 	"fmt"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	kapierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	quota "k8s.io/apiserver/pkg/quota/v1"
+	v12 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
@@ -33,24 +35,27 @@ const (
 )
 
 type RQController struct {
-	arqInformer cache.SharedIndexInformer
-	rqInformer  cache.SharedIndexInformer
-	arqQueue    workqueue.RateLimitingInterface
-	aaqCli      client.AAQClient
-	stop        <-chan struct{}
+	arqInformer     cache.SharedIndexInformer
+	rqInformer      cache.SharedIndexInformer
+	arqQueue        workqueue.RateLimitingInterface
+	namespaceLister v12.NamespaceLister
+	aaqCli          client.AAQClient
+	stop            <-chan struct{}
 }
 
 func NewRQController(aaqCli client.AAQClient,
 	rqInformer cache.SharedIndexInformer,
 	arqInformer cache.SharedIndexInformer,
+	namespaceLister v12.NamespaceLister,
 	stop <-chan struct{},
 ) *RQController {
 	ctrl := RQController{
-		rqInformer:  rqInformer,
-		aaqCli:      aaqCli,
-		arqInformer: arqInformer,
-		arqQueue:    workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq-queue-for-rq-contorller"),
-		stop:        stop,
+		rqInformer:      rqInformer,
+		aaqCli:          aaqCli,
+		arqInformer:     arqInformer,
+		arqQueue:        workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "arq-queue-for-rq-contorller"),
+		namespaceLister: namespaceLister,
+		stop:            stop,
 	}
 
 	_, err := ctrl.rqInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -162,6 +167,10 @@ func (ctrl *RQController) Execute() bool {
 
 func (ctrl *RQController) execute(key string) (error, enqueueState) {
 	arqNS, arqName, err := cache.SplitMetaNamespaceKey(key)
+	namespace, err := ctrl.namespaceLister.Get(arqNS)
+	if kapierrors.IsNotFound(err) || namespace.Status.Phase == v1.NamespaceTerminating {
+		return nil, Forget
+	}
 	arqObj, exists, err := ctrl.arqInformer.GetIndexer().GetByKey(arqNS + "/" + arqName)
 	if err != nil {
 		return err, Immediate
