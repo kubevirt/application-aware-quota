@@ -60,10 +60,10 @@ generate-verify: generate
 	./hack/check-for-binaries.sh
 
 cluster-up:
-	eval "KUBEVIRT_RELEASE=${KUBEVIRT_RELEASE} ./cluster-up/up.sh"
+	./hack/cluster-up.sh
 
 cluster-down:
-	./cluster-up/down.sh
+	./kubevirtci/cluster-up/down.sh
 
 push-images:
 	eval "DOCKER_PREFIX=${DOCKER_PREFIX} DOCKER_TAG=${DOCKER_TAG}  ./hack/build/build-docker.sh push"
