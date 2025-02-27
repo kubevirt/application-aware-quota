@@ -23,7 +23,8 @@
 		goveralls \
 		release-description \
 		bazel-build-images push-images \
-		fossa
+		fossa \
+		bump-kubevirtci
 all: build
 
 build:  aaq_controller aaq_server aaq_operator
@@ -37,10 +38,6 @@ ifeq (${DOCKER}, 1)
 else
 	DO=eval
 	DO_BAZ=eval
-endif
-
-ifeq ($(origin KUBEVIRT_RELEASE), undefined)
-	KUBEVIRT_RELEASE="latest_nightly"
 endif
 
 all: manifests build-images
@@ -59,10 +56,10 @@ generate-verify: generate
 	./hack/check-for-binaries.sh
 
 cluster-up:
-	eval "KUBEVIRT_RELEASE=${KUBEVIRT_RELEASE} ./cluster-up/up.sh"
+	./hack/cluster-up.sh
 
 cluster-down:
-	./cluster-up/down.sh
+	./kubevirtci/cluster-up/down.sh
 
 push-images:
 	eval "DOCKER_PREFIX=${DOCKER_PREFIX} DOCKER_TAG=${DOCKER_TAG}  ./hack/build/build-docker.sh push"
@@ -122,3 +119,6 @@ fmt:
 
 run: build
 	sudo ./aaq_controller
+
+bump-kubevirtci:
+	./hack/bump-kubevirtci.sh

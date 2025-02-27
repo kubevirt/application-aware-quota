@@ -46,6 +46,7 @@ VENDOR_DIR=${AAQ_DIR}/vendor
 ARCHITECTURE="${BUILD_ARCH:-$(uname -m)}"
 HOST_ARCHITECTURE="$(uname -m)"
 AAQ_CRI="$(determine_aaq_bin)"
+
 if [ "${AAQ_CRI}" = "docker" ]; then
    AAQ_CONTAINER_BUILDCMD=${AAQ_CONTAINER_BUILDCMD:-docker}
 else
