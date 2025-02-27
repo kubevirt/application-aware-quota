@@ -7,8 +7,8 @@ echo aaq
 
 source ./hack/build/config.sh
 source ./hack/build/common.sh
-source ./cluster-up/hack/common.sh
-source ./cluster-up/cluster/${KUBEVIRT_PROVIDER}/provider.sh
+source ./kubevirtci/cluster-up/hack/common.sh
+source ./kubevirtci/cluster-up/cluster/${KUBEVIRT_PROVIDER}/provider.sh
 
 if [ "${KUBEVIRT_PROVIDER}" = "external" ]; then
    AAQ_SYNC_PROVIDER="external"
