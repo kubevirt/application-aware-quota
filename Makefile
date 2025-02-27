@@ -23,7 +23,8 @@
 		goveralls \
 		release-description \
 		bazel-build-images push-images \
-		fossa
+		fossa \
+		bump-kubevirtci
 all: build
 
 build:  aaq_controller aaq_server aaq_operator
@@ -122,3 +123,6 @@ fmt:
 
 run: build
 	sudo ./aaq_controller
+
+bump-kubevirtci:
+	./hack/bump-kubevirtci.sh
