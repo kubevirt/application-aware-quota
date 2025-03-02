@@ -6,6 +6,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/utils/pointer"
 	"kubevirt.io/application-aware-quota/pkg/util"
 	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 	"kubevirt.io/application-aware-quota/tests/flags"
@@ -42,6 +43,18 @@ func AddPlugablePolicy(aaq *v1alpha1.AAQ, pp PlugablePolicyName, c configName) *
 		},
 		Image: plugablePolicyFor(pp),
 		Args:  []string{"--config", string(c)},
+		SecurityContext: &corev1.SecurityContext{
+			Capabilities: &corev1.Capabilities{
+				Drop: []corev1.Capability{
+					"ALL",
+				},
+			},
+			SeccompProfile: &corev1.SeccompProfile{
+				Type: corev1.SeccompProfileTypeRuntimeDefault,
+			},
+			AllowPrivilegeEscalation: pointer.Bool(false),
+			RunAsNonRoot:             pointer.Bool(true),
+		},
 	})
 
 	return aaq

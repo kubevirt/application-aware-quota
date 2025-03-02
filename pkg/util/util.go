@@ -115,6 +115,11 @@ func CreateContainer(name, image, verbosity, pullPolicy string) corev1.Container
 	container.TerminationMessagePath = corev1.TerminationMessagePathDefault
 	container.Args = []string{"-v=" + verbosity}
 	container.SecurityContext = &corev1.SecurityContext{
+		Capabilities: &corev1.Capabilities{
+			Drop: []corev1.Capability{
+				"ALL",
+			},
+		},
 		SeccompProfile: &corev1.SeccompProfile{
 			Type: corev1.SeccompProfileTypeRuntimeDefault,
 		},
