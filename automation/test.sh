@@ -46,14 +46,14 @@ elif [[ $TARGET =~ k8s-.* ]]; then
   export KUBEVIRT_MEMORY_SIZE=8192
 fi
 
-if [ ! -d "cluster-up/cluster/$KUBEVIRT_PROVIDER" ]; then
+if [ ! -d "kubevirtci/cluster-up/cluster/$KUBEVIRT_PROVIDER" ]; then
   echo "The cluster provider $KUBEVIRT_PROVIDER does not exist"
   exit 1
 fi
 
 export KUBEVIRT_NUM_NODES=2
 
-kubectl() { cluster-up/kubectl.sh "$@"; }
+kubectl() { kubevirtci/cluster-up/kubectl.sh "$@"; }
 
 export AAQ_NAMESPACE="${AAQ_NAMESPACE:-aaq}"
 

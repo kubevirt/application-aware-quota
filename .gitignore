@@ -3,7 +3,7 @@ aaq_controller
 aaq_operator
 aaq_server
 tmp
-_ci-configs/*
+kubevirtci/_ci-configs/*
 0
 bin/
 _out/*

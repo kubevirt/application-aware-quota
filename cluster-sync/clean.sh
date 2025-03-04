@@ -1,8 +1,9 @@
 #!/bin/bash -e
 
 source ./hack/build/config.sh
-source ./cluster-up/hack/common.sh
-source ./cluster-up/cluster/${KUBEVIRT_PROVIDER}/provider.sh
+source ./hack/config-kubevirtci.sh
+source ./kubevirtci/cluster-up/hack/common.sh
+source ./kubevirtci/cluster-up/cluster/${KUBEVIRT_PROVIDER}/provider.sh
 
 echo "Cleaning up ..."
 
