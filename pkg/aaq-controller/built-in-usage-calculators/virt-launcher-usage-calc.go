@@ -174,7 +174,20 @@ func CalculateResourceLauncherVMIUsagePodResources(vmi *v15.VirtualMachineInstan
 	}
 
 	if isSourceOrSingleLauncher && vmi.Status.Memory != nil {
-		memoryGuest = vmi.Status.Memory.GuestCurrent.DeepCopy()
+		// In KubeVirt, GuestRequested is only updated after migration succeeds.
+		// Here's how the counting works in different migration states:
+		// 1. User requests a hotplug, but migration hasn’t started yet:
+		//    - For the source, we count using GuestRequested, which holds the old value.
+		//    - For the target, we count as 0 since it doesn’t exist yet.
+		// 2. Migration has started, and both source and target exist:
+		//    - For the source, we still count using GuestRequested with the old value.
+		//    - For the target, we count using Spec.Domain.Memory(new value) - GuestRequested(old value), to block hot-plug
+		//      if there is no room for the delta.
+		// 3. Migration finished, only the target (now the new source) exists, but the hotplug hasn’t been done yet:
+		//    - For the target, we count using GuestRequested, which now has the new value.
+		//    (virt-handler will update GuestRequested to the new value before finalizing the migration.)
+		// 4. After the hotplug is completed, we the counting is the same as in step 3.
+		memoryGuest = vmi.Status.Memory.GuestRequested.DeepCopy()
 	}
 
 	if isSourceOrSingleLauncher && vmi.Status.CurrentCPUTopology != nil {
