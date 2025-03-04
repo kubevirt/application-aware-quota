@@ -22,4 +22,3 @@ function wait_aaq_crd_installed {
      exit 1
   fi  
 }
-

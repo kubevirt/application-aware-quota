@@ -94,9 +94,9 @@ _rsync \
     --exclude 'bazel-application-aware-quota' \
     --exclude 'bazel-out' \
     --exclude 'bazel-testlogs' \
-    --exclude 'cluster-up/cluster/**/.kubectl' \
-    --exclude 'cluster-up/cluster/**/.oc' \
-    --exclude 'cluster-up/cluster/**/.kubeconfig' \
+    --exclude 'kubevirtci/cluster-up/cluster/**/.kubectl' \
+    --exclude 'kubevirtci/cluster-up/cluster/**/.oc' \
+    --exclude 'kubevirtci/cluster-up/cluster/**/.kubeconfig' \
     --exclude ".vagrant" \
     ${AAQ_DIR}/ \
     "rsync://root@127.0.0.1:${RSYNCD_PORT}/build"
@@ -137,9 +137,9 @@ _rsync \
     --exclude 'bazel-application-aware-quota' \
     --exclude 'bazel-out' \
     --exclude 'bazel-testlogs' \
-    --exclude 'cluster-up/cluster/**/.kubectl' \
-    --exclude 'cluster-up/cluster/**/.oc' \
-    --exclude 'cluster-up/cluster/**/.kubeconfig' \
+    --exclude 'kubevirtci/kubevirtci/cluster-up/cluster/**/.kubectl' \
+    --exclude 'kubevirtci/kubevirtci/cluster-up/cluster/**/.oc' \
+    --exclude 'kubevirtci/kubevirtci/cluster-up/cluster/**/.kubeconfig' \
     --exclude "_out" \
     --exclude "bin" \
     --exclude "vendor" \
