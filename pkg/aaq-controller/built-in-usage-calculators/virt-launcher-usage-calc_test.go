@@ -242,10 +242,10 @@ var _ = Describe("Test virt-launcher calculator", func() {
 				WithNamespace(fakeNs).
 				WithUID(fakeVmiUID).
 				WithNode("node1").
-				WithGuestMemory(resource.MustParse("2Gi")).               //desired
-				WithGuestCPUCoresSocketsThreads(1, 1, 1).                 //desired
-				WithActualCpuDuringHotPlug(2, 2, 2).                      //actual
-				WithActualMemoryDuringHotPlug(resource.MustParse("5Gi")). //actual
+				WithGuestMemory(resource.MustParse("2Gi")).                                          //desired
+				WithGuestCPUCoresSocketsThreads(1, 1, 1).                                            //desired
+				WithActualCpuDuringHotPlug(2, 2, 2).                                                 //actual
+				WithActualMemoryDuringHotPlug(resource.MustParse("5Gi"), resource.MustParse("5Gi")). //actual
 				Build()},
 			[]metav1.Object{vmimForTests},
 			sourcePodForTests,
@@ -266,10 +266,10 @@ var _ = Describe("Test virt-launcher calculator", func() {
 				WithNamespace(fakeNs).
 				WithUID(fakeVmiUID).
 				WithNode("node1").
-				WithGuestMemory(resource.MustParse("5Gi")).               //desired
-				WithGuestCPUCoresSocketsThreads(2, 2, 2).                 //desired
-				WithActualCpuDuringHotPlug(1, 1, 1).                      //actual
-				WithActualMemoryDuringHotPlug(resource.MustParse("2Gi")). //actual
+				WithGuestMemory(resource.MustParse("5Gi")).                                          //desired
+				WithGuestCPUCoresSocketsThreads(2, 2, 2).                                            //desired
+				WithActualCpuDuringHotPlug(1, 1, 1).                                                 //actual
+				WithActualMemoryDuringHotPlug(resource.MustParse("2Gi"), resource.MustParse("2Gi")). //actual
 				Build()},
 			[]metav1.Object{vmimForTests},
 			targetPodForTests,
@@ -290,10 +290,10 @@ var _ = Describe("Test virt-launcher calculator", func() {
 				WithNamespace(fakeNs).
 				WithUID(fakeVmiUID).
 				WithNode("node1").
-				WithGuestMemory(resource.MustParse("2Gi")).               //desired
-				WithGuestCPUCoresSocketsThreads(1, 1, 1).                 //desired
-				WithActualCpuDuringHotPlug(2, 2, 2).                      //actual
-				WithActualMemoryDuringHotPlug(resource.MustParse("5Gi")). //actual
+				WithGuestMemory(resource.MustParse("2Gi")).                                          //desired
+				WithGuestCPUCoresSocketsThreads(1, 1, 1).                                            //desired
+				WithActualCpuDuringHotPlug(2, 2, 2).                                                 //actual
+				WithActualMemoryDuringHotPlug(resource.MustParse("5Gi"), resource.MustParse("5Gi")). //actual
 				Build()},
 			[]metav1.Object{vmimForTests},
 			targetPodForTests,
@@ -305,6 +305,31 @@ var _ = Describe("Test virt-launcher calculator", func() {
 				v1.ResourceLimitsMemory:   resource.MustParse("0"),
 				v1.ResourceRequestsCPU:    resource.MustParse("0"),
 				v1.ResourceLimitsCPU:      resource.MustParse("0"),
+			},
+			true,
+			false),
+		Entry("evaluate target pod of a vmi in a hot-plug process, when target become the new source but the hot-plug wasn't completed yet",
+			[]metav1.Object{NewVmiBuilder().
+				WithName(fakeVmiName).
+				WithNamespace(fakeNs).
+				WithUID(fakeVmiUID).
+				WithNode("node1").
+				WithGuestMemory(resource.MustParse("2Gi")). //desired
+				WithGuestCPUCoresSocketsThreads(1, 1, 1).   //desired
+				WithActualCpuDuringHotPlug(2, 2, 2).        //actual
+				//the actual memory is not 5Gi but the launcher pod has already requested more memory.
+				WithActualMemoryDuringHotPlug(resource.MustParse("5Gi"), resource.MustParse("2Gi")).
+				Build()},
+			[]metav1.Object{vmimForTests},
+			sourcePodForTests,
+			[]*v1.Pod{sourcePodForTests},
+			v1alpha1.VirtualResources,
+			v1.ResourceList{v1.ResourcePods: *(resource.NewQuantity(1, resource.DecimalSI)),
+				"count/pods":              *(resource.NewQuantity(1, resource.DecimalSI)),
+				v1.ResourceRequestsMemory: resource.MustParse("5Gi"),
+				v1.ResourceLimitsMemory:   resource.MustParse("5Gi"),
+				v1.ResourceRequestsCPU:    *(resource.NewQuantity(8, resource.BinarySI)),
+				v1.ResourceLimitsCPU:      *(resource.NewQuantity(8, resource.BinarySI)),
 			},
 			true,
 			false),
@@ -471,12 +496,13 @@ func (b *VmiBuilder) WithActualCpuDuringHotPlug(core, socket, thread uint32) *Vm
 	return b
 }
 
-func (b *VmiBuilder) WithActualMemoryDuringHotPlug(q resource.Quantity) *VmiBuilder {
+func (b *VmiBuilder) WithActualMemoryDuringHotPlug(gr resource.Quantity, gc resource.Quantity) *VmiBuilder {
 	if b.vmi.Status.Memory == nil {
 		b.vmi.Status.Memory = &v12.MemoryStatus{}
 	}
-	b.vmi.Status.Memory.GuestCurrent = &q
-
+	//in KubeVirt GuestRequested is update only after the migration Succeed
+	b.vmi.Status.Memory.GuestRequested = &gr
+	b.vmi.Status.Memory.GuestCurrent = &gc
 	return b
 }
 
