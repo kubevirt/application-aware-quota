@@ -81,6 +81,9 @@ build-images:
 
 push: build-images push-images
 
+push-multi-arch:
+	./hack/build/build-push-multiarch-images.sh
+
 cluster-clean-aaq:
 	./cluster-sync/clean.sh
 
