@@ -1,4 +1,5 @@
+GOARCH ?= $(shell go env GOARCH)
 
 label_sidecar:
-	go build -o label_sidecar -v cmd/*.go
-	chmod 777 label_sidecar
+	echo "Building label_sidecar for linux/${GOARCH}"
+	go build -o label_sidecar ./cmd/
