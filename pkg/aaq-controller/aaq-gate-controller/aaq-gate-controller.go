@@ -151,21 +151,18 @@ func (ctrl *AaqGateController) enqueueAll() {
 func (ctrl *AaqGateController) deleteArq(obj interface{}) {
 	arq := obj.(*v1alpha12.ApplicationAwareResourceQuota)
 	ctrl.nsQueue.Add(arq.Namespace)
-	return
 }
 
 // When a ApplicationAwareResourceQuota is updated, enqueue all gated pods for revaluation
 func (ctrl *AaqGateController) addArq(obj interface{}) {
 	arq := obj.(*v1alpha12.ApplicationAwareResourceQuota)
 	ctrl.nsQueue.Add(arq.Namespace)
-	return
 }
 
 // When a ApplicationAwareResourceQuota is updated, enqueue all gated pods for revaluation
 func (ctrl *AaqGateController) updateArq(old, cur interface{}) {
 	arq := cur.(*v1alpha12.ApplicationAwareResourceQuota)
 	ctrl.nsQueue.Add(arq.Namespace)
-	return
 }
 
 // When a ApplicationAwareResourceQuota is deleted, enqueue all gated pods for revaluation
@@ -175,7 +172,6 @@ func (ctrl *AaqGateController) deleteAcrq(obj interface{}) {
 	for _, ns := range namespaces {
 		ctrl.nsQueue.Add(ns)
 	}
-	return
 }
 
 // When a ApplicationAwareResourceQuota is updated, enqueue all gated pods for revaluation
@@ -185,7 +181,6 @@ func (ctrl *AaqGateController) addAcrq(obj interface{}) {
 	for _, ns := range namespaces {
 		ctrl.nsQueue.Add(ns)
 	}
-	return
 }
 
 // When a ApplicationAwareResourceQuota is updated, enqueue all gated pods for revaluation
@@ -195,27 +190,23 @@ func (ctrl *AaqGateController) updateAcrq(old, cur interface{}) {
 	for _, ns := range namespaces {
 		ctrl.nsQueue.Add(ns)
 	}
-	return
 }
 
 // When a ApplicationAwareResourceQuotAaqjqc.Status.PodsInJobQueuea is updated, enqueue all gated pods for revaluation
 func (ctrl *AaqGateController) updateAaqjqc(old, cur interface{}) {
 	aaqjqc := cur.(*v1alpha12.AAQJobQueueConfig)
 	ctrl.nsQueue.Add(aaqjqc.Namespace)
-	return
 }
 
 // When a ApplicationAwareResourceQuota is updated, enqueue all gated pods for revaluation
 func (ctrl *AaqGateController) deleteAaqjqc(obj interface{}) {
 	aaqjqc := obj.(*v1alpha12.AAQJobQueueConfig)
 	ctrl.nsQueue.Add(aaqjqc.Namespace)
-	return
 }
 
 func (ctrl *AaqGateController) addPod(obj interface{}) {
 	pod := obj.(*v1.Pod)
-	if pod.Spec.SchedulingGates != nil &&
-		len(pod.Spec.SchedulingGates) == 1 &&
+	if len(pod.Spec.SchedulingGates) == 1 &&
 		pod.Spec.SchedulingGates[0].Name == util.AAQGate {
 		ctrl.nsQueue.Add(pod.Namespace)
 	}
@@ -224,8 +215,7 @@ func (ctrl *AaqGateController) addPod(obj interface{}) {
 func (ctrl *AaqGateController) updatePod(old, curr interface{}) {
 	pod := curr.(*v1.Pod)
 
-	if pod.Spec.SchedulingGates != nil &&
-		len(pod.Spec.SchedulingGates) == 1 &&
+	if len(pod.Spec.SchedulingGates) == 1 &&
 		pod.Spec.SchedulingGates[0].Name == util.AAQGate {
 		ctrl.nsQueue.Add(pod.Namespace)
 	}
@@ -286,8 +276,7 @@ func (ctrl *AaqGateController) execute(ns string) (error, enqueueState) {
 	}
 	for _, podObj := range podObjs {
 		pod := podObj.(*v1.Pod)
-		if pod.Spec.SchedulingGates != nil &&
-			len(pod.Spec.SchedulingGates) == 1 &&
+		if len(pod.Spec.SchedulingGates) == 1 &&
 			pod.Spec.SchedulingGates[0].Name == util.AAQGate {
 			podCopy := pod.DeepCopy()
 			podCopy.Spec.SchedulingGates = []v1.PodSchedulingGate{}
@@ -343,7 +332,7 @@ func (ctrl *AaqGateController) releasePods(podsToRelease []string, ns string) er
 			continue
 		}
 		pod := obj.(*v1.Pod).DeepCopy()
-		if pod.Spec.SchedulingGates != nil && len(pod.Spec.SchedulingGates) == 1 && pod.Spec.SchedulingGates[0].Name == util.AAQGate {
+		if len(pod.Spec.SchedulingGates) == 1 && pod.Spec.SchedulingGates[0].Name == util.AAQGate {
 			pod.Spec.SchedulingGates = []v1.PodSchedulingGate{}
 			_, err = ctrl.aaqCli.CoreV1().Pods(ns).Update(context.Background(), pod, metav1.UpdateOptions{})
 			if err != nil {
@@ -352,7 +341,6 @@ func (ctrl *AaqGateController) releasePods(podsToRelease []string, ns string) er
 		}
 	}
 	return nil
-
 }
 
 func (ctrl *AaqGateController) createAndGetAaqjqc(ns string) (*v1alpha12.AAQJobQueueConfig, error) {
@@ -466,7 +454,8 @@ func getCurrLimitedResource(podEvaluator *aaq_evaluator.AaqEvaluator, podToCreat
 	if err != nil {
 		return launcherLimitedResource, err
 	}
-	for k, _ := range usage {
+
+	for k := range usage {
 		launcherLimitedResource.MatchContains = append(launcherLimitedResource.MatchContains, string(k))
 	}
 	return launcherLimitedResource, nil

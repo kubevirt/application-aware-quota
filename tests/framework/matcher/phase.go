@@ -66,7 +66,7 @@ func (p phaseMatcher) match(actual interface{}) (success bool, err error) {
 
 func (p phaseMatcher) FailureMessage(actual interface{}) (message string) {
 	if helper.IsNil(actual) {
-		return fmt.Sprintf("object does not exist")
+		return "object does not exist"
 	}
 	expectedPhase := getExpectedPhase(p.expectedPhase)
 	if helper.IsSlice(actual) {
@@ -86,7 +86,7 @@ func (p phaseMatcher) FailureMessage(actual interface{}) (message string) {
 
 func (p phaseMatcher) NegatedFailureMessage(actual interface{}) (message string) {
 	if helper.IsNil(actual) {
-		return fmt.Sprintf("object does not exist")
+		return "object does not exist"
 	}
 	expectedPhase := getExpectedPhase(p.expectedPhase)
 	if helper.IsSlice(actual) {

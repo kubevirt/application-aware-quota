@@ -399,7 +399,6 @@ func (ctrl *AcrqController) updateAaqjqc(old, cur interface{}) {
 	if aaqjqc.Status.ControllerLock[arq_controller.ApplicationAwareClusterResourceQuotaLockName] {
 		ctrl.nsQueue.Add(aaqjqc.Namespace)
 	}
-	return
 }
 
 // When a ApplicationAwareResourceQuota.Status.PodsInJobQueuea is updated, enqueue all gated pods for revaluation
@@ -408,7 +407,6 @@ func (ctrl *AcrqController) addAaqjqc(obj interface{}) {
 	if aaqjqc.Status.ControllerLock[arq_controller.ApplicationAwareClusterResourceQuotaLockName] {
 		ctrl.nsQueue.Add(aaqjqc.Namespace)
 	}
-	return
 }
 
 func (ctrl *AcrqController) updatePod(old, curr interface{}) {

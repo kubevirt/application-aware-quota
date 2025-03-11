@@ -84,7 +84,6 @@ func (ctrl *RQController) deleteArq(obj interface{}) {
 		return
 	}
 	ctrl.arqQueue.Add(key)
-	return
 }
 
 // When a ApplicationAwareResourceQuota is updated, enqueue all gated pods for revaluation
@@ -95,7 +94,6 @@ func (ctrl *RQController) addArq(obj interface{}) {
 		return
 	}
 	ctrl.arqQueue.Add(key)
-	return
 }
 
 // When a ApplicationAwareResourceQuota is updated, enqueue all gated pods for revaluation
@@ -105,7 +103,6 @@ func (ctrl *RQController) updateArq(_, cur interface{}) {
 		return
 	}
 	ctrl.arqQueue.Add(key)
-	return
 }
 
 func (ctrl *RQController) deleteRQ(obj interface{}) {
@@ -119,8 +116,8 @@ func (ctrl *RQController) deleteRQ(obj interface{}) {
 	}
 
 	ctrl.arqQueue.Add(key)
-	return
 }
+
 func (ctrl *RQController) updateRQ(old, curr interface{}) {
 	curRq := curr.(*v1.ResourceQuota)
 	oldRq := old.(*v1.ResourceQuota)
@@ -134,7 +131,6 @@ func (ctrl *RQController) updateRQ(old, curr interface{}) {
 		}
 		ctrl.arqQueue.Add(key)
 	}
-	return
 }
 
 func (ctrl *RQController) runWorker() {

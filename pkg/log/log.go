@@ -112,8 +112,7 @@ var defaultVerbosity = 0
 func createLogger(component string) {
 	lock.Lock()
 	defer lock.Unlock()
-	_, ok := loggers[component]
-	if ok == false {
+	if _, ok := loggers[component]; !ok {
 		logger := klog.NewJSONLogger(os.Stderr)
 		log := MakeLogger(logger)
 		log.component = component
@@ -122,8 +121,7 @@ func createLogger(component string) {
 }
 
 func Logger(component string) *FilteredLogger {
-	_, ok := loggers[component]
-	if ok == false {
+	if _, ok := loggers[component]; !ok {
 		createLogger(component)
 	}
 	return loggers[component]

@@ -47,9 +47,7 @@ func RemoveLabelFromNamespace(clientset *kubernetes.Clientset, namespace, key st
 	}
 
 	// Remove the label from the namespace
-	if _, ok := ns.Labels[key]; ok {
-		delete(ns.Labels, key)
-	}
+	delete(ns.Labels, key)
 
 	labelPatch := patch.New()
 	labelPatch.AddOption(

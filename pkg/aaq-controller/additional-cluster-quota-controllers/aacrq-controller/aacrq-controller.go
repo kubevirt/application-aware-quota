@@ -66,7 +66,7 @@ func NewAacrqController(aaqCli client.AAQClient,
 }
 
 // When a ApplicationAwareClusterResourceQuota is deleted, enqueue all gated pods for revaluation
-func (ctrl *AacrqController) deleteAcrq(obj interface{}) {
+func (ctrl *AacrqController) deleteAcrq(obj any) {
 	acrq := obj.(*v1alpha12.ApplicationAwareClusterResourceQuota)
 	if acrq.Status.Namespaces == nil {
 		return
@@ -81,11 +81,10 @@ func (ctrl *AacrqController) deleteAcrq(obj interface{}) {
 		}
 		ctrl.aacrqQueue.Add(key)
 	}
-	return
 }
 
 // When a ApplicationAwareClusterResourceQuota is updated, enqueue all gated pods for revaluation
-func (ctrl *AacrqController) addAcrq(obj interface{}) {
+func (ctrl *AacrqController) addAcrq(obj any) {
 	acrq := obj.(*v1alpha12.ApplicationAwareClusterResourceQuota)
 	if acrq.Status.Namespaces == nil {
 		return
@@ -100,11 +99,10 @@ func (ctrl *AacrqController) addAcrq(obj interface{}) {
 		}
 		ctrl.aacrqQueue.Add(key)
 	}
-	return
 }
 
 // When a ApplicationAwareClusterResourceQuota is updated, enqueue all gated pods for revaluation
-func (ctrl *AacrqController) updateAcrq(old, cur interface{}) {
+func (ctrl *AacrqController) updateAcrq(old, cur any) {
 	curacrq := cur.(*v1alpha12.ApplicationAwareClusterResourceQuota)
 	oldacrq := old.(*v1alpha12.ApplicationAwareClusterResourceQuota)
 	// Create a set of namespaces from both the current and old acrq
@@ -123,10 +121,9 @@ func (ctrl *AacrqController) updateAcrq(old, cur interface{}) {
 		}
 		ctrl.aacrqQueue.Add(key)
 	}
-	return
 }
 
-func (ctrl *AacrqController) deleteAacrq(obj interface{}) {
+func (ctrl *AacrqController) deleteAacrq(obj any) {
 	aacrq := obj.(*v1alpha12.ApplicationAwareAppliedClusterResourceQuota)
 	acrq := &v1alpha12.ApplicationAwareAppliedClusterResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: aacrq.Name, Namespace: aacrq.Namespace},
@@ -137,10 +134,9 @@ func (ctrl *AacrqController) deleteAacrq(obj interface{}) {
 	}
 
 	ctrl.aacrqQueue.Add(key)
-	return
 }
 
-func (ctrl *AacrqController) updateAacrq(old, curr interface{}) {
+func (ctrl *AacrqController) updateAacrq(old, curr any) {
 	curAppliedAcrq := curr.(*v1alpha12.ApplicationAwareAppliedClusterResourceQuota)
 	acrq := &v1alpha12.ApplicationAwareAppliedClusterResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: curAppliedAcrq.Name, Namespace: curAppliedAcrq.Namespace},
@@ -150,7 +146,6 @@ func (ctrl *AacrqController) updateAacrq(old, curr interface{}) {
 		return
 	}
 	ctrl.aacrqQueue.Add(key)
-	return
 }
 
 func (ctrl *AacrqController) runWorker() {
