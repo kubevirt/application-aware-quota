@@ -30,10 +30,10 @@ echo "git email: $GIT_EMAIL"
 ${AAQ_CRI} pull quay.io/kubevirtci/release-tool:latest
 
 echo "${AAQ_CRI} run -it --rm \
--v ${GPG_PRIVATE_KEY_FILE}:/home/releaser/gpg-private \
--v ${GPG_PASSPHRASE_FILE}:/home/releaser/gpg-passphrase \
--v ${GITHUB_API_TOKEN_FILE}:/home/releaser/github-api-token \
--v /home/.gitconfig:/home/releaser/.gitconfig \
+-v ${GPG_PRIVATE_KEY_FILE}:/home/releaser/gpg-private:Z \
+-v ${GPG_PASSPHRASE_FILE}:/home/releaser/gpg-passphrase:Z \
+-v ${GITHUB_API_TOKEN_FILE}:/home/releaser/github-api-token:Z \
+-v ~/.gitconfig:/home/.gitconfig \
 quay.io/kubevirtci/release-tool:latest \
 --org=kubevirt \
 --repo=application-aware-quota \
@@ -42,10 +42,10 @@ quay.io/kubevirtci/release-tool:latest \
 \"$@\""
 
 ${AAQ_CRI} run -it --rm \
-    -v ${GPG_PRIVATE_KEY_FILE}:/home/releaser/gpg-private \
-    -v ${GPG_PASSPHRASE_FILE}:/home/releaser/gpg-passphrase \
-    -v ${GITHUB_API_TOKEN_FILE}:/home/releaser/github-api-token \
-    -v /home/.gitconfig:/home/.gitconfig \
+    -v ${GPG_PRIVATE_KEY_FILE}:/home/releaser/gpg-private:Z \
+    -v ${GPG_PASSPHRASE_FILE}:/home/releaser/gpg-passphrase:Z \
+    -v ${GITHUB_API_TOKEN_FILE}:/home/releaser/github-api-token:Z \
+    -v ~/.gitconfig:/home/.gitconfig \
     quay.io/kubevirtci/release-tool:latest \
     --org=kubevirt \
     --repo=application-aware-quota \
