@@ -83,7 +83,15 @@ function wait_aaq_available {
       fix_failed_sdn_pods
     done
   else
-    _kubectl wait aaqs.aaq.kubevirt.io/${CR_NAME} --for=condition=Available --timeout=${AAQ_AVAILABLE_TIMEOUT}s
+    if ! _kubectl wait aaqs.aaq.kubevirt.io/${CR_NAME} --for=condition=Available --timeout=${AAQ_AVAILABLE_TIMEOUT}s; then
+      echo "timeout while waiting to AAQ CR to be available"
+      _kubectl get aaqs.aaq.kubevirt.io/${CR_NAME} -o yaml
+      _kubectl get deployment -n "${AAQ_NAMESPACE}" aaq-operator -o yaml
+      _kubectl get pod -n "${AAQ_NAMESPACE}"
+      _kubectl describe pod -n "${AAQ_NAMESPACE}" -l name=aaq-operator
+      _kubectl logs -n "${AAQ_NAMESPACE}" -l name=aaq-operator
+      exit 1
+    fi
   fi
 }
 
