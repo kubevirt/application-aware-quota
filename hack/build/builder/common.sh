@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-#Copyright 2025 The AAQ Authors.
+#Copyright 2026 The AAQ Authors.
 #
 #Licensed under the Apache License, Version 2.0 (the "License");
 #you may not use this file except in compliance with the License.
@@ -14,11 +14,6 @@
 #See the License for the specific language governing permissions and
 #limitations under the License.
 
-set -eo pipefail
-
-source /etc/profile.d/gimme.sh
-
-export JAVA_HOME=/usr/lib/jvm/java-11
-export PATH=${GOPATH}/bin:/go/bin:/opt/gradle/gradle-6.6/bin:$PATH
-
-eval "$@"
+DOCKER_PREFIX=${DOCKER_PREFIX:-"quay.io/kubevirt"}
+DOCKER_IMAGE=${DOCKER_IMAGE:-"kubevirt-aaq-bazel-builder"}
+ARCHITECTURES="amd64 arm64 s390x"
