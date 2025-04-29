@@ -29,6 +29,8 @@ find "${SCRIPT_ROOT}/pkg/" -name "*generated*.go" -exec rm {} -f \;
 find "${SCRIPT_ROOT}/staging/src/kubevirt.io/application-aware-quota-api/" -name "*generated*.go" -exec rm {} -f \;
 rm -rf "${SCRIPT_ROOT}/pkg/generated"
 
+chmod 777 ${CODEGEN_PKG}/generate-internal-groups.sh
+
 # generate the code with:
 # --output-base    because this script should also be able to run inside the vendor dir of
 #                  k8s.io/kubernetes. The output-base is needed for the generators to output into the vendor dir
@@ -62,3 +64,5 @@ echo "************* running controller-gen to generate schema yaml *************
 
 (cd "${SCRIPT_ROOT}/tools/crd-generator/" && go build -o "${SCRIPT_ROOT}/bin/crd-generator" ./...)
 ${SCRIPT_ROOT}/bin/crd-generator --crdDir=${SCRIPT_ROOT}/_out/manifests/schema/ --outputDir=${SCRIPT_ROOT}/pkg/aaq-operator/resources/
+
+go mod vendor
