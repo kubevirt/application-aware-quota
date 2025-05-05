@@ -32,6 +32,8 @@ import (
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:shortName=arq;arqs,categories=all
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="REQUEST",type=string,JSONPath=`.status.hard`
+// +kubebuilder:printcolumn:name="LIMIT",type=string,JSONPath=`.status.used`
 // +k8s:openapi-gen=true
 // +genclient
 type ApplicationAwareResourceQuota struct {
