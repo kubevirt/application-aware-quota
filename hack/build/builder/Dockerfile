@@ -53,8 +53,6 @@ RUN set -x && \
     go install -v mvdan.cc/gofumpt@v0.6.0 && \
     curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b "$(go env GOROOT)"/bin $GOLANGCI_LINT_VERSION
 
-COPY output-bazel-arch.sh /output-bazel-arch.sh
-
 # Until we use a version including the fix for this Bazel issue:
 # https://github.com/bazelbuild/bazel/issues/11554
 RUN ln -s /usr/bin/python3 /usr/bin/python
