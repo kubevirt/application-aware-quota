@@ -4280,14 +4280,7 @@ spec:
     singular: applicationawareresourcequota
   scope: Namespaced
   versions:
-  - additionalPrinterColumns:
-    - jsonPath: .status.hard
-      name: REQUEST
-      type: string
-    - jsonPath: .status.used
-      name: LIMIT
-      type: string
-    name: v1alpha1
+  - name: v1alpha1
     schema:
       openAPIV3Schema:
         description: ApplicationAwareResourceQuota defines resources that should be
