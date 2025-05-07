@@ -16,4 +16,4 @@
 
 DOCKER_PREFIX=${DOCKER_PREFIX:-"quay.io/kubevirt"}
 DOCKER_IMAGE=${DOCKER_IMAGE:-"kubevirt-aaq-bazel-builder"}
-ARCHITECTURES="amd64 arm64"
+ARCHITECTURES="amd64 arm64 s390x"
