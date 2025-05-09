@@ -1,38 +1,41 @@
 # Builder stage
-FROM docker.io/library/golang:1.22-alpine as builder
-
+FROM  --platform=${BUILDPLATFORM} docker.io/library/golang:1.23-alpine as builder
+ARG BUILDPLATFORM
 
 # Install make
 RUN apk update && apk add make
 
-# Copy the source code from the host to the container
-COPY pkg /workdir/app/pkg
-COPY tools /workdir/app/tools
-COPY staging /workdir/app/staging
-COPY cmd /workdir/app/cmd
-COPY vendor /workdir/app/vendor
-COPY go.mod /workdir/app/go.mod
-COPY go.sum /workdir/app/go.sum
-COPY Makefile /workdir/app/Makefile
-
 WORKDIR /workdir/app
 
-RUN make aaq_operator
-RUN make csv-generator
+# Copy the source code from the host to the container
+COPY pkg ./pkg
+COPY tools ./tools
+COPY staging ./staging
+COPY cmd ./cmd
+COPY vendor ./vendor
+COPY go.mod ./go.mod
+COPY go.sum ./go.sum
+COPY Makefile ./Makefile
+
+ARG TARGETOS
+ARG TARGETARCH
+RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} make aaq_operator
+RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} make csv-generator
 
 # Final stage
-FROM docker.io/library/golang:1.22-alpine
-
-
-# Copy the binary from the builder stage to the final image
-COPY --from=builder /workdir/app/aaq_operator /app/aaq_operator
-COPY --from=builder /workdir/app/bin/csv-generator /usr/bin/csv-generator
+FROM --platform=${TARGETPLATFORM} docker.io/alpine
+ARG TARGETPLATFORM
 
 # Set the working directory to /app
-WORKDIR /app
+WORKDIR /app/aaq_operator
 
 RUN adduser -u 1001 -D -s /bin/sh -h /app/aaq_operator aaq_operator
-USER 1001
 
 # Set the entrypoint to the binary
-ENTRYPOINT ["/app/aaq_operator"]
+ENTRYPOINT ["/app/aaq_operator/aaq_operator"]
+
+# Copy the binary from the builder stage to the final image
+COPY --from=builder /workdir/app/aaq_operator ./
+COPY --from=builder /workdir/app/bin/csv-generator /usr/bin/
+
+USER 1001
