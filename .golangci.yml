@@ -1,0 +1,24 @@
+linters:
+  disable-all: true # TODO remove this when all the default linters are enabled.
+  enable:
+    # Default linters. TODO: remove them when all of them are fixed, and disable-all is removed
+    #  - errcheck
+    - gosimple
+    #  - govet
+    #  - ineffassign
+    #  - staticcheck
+    #  - unused
+    # Additional desired linters (non-default)
+    #  - revive
+    #  - ginkgolinter
+#linters-settings:
+#  ginkgolinter: # TODO: uncomment when enabling ginkgo linter
+#    forbid-focus-container: true
+#    force-expect-to: true
+#  revive: # TODO uncomment when enabling revive
+#    rules:
+#      - name: dot-imports
+#        arguments:
+#          - allowedPackages:
+#              - github.com/onsi/ginkgo/v2
+#              - github.com/onsi/gomega
