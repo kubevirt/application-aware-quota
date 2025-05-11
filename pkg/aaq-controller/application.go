@@ -50,6 +50,7 @@ import (
 	"kubevirt.io/application-aware-quota/pkg/client"
 	"kubevirt.io/application-aware-quota/pkg/generated/aaq/listers/core/v1alpha1"
 	"kubevirt.io/application-aware-quota/pkg/informers"
+	metrics "kubevirt.io/application-aware-quota/pkg/monitoring/metrics/aaq-controller"
 	"kubevirt.io/application-aware-quota/pkg/util"
 	v1alpha12 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 	golog "log"
@@ -188,6 +189,16 @@ func Execute() {
 
 	if app.enableClusterQuota {
 		app.clusterQuotaMappingController.GetClusterQuotaMapper().AddListener(app.aaqGateController)
+	}
+
+	metricsStores := &metrics.Stores{
+		ArqStore: app.arqInformer.GetStore(),
+	}
+
+	if err := metrics.SetupMetrics(
+		metricsStores,
+	); err != nil {
+		panic(err)
 	}
 
 	app.Run(stop)
