@@ -45,6 +45,7 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/golang/mock v1.6.0
 	github.com/kelseyhightower/envconfig v1.4.0
+	github.com/machadovilaca/operator-observability v0.0.26
 	github.com/onsi/ginkgo/v2 v2.17.1
 	github.com/onsi/gomega v1.33.0
 	github.com/openshift/api v0.0.0-20240625084701-0689f006bcde
@@ -67,7 +68,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
 	github.com/go-kit/kit v0.10.0
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
