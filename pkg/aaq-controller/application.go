@@ -23,6 +23,7 @@ import (
 	goflag "flag"
 	"fmt"
 	"github.com/emicklei/go-restful/v3"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	flag "github.com/spf13/pflag"
 	"io/ioutil"
 	k8sv1 "k8s.io/api/core/v1"
@@ -322,6 +323,7 @@ func (mca *AaqControllerApp) Run(stop <-chan struct{}) {
 	tlsConfig := util.SetupTLS(secretCertManager)
 
 	go func() {
+		http.Handle("/metrics", promhttp.Handler())
 		server := http.Server{
 			Addr:      fmt.Sprintf("%s:%s", util.DefaultHost, strconv.Itoa(util.DefaultPort)),
 			Handler:   http.DefaultServeMux,
