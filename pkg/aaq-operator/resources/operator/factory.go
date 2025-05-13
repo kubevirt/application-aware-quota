@@ -75,7 +75,7 @@ func NewAaqCrd() *extv1.CustomResourceDefinition {
 	return createAAQListCRD()
 }
 
-// NewClusterServiceVersion - generates CSV for CDI
+// NewClusterServiceVersion - generates CSV for AAQ
 func NewClusterServiceVersion(data *ClusterServiceVersionData) (*csvv1.ClusterServiceVersion, error) {
 	return createClusterServiceVersion(data)
 }
