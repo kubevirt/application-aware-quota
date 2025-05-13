@@ -56,6 +56,8 @@ const (
 	PrometheusLabelKey = "prometheus.aaq.kubevirt.io"
 	// PrometheusLabelValue provides the label value which shouldn't be empty to avoid a prometheus WIP issue.
 	PrometheusLabelValue = "true"
+	// PrometheusServiceName is the name of the prometheus service created by the operator.
+	PrometheusServiceName = "aaq-prometheus-metrics"
 	// AppKubernetesPartOfLabel is the Kubernetes recommended part-of label
 	AppKubernetesPartOfLabel = "app.kubernetes.io/part-of"
 	// AppKubernetesVersionLabel is the Kubernetes recommended version label
