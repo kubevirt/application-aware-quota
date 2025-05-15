@@ -3,6 +3,7 @@ package builders
 import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 )
 
@@ -61,6 +62,12 @@ func (qb *ArqBuilder) WithSyncStatusHardEmptyStatusUsed() *ArqBuilder {
 		qb.arq.Status.Hard[rqResourceName] = q
 		qb.arq.Status.Used[rqResourceName] = resource.MustParse("0")
 	}
+	return qb
+}
+
+// WithCreationTimestamp sets the creation timestamp for the ApplicationAwareResourceQuota.
+func (qb *ArqBuilder) WithCreationTimestamp(timestamp metav1.Time) *ArqBuilder {
+	qb.arq.CreationTimestamp = timestamp
 	return qb
 }
 
