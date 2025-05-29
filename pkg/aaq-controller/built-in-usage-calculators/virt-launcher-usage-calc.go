@@ -34,7 +34,7 @@ type VirtLauncherCalculator struct {
 }
 
 func (launchercalc *VirtLauncherCalculator) PodUsageFunc(pod *corev1.Pod, existingPods []*corev1.Pod) (corev1.ResourceList, error, bool) {
-	if pod.OwnerReferences == nil || len(pod.OwnerReferences) == 0 || pod.OwnerReferences[0].Kind != v15.VirtualMachineInstanceGroupVersionKind.Kind {
+	if len(pod.OwnerReferences) == 0 || pod.OwnerReferences[0].Kind != v15.VirtualMachineInstanceGroupVersionKind.Kind {
 		return corev1.ResourceList{}, nil, false
 	}
 
