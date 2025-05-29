@@ -9,6 +9,7 @@ import (
 	controller "kubevirt.io/application-aware-quota/pkg/aaq-operator"
 	"kubevirt.io/application-aware-quota/pkg/util"
 	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
+	"net/http"
 	"os"
 	"runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -73,6 +74,7 @@ func main() {
 		LeaderElectionNamespace:    namespace,
 		LeaderElectionID:           "aaq-operator-leader-election-helper",
 		LeaderElectionResourceLock: "leases",
+		HealthProbeBindAddress:     ":8081",
 	}
 
 	// Create a new Manager to provide shared dependencies and start components
@@ -81,6 +83,13 @@ func main() {
 		log.Error(err, "")
 		os.Exit(1)
 	}
+
+	_ = mgr.AddReadyzCheck("readyz", func(req *http.Request) error {
+		return nil
+	})
+	_ = mgr.AddHealthzCheck("healthz", func(req *http.Request) error {
+		return nil
+	})
 
 	log.Info("Registering Components.")
 	if err := v1alpha1.AddToScheme(mgr.GetScheme()); err != nil {

@@ -5,6 +5,7 @@ import (
 	"github.com/coreos/go-semver/semver"
 	csvv1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"kubevirt.io/application-aware-quota/pkg/aaq-operator/resources"
 	utils2 "kubevirt.io/application-aware-quota/pkg/util"
 	"strings"
@@ -356,6 +357,30 @@ func createOperatorDeployment(operatorVersion, namespace, deployClusterResources
 	container.SecurityContext.Capabilities = &corev1.Capabilities{
 		Drop: []corev1.Capability{
 			"ALL",
+		},
+	}
+	container.ReadinessProbe = &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Scheme: corev1.URISchemeHTTP,
+				Port: intstr.IntOrString{
+					Type:   intstr.Int,
+					IntVal: 8081,
+				},
+				Path: "/readyz",
+			},
+		},
+	}
+	container.LivenessProbe = &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Scheme: corev1.URISchemeHTTP,
+				Port: intstr.IntOrString{
+					Type:   intstr.Int,
+					IntVal: 8081,
+				},
+				Path: "/healthz",
+			},
 		},
 	}
 	container.Resources = corev1.ResourceRequirements{
