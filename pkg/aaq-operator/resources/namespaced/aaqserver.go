@@ -59,6 +59,10 @@ func createAAQServerDeployment(image, pullPolicy string, imagePullSecrets []core
 		},
 	}
 	container := utils2.CreateContainer(utils2.AaqServerResourceName, image, verbosity, pullPolicy)
+	labels := mergeLabels(deployment.Spec.Template.GetLabels(), map[string]string{utils2.PrometheusLabelKey: utils2.PrometheusLabelValue})
+	//Add label for pod affinity
+	deployment.SetLabels(labels)
+	deployment.Spec.Template.SetLabels(labels)
 	container.Ports = createAAQServerPorts()
 	if onOpenshift {
 		container.Args = append(container.Args, []string{"--" + utils2.IsOnOpenshift, "true"}...)
@@ -154,6 +158,7 @@ func createAAQServerPorts() []corev1.ContainerPort {
 	return []corev1.ContainerPort{
 		{
 			ContainerPort: 8443,
+			Name:          "metrics",
 			Protocol:      "TCP",
 		},
 	}
