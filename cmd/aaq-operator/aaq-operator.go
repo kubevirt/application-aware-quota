@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	secv1 "github.com/openshift/api/security/v1"
+	promv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"go.uber.org/zap/zapcore"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	controller "kubevirt.io/application-aware-quota/pkg/aaq-operator"
@@ -18,6 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"strconv"
 )
 
@@ -75,6 +77,7 @@ func main() {
 		LeaderElectionID:           "aaq-operator-leader-election-helper",
 		LeaderElectionResourceLock: "leases",
 		HealthProbeBindAddress:     ":8081",
+		Metrics:                    metricsserver.Options{SecureServing: true},
 	}
 
 	// Create a new Manager to provide shared dependencies and start components
@@ -103,6 +106,11 @@ func main() {
 	}
 
 	if err := extv1.AddToScheme(mgr.GetScheme()); err != nil {
+		log.Error(err, "")
+		os.Exit(1)
+	}
+
+	if err := promv1.AddToScheme(mgr.GetScheme()); err != nil {
 		log.Error(err, "")
 		os.Exit(1)
 	}

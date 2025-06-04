@@ -122,3 +122,6 @@ run: build
 
 bump-kubevirtci:
 	./hack/bump-kubevirtci.sh
+
+build-metrics-docs:
+	${DO_BAZ} "./hack/build-metrics-docs.sh"

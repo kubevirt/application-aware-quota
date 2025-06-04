@@ -23,6 +23,7 @@ import (
 	goflag "flag"
 	"fmt"
 	"github.com/emicklei/go-restful/v3"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	flag "github.com/spf13/pflag"
 	"io/ioutil"
 	k8sv1 "k8s.io/api/core/v1"
@@ -49,6 +50,7 @@ import (
 	"kubevirt.io/application-aware-quota/pkg/client"
 	"kubevirt.io/application-aware-quota/pkg/generated/aaq/listers/core/v1alpha1"
 	"kubevirt.io/application-aware-quota/pkg/informers"
+	metrics "kubevirt.io/application-aware-quota/pkg/monitoring/metrics/aaq-controller"
 	"kubevirt.io/application-aware-quota/pkg/util"
 	v1alpha12 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 	golog "log"
@@ -189,6 +191,16 @@ func Execute() {
 		app.clusterQuotaMappingController.GetClusterQuotaMapper().AddListener(app.aaqGateController)
 	}
 
+	metricsStores := &metrics.Stores{
+		ArqStore: app.arqInformer.GetStore(),
+	}
+
+	if err := metrics.SetupMetrics(
+		metricsStores,
+	); err != nil {
+		panic(err)
+	}
+
 	app.Run(stop)
 
 	klog.V(2).Infoln("AAQ controller exited")
@@ -322,6 +334,7 @@ func (mca *AaqControllerApp) Run(stop <-chan struct{}) {
 	tlsConfig := util.SetupTLS(secretCertManager)
 
 	go func() {
+		http.Handle("/metrics", promhttp.Handler())
 		server := http.Server{
 			Addr:      fmt.Sprintf("%s:%s", util.DefaultHost, strconv.Itoa(util.DefaultPort)),
 			Handler:   http.DefaultServeMux,
