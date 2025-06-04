@@ -68,8 +68,7 @@ func (aaqe *AaqEvaluator) Usage(item runtime.Object) (corev1.ResourceList, error
 	pod, err := util.ToExternalPodOrError(item)
 	if err != nil {
 		return corev1.ResourceList{}, err
-	} else if pod.Spec.SchedulingGates != nil &&
-		len(pod.Spec.SchedulingGates) > 0 {
+	} else if len(pod.Spec.SchedulingGates) > 0 {
 		return corev1.ResourceList{}, nil
 	}
 	existingPods, err := aaqe.podLister.Pods(pod.Namespace).List(labels.Everything())
@@ -84,8 +83,7 @@ func (aaqe *AaqEvaluator) Usage(item runtime.Object) (corev1.ResourceList, error
 }
 
 func (aaqe *AaqEvaluator) CalculatorUsage(pod *corev1.Pod, existingPods []*corev1.Pod) (corev1.ResourceList, error) {
-	if pod.Spec.SchedulingGates != nil &&
-		len(pod.Spec.SchedulingGates) > 0 {
+	if len(pod.Spec.SchedulingGates) > 0 {
 		return corev1.ResourceList{}, nil
 	}
 	rl, err := aaqe.aaqEvalRegistery.Usage(pod, existingPods)
