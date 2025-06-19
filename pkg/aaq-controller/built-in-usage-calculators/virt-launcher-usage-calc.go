@@ -96,20 +96,25 @@ func (launchercalc *VirtLauncherCalculator) CalculateUsageByConfig(pod *corev1.P
 		return CalculateResourceLauncherVMIUsagePodResources(vmi, isSourceOrSingleLauncher), nil
 	case v1alpha1.DedicatedVirtualResources:
 		vmiRl := corev1.ResourceList{
-			v1alpha1.ResourcePodsOfVmi: *(resource.NewQuantity(1, resource.DecimalSI)),
+			v1alpha1.ResourcePodsOfVmi:      *(resource.NewQuantity(1, resource.DecimalSI)),
+			v1alpha1.ResourcePodsOfVmiShort: *(resource.NewQuantity(1, resource.DecimalSI)),
 		}
 		usageToConvertVmiResources := CalculateResourceLauncherVMIUsagePodResources(vmi, isSourceOrSingleLauncher)
 		if memRq, ok := usageToConvertVmiResources[corev1.ResourceRequestsMemory]; ok {
 			vmiRl[v1alpha1.ResourceRequestsVmiMemory] = memRq
+			vmiRl[v1alpha1.ResourceRequestsVmiMemoryShort] = memRq
 		}
 		if memLim, ok := usageToConvertVmiResources[corev1.ResourceLimitsMemory]; ok {
 			vmiRl[v1alpha1.ResourceRequestsVmiMemory] = memLim
+			vmiRl[v1alpha1.ResourceRequestsVmiMemoryShort] = memLim
 		}
 		if cpuRq, ok := usageToConvertVmiResources[corev1.ResourceRequestsCPU]; ok {
 			vmiRl[v1alpha1.ResourceRequestsVmiCPU] = cpuRq
+			vmiRl[v1alpha1.ResourceRequestsVmiCPUShort] = cpuRq
 		}
 		if cpuLim, ok := usageToConvertVmiResources[corev1.ResourceLimitsCPU]; ok {
 			vmiRl[v1alpha1.ResourceRequestsVmiCPU] = cpuLim
+			vmiRl[v1alpha1.ResourceRequestsVmiCPUShort] = cpuLim
 		}
 		return vmiRl, nil
 	}
@@ -205,7 +210,9 @@ func CalculateResourceLauncherVMIUsagePodResources(vmi *v15.VirtualMachineInstan
 
 	requests := corev1.ResourceList{
 		corev1.ResourceRequestsMemory: memoryGuest,
+		corev1.ResourceMemory:         memoryGuest,
 		corev1.ResourceRequestsCPU:    cpuGuest,
+		corev1.ResourceCPU:            cpuGuest,
 	}
 	limits := corev1.ResourceList{
 		corev1.ResourceLimitsMemory: memoryGuest,

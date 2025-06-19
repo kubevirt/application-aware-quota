@@ -61,7 +61,7 @@ func (aaqe *AaqEvaluator) UncoveredQuotaScopes(limitedScopes []corev1.ScopedReso
 }
 
 func (aaqe *AaqEvaluator) MatchingResources(input []corev1.ResourceName) []corev1.ResourceName {
-	return aaqe.podEvaluator.MatchingResources(input)
+	return input
 }
 
 func (aaqe *AaqEvaluator) Usage(item runtime.Object) (corev1.ResourceList, error) {

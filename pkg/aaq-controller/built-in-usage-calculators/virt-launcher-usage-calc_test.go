@@ -158,8 +158,10 @@ var _ = Describe("Test virt-launcher calculator", func() {
 			v1.ResourceList{v1.ResourcePods: *(resource.NewQuantity(1, resource.DecimalSI)),
 				"count/pods":              *(resource.NewQuantity(1, resource.DecimalSI)),
 				v1.ResourceRequestsMemory: resource.MustParse("2Gi"),
+				v1.ResourceMemory:         resource.MustParse("2Gi"),
 				v1.ResourceLimitsMemory:   resource.MustParse("2Gi"),
 				v1.ResourceRequestsCPU:    resource.MustParse("2"),
+				v1.ResourceCPU:            resource.MustParse("2"),
 				v1.ResourceLimitsCPU:      resource.MustParse("2"),
 			},
 			true,
@@ -180,8 +182,10 @@ var _ = Describe("Test virt-launcher calculator", func() {
 			v1.ResourceList{v1.ResourcePods: *(resource.NewQuantity(1, resource.DecimalSI)),
 				"count/pods":              *(resource.NewQuantity(1, resource.DecimalSI)),
 				v1.ResourceRequestsMemory: resource.MustParse("2Gi"),
+				v1.ResourceMemory:         resource.MustParse("2Gi"),
 				v1.ResourceLimitsMemory:   resource.MustParse("2Gi"),
 				v1.ResourceRequestsCPU:    resource.MustParse("2"),
+				v1.ResourceCPU:            resource.MustParse("2"),
 				v1.ResourceLimitsCPU:      resource.MustParse("2"),
 			},
 			true,
@@ -204,8 +208,10 @@ var _ = Describe("Test virt-launcher calculator", func() {
 			v1.ResourceList{v1.ResourcePods: *(resource.NewQuantity(1, resource.DecimalSI)),
 				"count/pods":              *(resource.NewQuantity(1, resource.DecimalSI)),
 				v1.ResourceRequestsMemory: resource.MustParse("2Gi"),
+				v1.ResourceMemory:         resource.MustParse("2Gi"),
 				v1.ResourceLimitsMemory:   resource.MustParse("2Gi"),
 				v1.ResourceRequestsCPU:    resource.MustParse("2"),
+				v1.ResourceCPU:            resource.MustParse("2"),
 				v1.ResourceLimitsCPU:      resource.MustParse("2"),
 			},
 			true,
@@ -230,8 +236,10 @@ var _ = Describe("Test virt-launcher calculator", func() {
 			v1.ResourceList{v1.ResourcePods: *(resource.NewQuantity(1, resource.DecimalSI)),
 				"count/pods":              *(resource.NewQuantity(1, resource.DecimalSI)),
 				v1.ResourceRequestsMemory: resource.MustParse("5Gi"),
+				v1.ResourceMemory:         resource.MustParse("5Gi"),
 				v1.ResourceLimitsMemory:   resource.MustParse("5Gi"),
 				v1.ResourceRequestsCPU:    *(resource.NewQuantity(8, resource.BinarySI)),
+				v1.ResourceCPU:            *(resource.NewQuantity(8, resource.BinarySI)),
 				v1.ResourceLimitsCPU:      *(resource.NewQuantity(8, resource.BinarySI)),
 			},
 			true,
@@ -242,9 +250,9 @@ var _ = Describe("Test virt-launcher calculator", func() {
 				WithNamespace(fakeNs).
 				WithUID(fakeVmiUID).
 				WithNode("node1").
-				WithGuestMemory(resource.MustParse("2Gi")).                                          //desired
-				WithGuestCPUCoresSocketsThreads(1, 1, 1).                                            //desired
-				WithActualCpuDuringHotPlug(2, 2, 2).                                                 //actual
+				WithGuestMemory(resource.MustParse("2Gi")). //desired
+				WithGuestCPUCoresSocketsThreads(1, 1, 1). //desired
+				WithActualCpuDuringHotPlug(2, 2, 2). //actual
 				WithActualMemoryDuringHotPlug(resource.MustParse("5Gi"), resource.MustParse("5Gi")). //actual
 				Build()},
 			[]metav1.Object{vmimForTests},
@@ -254,8 +262,10 @@ var _ = Describe("Test virt-launcher calculator", func() {
 			v1.ResourceList{v1.ResourcePods: *(resource.NewQuantity(1, resource.DecimalSI)),
 				"count/pods":              *(resource.NewQuantity(1, resource.DecimalSI)),
 				v1.ResourceRequestsMemory: resource.MustParse("5Gi"),
+				v1.ResourceMemory:         resource.MustParse("5Gi"),
 				v1.ResourceLimitsMemory:   resource.MustParse("5Gi"),
 				v1.ResourceRequestsCPU:    *(resource.NewQuantity(8, resource.BinarySI)),
+				v1.ResourceCPU:            *(resource.NewQuantity(8, resource.BinarySI)),
 				v1.ResourceLimitsCPU:      *(resource.NewQuantity(8, resource.BinarySI)),
 			},
 			true,
@@ -266,9 +276,9 @@ var _ = Describe("Test virt-launcher calculator", func() {
 				WithNamespace(fakeNs).
 				WithUID(fakeVmiUID).
 				WithNode("node1").
-				WithGuestMemory(resource.MustParse("5Gi")).                                          //desired
-				WithGuestCPUCoresSocketsThreads(2, 2, 2).                                            //desired
-				WithActualCpuDuringHotPlug(1, 1, 1).                                                 //actual
+				WithGuestMemory(resource.MustParse("5Gi")). //desired
+				WithGuestCPUCoresSocketsThreads(2, 2, 2). //desired
+				WithActualCpuDuringHotPlug(1, 1, 1). //actual
 				WithActualMemoryDuringHotPlug(resource.MustParse("2Gi"), resource.MustParse("2Gi")). //actual
 				Build()},
 			[]metav1.Object{vmimForTests},
@@ -278,8 +288,10 @@ var _ = Describe("Test virt-launcher calculator", func() {
 			v1.ResourceList{v1.ResourcePods: *(resource.NewQuantity(0, resource.DecimalSI)),
 				"count/pods":              *(resource.NewQuantity(0, resource.DecimalSI)),
 				v1.ResourceRequestsMemory: resource.MustParse("3Gi"),
+				v1.ResourceMemory:         resource.MustParse("3Gi"),
 				v1.ResourceLimitsMemory:   resource.MustParse("3Gi"),
 				v1.ResourceRequestsCPU:    *(resource.NewQuantity(7, resource.BinarySI)),
+				v1.ResourceCPU:            *(resource.NewQuantity(7, resource.BinarySI)),
 				v1.ResourceLimitsCPU:      *(resource.NewQuantity(7, resource.BinarySI)),
 			},
 			true,
@@ -290,9 +302,9 @@ var _ = Describe("Test virt-launcher calculator", func() {
 				WithNamespace(fakeNs).
 				WithUID(fakeVmiUID).
 				WithNode("node1").
-				WithGuestMemory(resource.MustParse("2Gi")).                                          //desired
-				WithGuestCPUCoresSocketsThreads(1, 1, 1).                                            //desired
-				WithActualCpuDuringHotPlug(2, 2, 2).                                                 //actual
+				WithGuestMemory(resource.MustParse("2Gi")). //desired
+				WithGuestCPUCoresSocketsThreads(1, 1, 1). //desired
+				WithActualCpuDuringHotPlug(2, 2, 2). //actual
 				WithActualMemoryDuringHotPlug(resource.MustParse("5Gi"), resource.MustParse("5Gi")). //actual
 				Build()},
 			[]metav1.Object{vmimForTests},
@@ -302,8 +314,10 @@ var _ = Describe("Test virt-launcher calculator", func() {
 			v1.ResourceList{v1.ResourcePods: resource.MustParse("0"),
 				"count/pods":              resource.MustParse("0"),
 				v1.ResourceRequestsMemory: resource.MustParse("0"),
+				v1.ResourceMemory:         resource.MustParse("0"),
 				v1.ResourceLimitsMemory:   resource.MustParse("0"),
 				v1.ResourceRequestsCPU:    resource.MustParse("0"),
+				v1.ResourceCPU:            resource.MustParse("0"),
 				v1.ResourceLimitsCPU:      resource.MustParse("0"),
 			},
 			true,
@@ -315,8 +329,8 @@ var _ = Describe("Test virt-launcher calculator", func() {
 				WithUID(fakeVmiUID).
 				WithNode("node1").
 				WithGuestMemory(resource.MustParse("2Gi")). //desired
-				WithGuestCPUCoresSocketsThreads(1, 1, 1).   //desired
-				WithActualCpuDuringHotPlug(2, 2, 2).        //actual
+				WithGuestCPUCoresSocketsThreads(1, 1, 1). //desired
+				WithActualCpuDuringHotPlug(2, 2, 2). //actual
 				//the actual memory is not 5Gi but the launcher pod has already requested more memory.
 				WithActualMemoryDuringHotPlug(resource.MustParse("5Gi"), resource.MustParse("2Gi")).
 				Build()},
@@ -327,8 +341,10 @@ var _ = Describe("Test virt-launcher calculator", func() {
 			v1.ResourceList{v1.ResourcePods: *(resource.NewQuantity(1, resource.DecimalSI)),
 				"count/pods":              *(resource.NewQuantity(1, resource.DecimalSI)),
 				v1.ResourceRequestsMemory: resource.MustParse("5Gi"),
+				v1.ResourceMemory:         resource.MustParse("5Gi"),
 				v1.ResourceLimitsMemory:   resource.MustParse("5Gi"),
 				v1.ResourceRequestsCPU:    *(resource.NewQuantity(8, resource.BinarySI)),
+				v1.ResourceCPU:            *(resource.NewQuantity(8, resource.BinarySI)),
 				v1.ResourceLimitsCPU:      *(resource.NewQuantity(8, resource.BinarySI)),
 			},
 			true,
@@ -347,8 +363,11 @@ var _ = Describe("Test virt-launcher calculator", func() {
 			[]*v1.Pod{sourcePodForTests, orphanVmiPodForTests, targetPodForTests},
 			v1alpha1.DedicatedVirtualResources,
 			v1.ResourceList{v1alpha1.ResourcePodsOfVmi: *(resource.NewQuantity(1, resource.DecimalSI)),
-				v1alpha1.ResourceRequestsVmiCPU:    *(resource.NewQuantity(8, resource.BinarySI)),
-				v1alpha1.ResourceRequestsVmiMemory: resource.MustParse("5Gi"),
+				v1alpha1.ResourcePodsOfVmiShort:         *(resource.NewQuantity(1, resource.DecimalSI)),
+				v1alpha1.ResourceRequestsVmiCPU:         *(resource.NewQuantity(8, resource.BinarySI)),
+				v1alpha1.ResourceRequestsVmiMemory:      resource.MustParse("5Gi"),
+				v1alpha1.ResourceRequestsVmiCPUShort:    *(resource.NewQuantity(8, resource.BinarySI)),
+				v1alpha1.ResourceRequestsVmiMemoryShort: resource.MustParse("5Gi"),
 			},
 			true,
 			false),
