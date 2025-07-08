@@ -474,7 +474,13 @@ var _ = Describe("Test arq-controller", func() {
 				},
 			},
 		},
-		Status: v1alpha1.ApplicationAwareResourceQuotaStatus{},
+		Status: v1alpha1.ApplicationAwareResourceQuotaStatus{
+			ResourceQuotaStatus: corev1.ResourceQuotaStatus{
+				Hard: corev1.ResourceList{
+					corev1.ResourceServices: resource.MustParse("1"),
+				},
+			},
+		},
 	}, corev1.ResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: "quota" + rq_controller.RQSuffix, Namespace: "testing"},
 		Spec: corev1.ResourceQuotaSpec{
@@ -486,6 +492,9 @@ var _ = Describe("Test arq-controller", func() {
 			Hard: corev1.ResourceList{
 				corev1.ResourceServices: resource.MustParse("1"),
 			},
+			Used: corev1.ResourceList{
+				corev1.ResourceServices: getUsedQuantityForTest("1"),
+			},
 		},
 	},
 		v1alpha1.ApplicationAwareResourceQuotaStatus{
@@ -493,7 +502,9 @@ var _ = Describe("Test arq-controller", func() {
 				Hard: corev1.ResourceList{
 					corev1.ResourceServices: resource.MustParse("1"),
 				},
-				Used: corev1.ResourceList{},
+				Used: corev1.ResourceList{
+					corev1.ResourceServices: getUsedQuantityForTest("1"),
+				},
 			},
 		},
 		[]metav1.Object{},
@@ -526,7 +537,9 @@ var _ = Describe("Test arq-controller", func() {
 				Hard: corev1.ResourceList{
 					corev1.ResourceServices: resource.MustParse("1"),
 				},
-				Used: corev1.ResourceList{},
+				Used: corev1.ResourceList{
+					corev1.ResourceServices: getUsedQuantityForTest("0"),
+				},
 			},
 		},
 		[]metav1.Object{},
@@ -734,7 +747,7 @@ var _ = Describe("Test arq-controller", func() {
 				},
 			},
 		},
-	}, true), Entry("status, missing usage, but don't care (no informer)", &v1alpha1.ApplicationAwareResourceQuota{
+	}, true), Entry("status, should not miss Usage for costum resource", &v1alpha1.ApplicationAwareResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: "quota", Namespace: "testing"},
 		Spec: v1alpha1.ApplicationAwareResourceQuotaSpec{
 			ResourceQuotaSpec: corev1.ResourceQuotaSpec{
@@ -750,7 +763,7 @@ var _ = Describe("Test arq-controller", func() {
 				},
 			},
 		},
-	}, false), Entry("ready", &v1alpha1.ApplicationAwareResourceQuota{
+	}, true), Entry("ready", &v1alpha1.ApplicationAwareResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{Name: "quota", Namespace: "testing"},
 		Spec: v1alpha1.ApplicationAwareResourceQuotaSpec{
 			ResourceQuotaSpec: corev1.ResourceQuotaSpec{
