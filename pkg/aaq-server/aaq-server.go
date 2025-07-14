@@ -2,6 +2,7 @@ package aaq_server
 
 import (
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
 	"io"
 	"k8s.io/client-go/util/certificate"
@@ -58,6 +59,7 @@ func (app *AAQServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (app *AAQServer) initHandler(aaqCli client.AAQClient) {
 	mux := http.NewServeMux()
 	mux.HandleFunc(healthzPath, app.handleHealthzRequest)
+	mux.HandleFunc("/metrics", promhttp.Handler().ServeHTTP)
 	mux.Handle(ServePath, NewAaqServerHandler(app.aaqNS, aaqCli, app.isOnOpenshift))
 	app.handler = cors.AllowAll().Handler(mux)
 

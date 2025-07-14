@@ -112,6 +112,10 @@ func createAAQControllerDeployment(image, verbosity, pullPolicy string, imagePul
 		},
 	}
 	container := utils2.CreateContainer(utils2.ControllerResourceName, image, verbosity, pullPolicy)
+	labels := mergeLabels(deployment.Spec.Template.GetLabels(), map[string]string{utils2.PrometheusLabelKey: utils2.PrometheusLabelValue})
+	//Add label for pod affinity
+	deployment.SetLabels(labels)
+	deployment.Spec.Template.SetLabels(labels)
 	if configName != "" {
 		container.Args = append(container.Args, []string{"--" + utils2.VMICalculatorConfiguration, string(configName)}...)
 	}
@@ -227,8 +231,22 @@ func createAAQControllerDeployment(image, verbosity, pullPolicy string, imagePul
 func createAAQControllerPorts() []corev1.ContainerPort {
 	return []corev1.ContainerPort{
 		{
+			Name:          "metrics",
 			ContainerPort: 8443,
 			Protocol:      "TCP",
 		},
 	}
+}
+
+// mergeLabels adds source labels to destination (does not change existing ones)
+func mergeLabels(src, dest map[string]string) map[string]string {
+	if dest == nil {
+		dest = map[string]string{}
+	}
+
+	for k, v := range src {
+		dest[k] = v
+	}
+
+	return dest
 }
