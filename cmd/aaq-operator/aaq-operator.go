@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"fmt"
 	secv1 "github.com/openshift/api/security/v1"
@@ -77,7 +78,15 @@ func main() {
 		LeaderElectionID:           "aaq-operator-leader-election-helper",
 		LeaderElectionResourceLock: "leases",
 		HealthProbeBindAddress:     ":8081",
-		Metrics:                    metricsserver.Options{SecureServing: true},
+		Metrics: metricsserver.Options{
+			BindAddress:   ":8443",
+			SecureServing: true,
+			// Disable HTTP/2 to prevent rapid reset vulnerability
+			// See CVE-2023-44487, CVE-2023-39325
+			TLSOpts: []func(*tls.Config){func(c *tls.Config) {
+				c.NextProtos = []string{"http/1.1"}
+			}},
+		},
 	}
 
 	// Create a new Manager to provide shared dependencies and start components
