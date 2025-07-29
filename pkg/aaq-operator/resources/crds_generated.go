@@ -3411,8 +3411,6 @@ metadata:
 spec:
   group: aaq.kubevirt.io
   names:
-    categories:
-    - all
     kind: AAQJobQueueConfig
     listKind: AAQJobQueueConfigList
     plural: aaqjobqueueconfigs
@@ -3481,8 +3479,6 @@ metadata:
 spec:
   group: aaq.kubevirt.io
   names:
-    categories:
-    - all
     kind: ApplicationAwareAppliedClusterResourceQuota
     listKind: ApplicationAwareAppliedClusterResourceQuotaList
     plural: applicationawareappliedclusterresourcequotas
@@ -3998,8 +3994,6 @@ metadata:
 spec:
   group: aaq.kubevirt.io
   names:
-    categories:
-    - all
     kind: ApplicationAwareResourceQuota
     listKind: ApplicationAwareResourceQuotaList
     plural: applicationawareresourcequotas
