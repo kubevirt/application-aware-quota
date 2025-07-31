@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	csvv1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
-	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/networking/v1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -78,4 +78,8 @@ func NewAaqCrd() *extv1.CustomResourceDefinition {
 // NewClusterServiceVersion - generates CSV for AAQ
 func NewClusterServiceVersion(data *ClusterServiceVersionData) (*csvv1.ClusterServiceVersion, error) {
 	return createClusterServiceVersion(data)
+}
+
+func NewNetworkPolicyList(namespace string) []*v1.NetworkPolicy {
+	return createNetworkPolicyList(namespace)
 }

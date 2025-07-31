@@ -31,10 +31,11 @@ var (
 
 	operatorVersion = flag.String("operator-version", "", "")
 
-	operatorImage   = flag.String("operator-image", "", "")
-	controllerImage = flag.String("controller-image", "", "")
-	aaqServerImage  = flag.String("aaq-server-image", "", "")
-	dumpCRDs        = flag.Bool("dump-crds", false, "optional - dumps aaq-operator related crd manifests to stdout")
+	operatorImage       = flag.String("operator-image", "", "")
+	controllerImage     = flag.String("controller-image", "", "")
+	aaqServerImage      = flag.String("aaq-server-image", "", "")
+	dumpCRDs            = flag.Bool("dump-crds", false, "optional - dumps aaq-operator related crd manifests to stdout")
+	dumpNetworkPolicies = flag.Bool("dump-network-policies", false, "optional - dumps aaq-operator related network policies to stdout")
 )
 
 func main() {
@@ -67,6 +68,15 @@ func main() {
 		cidCrd := aaqoperator.NewAaqCrd()
 		if err = util.MarshallObject(cidCrd, os.Stdout); err != nil {
 			panic(err)
+		}
+	}
+
+	if *dumpNetworkPolicies {
+		nps := aaqoperator.NewNetworkPolicyList(*namespace)
+		for _, np := range nps {
+			if err := util.MarshallObject(np, os.Stdout); err != nil {
+				panic(err)
+			}
 		}
 	}
 }
