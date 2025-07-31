@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/coreos/go-semver/semver"
 	csvv1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
+	v1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"kubevirt.io/application-aware-quota/pkg/aaq-operator/resources"
@@ -630,4 +631,164 @@ _The AAQ Operator does not support updates yet._
 			},
 		},
 	}, nil
+}
+
+func createNetworkPolicyList(namespace string) []*v1.NetworkPolicy {
+	tcp := corev1.ProtocolTCP
+
+	return []*v1.NetworkPolicy{
+		{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "networking.k8s.io/v1",
+				Kind:       "NetworkPolicy",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "aaq-allow-egress-to-api-server",
+				Namespace: namespace,
+			},
+			Spec: v1.NetworkPolicySpec{
+				PodSelector: metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{
+							Key:      "aaq.kubevirt.io",
+							Operator: metav1.LabelSelectorOpExists,
+						},
+					},
+				},
+				PolicyTypes: []v1.PolicyType{"Egress"},
+				Egress: []v1.NetworkPolicyEgressRule{
+					{
+						Ports: []v1.NetworkPolicyPort{
+							{
+								Protocol: &tcp,
+							},
+						},
+						To: []v1.NetworkPolicyPeer{
+							{
+								NamespaceSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										"kubernetes.io/metadata.name": "openshift-kube-apiserver",
+									},
+								},
+								PodSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										"app": "openshift-kube-apiserver",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "networking.k8s.io/v1",
+				Kind:       "NetworkPolicy",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "aaq-allow-to-dns",
+				Namespace: namespace,
+			},
+			Spec: v1.NetworkPolicySpec{
+				PodSelector: metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{
+							Key:      "aaq.kubevirt.io",
+							Operator: metav1.LabelSelectorOpExists,
+						},
+					},
+				},
+				PolicyTypes: []v1.PolicyType{"Egress"},
+				Egress: []v1.NetworkPolicyEgressRule{
+					{
+						Ports: []v1.NetworkPolicyPort{
+							{
+								Protocol: func() *corev1.Protocol {
+									p := corev1.ProtocolTCP
+									return &p
+								}(),
+							},
+							{
+								Protocol: func() *corev1.Protocol {
+									p := corev1.ProtocolUDP
+									return &p
+								}(),
+							},
+						},
+						To: []v1.NetworkPolicyPeer{
+							{
+								NamespaceSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										"kubernetes.io/metadata.name": "openshift-dns",
+									},
+								},
+								PodSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										"dns.operator.openshift.io/daemonset-dns": "default",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "networking.k8s.io/v1",
+				Kind:       "NetworkPolicy",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "aaq-allow-ingress-to-metrics",
+				Namespace: namespace,
+			},
+			Spec: v1.NetworkPolicySpec{
+				PodSelector: metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"prometheus.aaq.kubevirt.io": "true",
+					},
+				},
+				PolicyTypes: []v1.PolicyType{"Ingress"},
+				Ingress: []v1.NetworkPolicyIngressRule{
+					{
+						Ports: []v1.NetworkPolicyPort{
+							{
+								Port:     &intstr.IntOrString{Type: intstr.Int, IntVal: 8443},
+								Protocol: func() *corev1.Protocol { p := corev1.ProtocolTCP; return &p }(),
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "networking.k8s.io/v1",
+				Kind:       "NetworkPolicy",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "aaq-allow-ingress-to-aaq-server-webhooks",
+				Namespace: namespace,
+			},
+			Spec: v1.NetworkPolicySpec{
+				PodSelector: metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"aaq.kubevirt.io": "aaq-server",
+					},
+				},
+				PolicyTypes: []v1.PolicyType{"Ingress"},
+				Ingress: []v1.NetworkPolicyIngressRule{
+					{
+						Ports: []v1.NetworkPolicyPort{
+							{
+								Port:     &intstr.IntOrString{Type: intstr.Int, IntVal: 8443},
+								Protocol: &tcp,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
 }
