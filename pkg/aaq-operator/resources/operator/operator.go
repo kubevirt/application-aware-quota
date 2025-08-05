@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/coreos/go-semver/semver"
 	csvv1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
+	networkv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"kubevirt.io/application-aware-quota/pkg/aaq-operator/resources"
@@ -351,7 +352,7 @@ func createOperatorEnvVar(operatorVersion, deployClusterResources, controllerIma
 }
 
 func createOperatorDeployment(operatorVersion, namespace, deployClusterResources, operatorImage, controllerImage, webhookServerImage, verbosity, pullPolicy string, imagePullSecrets []corev1.LocalObjectReference) *appsv1.Deployment {
-	deployment := utils2.CreateOperatorDeployment("aaq-operator", namespace, "name", "aaq-operator", utils2.OperatorServiceAccountName, imagePullSecrets, int32(1))
+	deployment := utils2.CreateOperatorDeployment("aaq-operator", namespace, utils2.AAQLabel, "aaq-operator", utils2.OperatorServiceAccountName, imagePullSecrets, int32(1))
 	container := utils2.CreateContainer("aaq-operator", operatorImage, verbosity, pullPolicy)
 	container.Ports = createPrometheusPorts()
 	container.SecurityContext.Capabilities = &corev1.Capabilities{
@@ -630,4 +631,164 @@ _The AAQ Operator does not support updates yet._
 			},
 		},
 	}, nil
+}
+
+func createNetworkPolicyList(namespace string) []*networkv1.NetworkPolicy {
+	tcp := corev1.ProtocolTCP
+
+	return []*networkv1.NetworkPolicy{
+		{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: networkv1.SchemeGroupVersion.String(),
+				Kind:       "NetworkPolicy",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "aaq-allow-egress-to-api-server",
+				Namespace: namespace,
+			},
+			Spec: networkv1.NetworkPolicySpec{
+				PodSelector: metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{
+							Key:      "aaq.kubevirt.io",
+							Operator: metav1.LabelSelectorOpExists,
+						},
+					},
+				},
+				PolicyTypes: []networkv1.PolicyType{"Egress"},
+				Egress: []networkv1.NetworkPolicyEgressRule{
+					{
+						Ports: []networkv1.NetworkPolicyPort{
+							{
+								Protocol: &tcp,
+							},
+						},
+						To: []networkv1.NetworkPolicyPeer{
+							{
+								NamespaceSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										"kubernetes.io/metadata.name": "openshift-kube-apiserver",
+									},
+								},
+								PodSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										"app": "openshift-kube-apiserver",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: networkv1.SchemeGroupVersion.String(),
+				Kind:       "NetworkPolicy",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "aaq-allow-to-dns",
+				Namespace: namespace,
+			},
+			Spec: networkv1.NetworkPolicySpec{
+				PodSelector: metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{
+							Key:      "aaq.kubevirt.io",
+							Operator: metav1.LabelSelectorOpExists,
+						},
+					},
+				},
+				PolicyTypes: []networkv1.PolicyType{"Egress"},
+				Egress: []networkv1.NetworkPolicyEgressRule{
+					{
+						Ports: []networkv1.NetworkPolicyPort{
+							{
+								Protocol: func() *corev1.Protocol {
+									p := corev1.ProtocolTCP
+									return &p
+								}(),
+							},
+							{
+								Protocol: func() *corev1.Protocol {
+									p := corev1.ProtocolUDP
+									return &p
+								}(),
+							},
+						},
+						To: []networkv1.NetworkPolicyPeer{
+							{
+								NamespaceSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										"kubernetes.io/metadata.name": "openshift-dns",
+									},
+								},
+								PodSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										"dns.operator.openshift.io/daemonset-dns": "default",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: networkv1.SchemeGroupVersion.String(),
+				Kind:       "NetworkPolicy",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "aaq-allow-ingress-to-metrics",
+				Namespace: namespace,
+			},
+			Spec: networkv1.NetworkPolicySpec{
+				PodSelector: metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"prometheus.aaq.kubevirt.io": "true",
+					},
+				},
+				PolicyTypes: []networkv1.PolicyType{"Ingress"},
+				Ingress: []networkv1.NetworkPolicyIngressRule{
+					{
+						Ports: []networkv1.NetworkPolicyPort{
+							{
+								Port:     &intstr.IntOrString{Type: intstr.Int, IntVal: 8443},
+								Protocol: func() *corev1.Protocol { p := corev1.ProtocolTCP; return &p }(),
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: networkv1.SchemeGroupVersion.String(),
+				Kind:       "NetworkPolicy",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "aaq-allow-ingress-to-aaq-server-webhooks",
+				Namespace: namespace,
+			},
+			Spec: networkv1.NetworkPolicySpec{
+				PodSelector: metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"aaq.kubevirt.io": "aaq-server",
+					},
+				},
+				PolicyTypes: []networkv1.PolicyType{"Ingress"},
+				Ingress: []networkv1.NetworkPolicyIngressRule{
+					{
+						Ports: []networkv1.NetworkPolicyPort{
+							{
+								Port:     &intstr.IntOrString{Type: intstr.Int, IntVal: 8443},
+								Protocol: &tcp,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
 }
