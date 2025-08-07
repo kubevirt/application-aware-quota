@@ -117,7 +117,8 @@ The main differences between the AAQ cluster quota and AAQ quota are:
 
   **Note**: AAQ must be configured to allow AAQ cluster quota management
 
-  Refer to the "Configure AAQ Operator" section for more details. 
+
+  Refer to the [Configure AAQ Operator](#configure-aaq-operator) section for more details. 
 
 Please see [acrq-example.yaml](https://github.com/kubevirt/application-aware-quota/blob/main/manifests/examples/acrq-example.yaml) for an example manifest.
 
@@ -146,6 +147,24 @@ pod-level accounting resources are allowed with AAQ cluster quota.
 The primary purpose of these managed quotas is to set unified quotas for bot native and extended 
 accounting resources, eliminating the need to manage both ResourceQuota and AAQ quota, or
 ClusterResourceQuota and AAQ cluster quota separately.
+
+## Built-in Resource Boundaries for Virtual Machine Instances
+
+AAQ includes built-in support for managing compute resource usage of Virtual Machine Instances in KubeVirt.
+This is configured through the `spec.configuration.vmiCalculatorConfiguration` section of the AAQ custom resource.
+The built-in boundaries apply only when using the default counting mode, which is **DedicatedVirtualResources**, 
+configured via `spec.configuration.vmiCalculatorConfiguration.vmiCalcConfigName` in the AAQ custom resource.
+
+Refer to the [Configure AAQ Operator](#configure-aaq-operator) section for more details.
+
+**Important:** When using the **DedicatedVirtualResources** mode, pods associated with Virtual Machines are 
+**not counted** against the standard built-in boundaries (`requests.cpu`, `limits.memory`, etc.). 
+Instead, their resource usage is tracked separately using the `/vmi` suffixed resources (e.g.,`cpu/vmi`).
+
+Examples of how to configure these boundaries can be found in the example manifests:
+
+* [arq-example.yaml](https://github.com/kubevirt/application-aware-quota/blob/main/manifests/examples/arq-example.yaml)
+* [acrq-example.yaml](https://github.com/kubevirt/application-aware-quota/blob/main/manifests/examples/acrq-example.yaml)
 
 ## Pluggable policies for custom counting
 
@@ -185,6 +204,14 @@ To configure AAQ Operator, set the following fields of the aaq object:
 * `aaq.spec.configuration.allowApplicationAwareClusterResourceQuota` - (default = false) - allows creation and management of ClusterAppsResourceQuota.
 
   ***Note***: this might lead to longer scheduling time.
+
+
+* `aaq.spec.configuration.vmiCalculatorConfiguration.vmiCalcConfigName` – (optional)  
+  Configures how compute resources are counted for Virtual Machine Instances managed by KubeVirt.  
+  Available options are:
+    - **VmiPodUsage**: Uses pod resource requests/limits and excludes migration pods.
+    - **VirtualResources**: Uses the VM's memory and virtual CPUs directly from the VM spec.
+    - **DedicatedVirtualResources** (default): Same as VirtualResources, but adds a `/vmi` suffix to CPU and memory resource names (e.g., `cpu/vmi`) to track VM resource usage separately.
 
 
 * `aaq.spec.configuration.SidecarEvaluators` - Slice of standard Kubernetes container objects. Adding containers to the SidecarEvaluators includes a 
