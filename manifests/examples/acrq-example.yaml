@@ -10,9 +10,9 @@ spec:
       limits.memory: 1Gi
       requests.cpu: "1"
       requests.memory: 1Gi
-      requests.cpu/vmi: "1"
-      requests.memory/vmi: 1Gi
-      requests.instances/vmi: "10"
+      cpu/vmi: "1"
+      memory/vmi: 1Gi
+      instances/vmi: "10"
   selector:
     annotations: null
     labels:
