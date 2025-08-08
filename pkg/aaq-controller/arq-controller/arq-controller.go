@@ -133,7 +133,6 @@ func (ctrl *ArqController) updateRQ(old, curr interface{}) {
 
 		ctrl.arqQueue.Add(key)
 	}
-	return
 }
 func (ctrl *ArqController) deleteRQ(obj interface{}) {
 	rq := obj.(*v1.ResourceQuota)
@@ -145,7 +144,6 @@ func (ctrl *ArqController) deleteRQ(obj interface{}) {
 		return
 	}
 	ctrl.arqQueue.Add(key)
-	return
 }
 
 func (ctrl *ArqController) addRQ(obj interface{}) {
@@ -158,7 +156,6 @@ func (ctrl *ArqController) addRQ(obj interface{}) {
 		return
 	}
 	ctrl.arqQueue.Add(key)
-	return
 }
 
 // When a ApplicationAwareResourceQuotAaqjqc.Status.PodsInJobQueuea is updated, enqueue all gated pods for revaluation
@@ -167,7 +164,6 @@ func (ctrl *ArqController) updateAaqjqc(old, cur interface{}) {
 	if aaqjqc.Status.ControllerLock[arq_controller.ApplicationAwareResourceQuotaLockName] {
 		ctrl.nsQueue.Add(aaqjqc.Namespace)
 	}
-	return
 }
 
 // When a ApplicationAwareResourceQuotAaqjqc.Status.PodsInJobQueuea is updated, enqueue all gated pods for revaluation
@@ -176,7 +172,6 @@ func (ctrl *ArqController) addAaqjqc(obj interface{}) {
 	if aaqjqc.Status.ControllerLock[arq_controller.ApplicationAwareResourceQuotaLockName] {
 		ctrl.nsQueue.Add(aaqjqc.Namespace)
 	}
-	return
 }
 
 // enqueueAll is called at the fullResyncPeriod interval to force a full recalculation of quota usage statistics
