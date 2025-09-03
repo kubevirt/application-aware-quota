@@ -208,7 +208,7 @@ func updateAAQNamespaceSelector(aaqClient *clientset.Clientset, k8sClient *kuber
 		}
 
 		return nil
-	}).WithTimeout(30*time.Second).WithPolling(time.Second).ShouldNot(HaveOccurred(), fmt.Sprintf("webhook namespace selector is not updated"))
+	}).WithTimeout(30*time.Second).WithPolling(time.Second).ShouldNot(HaveOccurred(), "webhook namespace selector is not updated")
 
 	return nil
 }

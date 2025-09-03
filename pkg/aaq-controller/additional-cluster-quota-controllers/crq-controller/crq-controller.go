@@ -80,7 +80,6 @@ func (ctrl *CRQController) deleteAcrq(obj interface{}) {
 		return
 	}
 	ctrl.acrqQueue.Add(key)
-	return
 }
 
 // When a ApplicationAwareResourceQuota is updated, enqueue all gated pods for revaluation
@@ -91,7 +90,6 @@ func (ctrl *CRQController) addAcrq(obj interface{}) {
 		return
 	}
 	ctrl.acrqQueue.Add(key)
-	return
 }
 
 // When a ApplicationAwareResourceQuota is updated, enqueue all gated pods for revaluation
@@ -106,8 +104,6 @@ func (ctrl *CRQController) updateAcrq(old, cur interface{}) {
 		}
 		ctrl.acrqQueue.Add(key)
 	}
-
-	return
 }
 
 func (ctrl *CRQController) deleteCRQ(obj interface{}) {
@@ -121,7 +117,6 @@ func (ctrl *CRQController) deleteCRQ(obj interface{}) {
 	}
 
 	ctrl.acrqQueue.Add(key)
-	return
 }
 
 func (ctrl *CRQController) updateCRQ(old, curr interface{}) {
@@ -137,7 +132,6 @@ func (ctrl *CRQController) updateCRQ(old, curr interface{}) {
 		}
 		ctrl.acrqQueue.Add(key)
 	}
-	return
 }
 
 func (ctrl *CRQController) runWorker() {
