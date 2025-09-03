@@ -352,7 +352,7 @@ func createOperatorEnvVar(operatorVersion, deployClusterResources, controllerIma
 }
 
 func createOperatorDeployment(operatorVersion, namespace, deployClusterResources, operatorImage, controllerImage, webhookServerImage, verbosity, pullPolicy string, imagePullSecrets []corev1.LocalObjectReference) *appsv1.Deployment {
-	deployment := utils2.CreateOperatorDeployment("aaq-operator", namespace, utils2.AAQLabel, "aaq-operator", utils2.OperatorServiceAccountName, imagePullSecrets, int32(1))
+	deployment := utils2.CreateOperatorDeployment("aaq-operator", namespace, "name", "aaq-operator", utils2.OperatorServiceAccountName, imagePullSecrets, int32(1))
 	container := utils2.CreateContainer("aaq-operator", operatorImage, verbosity, pullPolicy)
 	container.Ports = createPrometheusPorts()
 	container.SecurityContext.Capabilities = &corev1.Capabilities{

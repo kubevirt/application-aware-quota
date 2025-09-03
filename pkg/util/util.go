@@ -160,7 +160,7 @@ func CreateOperatorDeployment(name, namespace, matchKey, matchValue, serviceAcco
 		},
 	}
 	deployment := ResourceBuilder.CreateOperatorDeployment(name, namespace, matchKey, matchValue, serviceAccount, numReplicas, podSpec)
-	labels := MergeLabels(deployment.Spec.Template.GetLabels(), map[string]string{PrometheusLabelKey: PrometheusLabelValue})
+	labels := MergeLabels(deployment.Spec.Template.GetLabels(), map[string]string{PrometheusLabelKey: PrometheusLabelValue, AAQLabel: "aaq-operator"})
 	deployment.SetLabels(labels)
 	deployment.Spec.Template.SetLabels(labels)
 	return deployment
