@@ -36,10 +36,13 @@ PULL_POLICY=${PULL_POLICY:-IfNotPresent}
 # have to refactor/rewrite any of the code that works currently.
 MANIFEST_REGISTRY=$DOCKER_PREFIX
 
+insecure="false"
+
 if [ "${KUBEVIRT_PROVIDER}" != "external" ]; then
   registry=${IMAGE_REGISTRY:-localhost:$(_port registry)}
   DOCKER_PREFIX=${registry}
   MANIFEST_REGISTRY="registry:5000"
+  insecure="true"
 fi
 
 if [ "${KUBEVIRT_PROVIDER}" == "external" ]; then
@@ -54,7 +57,7 @@ fi
 # Need to set the DOCKER_PREFIX appropriately in the call to `make docker push`, otherwise make will just pass in the default `kubevirt`
 
 DOCKER_PREFIX=$MANIFEST_REGISTRY PULL_POLICY=$PULL_POLICY make manifests
-DOCKER_PREFIX=$DOCKER_PREFIX make push
+DOCKER_PREFIX=$DOCKER_PREFIX INSECURE_REGISTRY="${insecure}" make push-multi-arch
 
 
 function check_structural_schema {

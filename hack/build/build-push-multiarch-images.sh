@@ -38,31 +38,36 @@ if [[ "${INSECURE_REGISTRY}" == "true" ]]; then
 fi
 
 function create_push_multi_arch_manifest() {
-    IMAGES=""
-    BIN_NAME=$1
-    MANIFEST_NAME="${DOCKER_PREFIX}/${BIN_NAME}:${DOCKER_TAG}"
+    local bin_name=$1
+    local build_dir=$2
+    local images=""
+    local manifest_name="${DOCKER_PREFIX}/${bin_name}:${DOCKER_TAG}"
 
     for arch in ${BUILD_ARCHES}; do
-        IMAGE_NAME="${MANIFEST_NAME}-${arch}"
-        echo "building image ${IMAGE_NAME}"
+        image_name="${manifest_name}-${arch}"
+        echo "building image ${image_name} in ${build_dir}"
         set -x
-        ${AAQ_CRI} build --platform="linux/${arch}" -t ${IMAGE_NAME} --build-arg git_sha=${GIT_HASH} . -f Dockerfile.${BIN_NAME}
+        ${AAQ_CRI} build \
+            --platform="linux/${arch}" \
+            -t "${image_name}" \
+            --build-arg git_sha=${GIT_HASH} \
+            "${build_dir}" -f "${build_dir}/Dockerfile.${bin_name}"
         set +x
-        echo "pushing image ${IMAGE_NAME}"
-        ${AAQ_CRI} push ${insecure_param} "${IMAGE_NAME}"
-        IMAGES="${IMAGES} ${IMAGE_NAME}"
+        echo "pushing image ${image_name}"
+        ${AAQ_CRI} push ${insecure_param} "${image_name}"
+        images="${images} ${image_name}"
     done
 
     # podman does not support overwrite of an existing manifest. Remove it if it exists
-    if ${AAQ_CRI} manifest exists "${MANIFEST_NAME}"; then
-        echo "removing existing manifest ${MANIFEST_NAME}"
-        ${AAQ_CRI} manifest rm "${MANIFEST_NAME}"
+    if ${AAQ_CRI} manifest exists "${manifest_name}"; then
+        echo "removing existing manifest ${manifest_name}"
+        ${AAQ_CRI} manifest rm "${manifest_name}"
     fi
 
-    echo "creating manifest ${MANIFEST_NAME}"
-    ${AAQ_CRI} manifest create ${MANIFEST_NAME} ${IMAGES}
-    echo "pushing manifest ${MANIFEST_NAME}"
-    ${AAQ_CRI} manifest push ${insecure_param} "${MANIFEST_NAME}"
+    echo "creating manifest ${manifest_name}"
+    ${AAQ_CRI} manifest create ${manifest_name} ${images}
+    echo "pushing manifest ${manifest_name}"
+    ${AAQ_CRI} manifest push ${insecure_param} "${manifest_name}"
 }
 
 # allow running binary within image with one architecture, running on machine with another architecture
@@ -72,13 +77,12 @@ PUSH_TARGETS=(${PUSH_TARGETS:-$CONTROLLER_IMAGE_NAME $AAQ_SERVER_IMAGE_NAME $OPE
 
 echo "Using ${AAQ_CRI}, docker_prefix: $DOCKER_PREFIX, docker_tag: $DOCKER_TAG"
 for target in ${PUSH_TARGETS[@]}; do
-    create_push_multi_arch_manifest ${target}
+    create_push_multi_arch_manifest ${target} .
 done
 
-cd example_sidecars
-PUSH_EXAMPLE_SIDECARS=$(ls -l | grep '^d' | awk '{print $9}')
+EXAMPLE_SIDECAR_DIR=example_sidecars
+
+PUSH_EXAMPLE_SIDECARS=$(ls -l ${EXAMPLE_SIDECAR_DIR} | grep '^d' | awk '{print $9}')
 for target in ${PUSH_EXAMPLE_SIDECARS[@]}; do
-    cd ${target}
-    create_push_multi_arch_manifest ${target}
-    cd ..
+    create_push_multi_arch_manifest ${target} ./${EXAMPLE_SIDECAR_DIR}/${target}
 done
