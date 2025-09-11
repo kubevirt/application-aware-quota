@@ -12,6 +12,8 @@
 #See the License for the specific language governing permissions and
 #limitations under the License.
 
+GOARCH ?= $(shell go env GOARCH)
+
 .PHONY: manifests \
 		cluster-up cluster-down cluster-sync \
 		test test-functional test-unit test-lint \
@@ -69,6 +71,9 @@ build-images:
 
 push: build-images push-images
 
+push-multi-arch:
+	./hack/build/build-push-multiarch-images.sh
+
 cluster-clean-aaq:
 	./cluster-sync/clean.sh
 
@@ -90,20 +95,20 @@ bootstrap-ginkgo:
 	${DO_BAZ} ./hack/build/bootstrap-ginkgo.sh
 
 aaq_controller:
-	go build -o aaq_controller -v cmd/aaq-controller/*.go
-	chmod 777 aaq_controller
+	echo "Building aaq_controller for linux/${GOARCH}"
+	go build -o aaq_controller ./cmd/aaq-controller
 
 aaq_operator:
-	go build -o aaq_operator -v cmd/aaq-operator/*.go
-	chmod 777 aaq_operator
+	echo "Building aaq_operator for linux/${GOARCH}"
+	go build -o aaq_operator ./cmd/aaq-operator
 
 aaq_server:
-	go build -o aaq_server -v cmd/aaq-server/*.go
-	chmod 777 aaq_server
+	echo "Building aaq_server for linux/${GOARCH}"
+	go build -o aaq_server ./cmd/aaq-server
 
 csv-generator:
-	go build -o bin/csv-generator -v tools/csv-generator/csv-generator.go
-	chmod 777 bin/csv-generator
+	echo "Building csv-generator for linux/${GOARCH}"
+	go build -o bin/csv-generator ./tools/csv-generator/
 
 release-description:
 	./hack/build/release-description.sh ${RELREF} ${PREREF}

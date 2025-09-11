@@ -1,33 +1,41 @@
 # Builder stage
-FROM docker.io/library/golang:1.22-alpine as builder
+FROM --platform=${BUILDPLATFORM} docker.io/library/golang:1.24-alpine as builder
 
 # Install make
 RUN apk update && apk add make
 
-# Copy the source code from the host to the container
-COPY pkg /workdir/app/pkg
-COPY staging /workdir/app/staging
-COPY cmd /workdir/app/cmd
-COPY vendor /workdir/app/vendor
-COPY go.mod /workdir/app/go.mod
-COPY go.sum /workdir/app/go.sum
-COPY Makefile /workdir/app/Makefile
-
 WORKDIR /workdir/app
 
-RUN make aaq_server
+# Copy the source code from the host to the container
+COPY cmd ./cmd
+COPY go.mod go.sum Makefile ./
+COPY pkg ./pkg
+COPY staging ./staging
+COPY vendor ./vendor
+
+ARG TARGETARCH
+RUN GOOS=linux GOARCH=${TARGETARCH} make aaq_server
 
 # Final stage
-FROM docker.io/library/golang:1.22-alpine
-
-# Copy the binary from the builder stage to the final image
-COPY --from=builder /workdir/app/aaq_server /app/aaq_server
+FROM docker.io/alpine:3.22.1
 
 # Set the working directory to /app
 WORKDIR /app
-
-RUN adduser -u 1001 -D -s /bin/sh -h /app/aaq_server aaq_server
+RUN adduser -u 1001 -D -s /bin/sh -h /app aaq_server
 USER 1001
 
 # Set the entrypoint to the binary
 ENTRYPOINT ["/app/aaq_server"]
+
+# Copy the binary from the builder stage to the final image
+COPY --from=builder --chown=1001 /workdir/app/aaq_server /app/
+
+ARG git_url=https://github.com/kubevirt/application-aware-quota.git
+ARG git_sha=unknown
+
+# this line is used to prevent the caching of the multi.GIT_SHA label
+RUN echo "git_sha=${git_sha}"
+
+LABEL multi.GIT_URL=${git_url} \
+      multi.GIT_SHA=${git_sha} \
+      app=aaq-server
