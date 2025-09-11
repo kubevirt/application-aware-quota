@@ -24,7 +24,6 @@ GOARCH ?= $(shell go env GOARCH)
 		fmt \
 		goveralls \
 		release-description \
-		bazel-build-images push-images \
 		fossa \
 		bump-kubevirtci
 all: build
@@ -63,14 +62,7 @@ cluster-up:
 cluster-down:
 	./kubevirtci/cluster-up/down.sh
 
-push-images:
-	eval "DOCKER_PREFIX=${DOCKER_PREFIX} DOCKER_TAG=${DOCKER_TAG}  ./hack/build/build-docker.sh push"
-
-build-images:
-	eval "DOCKER_PREFIX=${DOCKER_PREFIX} DOCKER_TAG=${DOCKER_TAG}  ./hack/build/build-docker.sh"
-
-push: build-images push-images
-
+# For debug: BUILD_ARCHES=amd64 DOCKER_PREFIX=quay.io/<quay-repo-name> make push-multi-arch
 push-multi-arch:
 	./hack/build/build-push-multiarch-images.sh
 
