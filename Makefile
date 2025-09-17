@@ -46,8 +46,11 @@ all: manifests build-images
 manifests:
 	${DO_BAZ} "DOCKER_PREFIX=${DOCKER_PREFIX} DOCKER_TAG=${DOCKER_TAG} VERBOSITY=${VERBOSITY} PULL_POLICY=${PULL_POLICY} CR_NAME=${CR_NAME} AAQ_NAMESPACE=${AAQ_NAMESPACE} ./hack/build/build-manifests.sh"
 
+builder-build:
+	./hack/build/builder/build.sh
+
 builder-push:
-	./hack/build/bazel-build-builder.sh
+	./hack/build/builder/publish.sh
 
 generate:
 	${DO_BAZ} "./hack/update-codegen.sh"
