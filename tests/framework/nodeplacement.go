@@ -46,9 +46,24 @@ func (f *Framework) GetNodePlacementValuesWithRandomNodeAffinity(nodeSelectorTes
 // PodSpecHasTestNodePlacementValues compares if the pod spec has the set of node placement values defined for testing purposes
 func (f *Framework) PodSpecHasTestNodePlacementValues(podSpec v1.PodSpec, nodePlacement sdkapi.NodePlacement) error {
 
-	errfmt := "mismatched nodeSelectors, podSpec:\n%v\nExpected:\n%v\n"
-	if !reflect.DeepEqual(podSpec.NodeSelector, nodePlacement.NodeSelector) || !reflect.DeepEqual(podSpec.Affinity, nodePlacement.Affinity) {
-		return fmt.Errorf(errfmt, podSpec.NodeSelector, nodePlacement.NodeSelector)
+	errNodeSelectorFmt := "mismatched nodeSelectors, podSpec:\n%v\nExpected:\n%v\n"
+	errAffinityFmt := "mismatched affinity, podSpec:\n%v\nExpected:\n%v\n"
+	errTolerationsFmt := "mismatched tolerations, podSpec:\n%v\nExpected to contain:\n%v\n"
+
+	podNodeSelector := podSpec.NodeSelector
+	if podNodeSelector == nil {
+		podNodeSelector = map[string]string{}
+	}
+	expectedNodeSelector := nodePlacement.NodeSelector
+	if expectedNodeSelector == nil {
+		expectedNodeSelector = map[string]string{}
+	}
+
+	if !reflect.DeepEqual(podNodeSelector, expectedNodeSelector) {
+		return fmt.Errorf(errNodeSelectorFmt, podNodeSelector, expectedNodeSelector)
+	}
+	if !reflect.DeepEqual(podSpec.Affinity, nodePlacement.Affinity) {
+		return fmt.Errorf(errAffinityFmt, podSpec.Affinity, nodePlacement.Affinity)
 	}
 
 	for _, nodePlacementToleration := range nodePlacement.Tolerations {
@@ -59,7 +74,7 @@ func (f *Framework) PodSpecHasTestNodePlacementValues(podSpec v1.PodSpec, nodePl
 			}
 		}
 		if !foundMatchingToleration {
-			return fmt.Errorf(errfmt, podSpec.NodeSelector, nodePlacement.NodeSelector)
+			return fmt.Errorf(errTolerationsFmt, podSpec.Tolerations, nodePlacement.Tolerations)
 		}
 	}
 	return nil

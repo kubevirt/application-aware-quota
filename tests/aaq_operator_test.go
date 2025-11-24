@@ -9,7 +9,6 @@ import (
 	resourcesutils "kubevirt.io/application-aware-quota/pkg/util"
 	"kubevirt.io/application-aware-quota/tests/utils"
 	"reflect"
-	"runtime"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -200,7 +199,7 @@ var _ = Describe("ALL Operator tests", Serial, func() {
 	var _ = Describe("aaq Operator deployment + aaq CR delete tests", func() {
 		var aaqBackup *aaqv1.AAQ
 		var aaqOperatorDeploymentBackup *appsv1.Deployment
-		nodeSelectorTestValue := map[string]string{"kubernetes.io/arch": runtime.GOARCH}
+		nodeSelectorTestValue := map[string]string{}
 		tolerationTestValue := []corev1.Toleration{{Key: "test", Value: "123"}, {Key: "CriticalAddonsOnly", Value: string(corev1.TolerationOpExists)}}
 		f := framework.NewFramework("operator-delete-aaq-test")
 
