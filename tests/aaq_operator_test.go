@@ -199,7 +199,6 @@ var _ = Describe("ALL Operator tests", Serial, func() {
 	var _ = Describe("aaq Operator deployment + aaq CR delete tests", func() {
 		var aaqBackup *aaqv1.AAQ
 		var aaqOperatorDeploymentBackup *appsv1.Deployment
-		nodeSelectorTestValue := map[string]string{}
 		tolerationTestValue := []corev1.Toleration{{Key: "test", Value: "123"}, {Key: "CriticalAddonsOnly", Value: string(corev1.TolerationOpExists)}}
 		f := framework.NewFramework("operator-delete-aaq-test")
 
@@ -236,7 +235,7 @@ var _ = Describe("ALL Operator tests", Serial, func() {
 		It("Should install AAQ infrastructure pods with node placement", func() {
 			By("Creating modified AAQ CR, with infra nodePlacement")
 			localSpec := aaqBackup.Spec.DeepCopy()
-			localSpec.Infra = f.GetNodePlacementValuesWithRandomNodeAffinity(nodeSelectorTestValue, tolerationTestValue)
+			localSpec.Infra = f.GetNodePlacementValuesWithRandomNodeAffinity(tolerationTestValue)
 
 			tempAaqCr := &aaqv1.AAQ{
 				ObjectMeta: metav1.ObjectMeta{

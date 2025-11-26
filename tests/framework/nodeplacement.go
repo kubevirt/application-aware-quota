@@ -11,7 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (f *Framework) GetNodePlacementValuesWithRandomNodeAffinity(nodeSelectorTestValue map[string]string, tolerationTestValue []v1.Toleration) sdkapi.NodePlacement {
+func (f *Framework) GetNodePlacementValuesWithRandomNodeAffinity(tolerationTestValue []v1.Toleration) sdkapi.NodePlacement {
 	nodes, _ := f.K8sClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 
 	nodeName := nodes.Items[0].Name
@@ -37,7 +37,7 @@ func (f *Framework) GetNodePlacementValuesWithRandomNodeAffinity(nodeSelectorTes
 	}
 
 	return sdkapi.NodePlacement{
-		NodeSelector: nodeSelectorTestValue,
+		NodeSelector: map[string]string{"kubernetes.io/hostname": nodeName},
 		Affinity:     affinityTestValue,
 		Tolerations:  tolerationTestValue,
 	}
@@ -45,23 +45,14 @@ func (f *Framework) GetNodePlacementValuesWithRandomNodeAffinity(nodeSelectorTes
 
 // PodSpecHasTestNodePlacementValues compares if the pod spec has the set of node placement values defined for testing purposes
 func (f *Framework) PodSpecHasTestNodePlacementValues(podSpec v1.PodSpec, nodePlacement sdkapi.NodePlacement) error {
-
 	errNodeSelectorFmt := "mismatched nodeSelectors, podSpec:\n%v\nExpected:\n%v\n"
 	errAffinityFmt := "mismatched affinity, podSpec:\n%v\nExpected:\n%v\n"
 	errTolerationsFmt := "mismatched tolerations, podSpec:\n%v\nExpected to contain:\n%v\n"
 
-	podNodeSelector := podSpec.NodeSelector
-	if podNodeSelector == nil {
-		podNodeSelector = map[string]string{}
-	}
-	expectedNodeSelector := nodePlacement.NodeSelector
-	if expectedNodeSelector == nil {
-		expectedNodeSelector = map[string]string{}
+	if !reflect.DeepEqual(podSpec.NodeSelector, nodePlacement.NodeSelector) {
+		return fmt.Errorf(errNodeSelectorFmt, podSpec.NodeSelector, nodePlacement.NodeSelector)
 	}
 
-	if !reflect.DeepEqual(podNodeSelector, expectedNodeSelector) {
-		return fmt.Errorf(errNodeSelectorFmt, podNodeSelector, expectedNodeSelector)
-	}
 	if !reflect.DeepEqual(podSpec.Affinity, nodePlacement.Affinity) {
 		return fmt.Errorf(errAffinityFmt, podSpec.Affinity, nodePlacement.Affinity)
 	}
@@ -71,6 +62,7 @@ func (f *Framework) PodSpecHasTestNodePlacementValues(podSpec v1.PodSpec, nodePl
 		for _, toleration := range podSpec.Tolerations {
 			if toleration == nodePlacementToleration {
 				foundMatchingToleration = true
+				break
 			}
 		}
 		if !foundMatchingToleration {
