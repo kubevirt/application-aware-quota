@@ -1,4 +1,4 @@
-# K8S with mdev support in a Kind cluster
+# K8S with support for dra-example-driver in a Kind cluster
 
 Provides a pre-deployed k8s cluster that runs using [kind](https://github.com/kubernetes-sigs/kind) The cluster is completely ephemeral and is recreated on every cluster restart.
 The KubeVirt containers are built on the local machine and are then pushed to a registry which is exposed at
