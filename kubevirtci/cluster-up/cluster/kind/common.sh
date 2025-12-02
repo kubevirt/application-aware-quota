@@ -3,10 +3,18 @@
 set -e
 
 function detect_cri() {
-    if podman ps >/dev/null 2>&1; then echo podman; elif docker ps >/dev/null 2>&1; then echo docker; fi
+    if podman ps >/dev/null 2>&1; then
+        echo podman
+    elif docker ps >/dev/null 2>&1; then
+        echo docker
+    else
+        echo "Error: no container runtime detected. Please install Podman or Docker." >&2
+        exit 1
+    fi
 }
 
 export CRI_BIN=${CRI_BIN:-$(detect_cri)}
+export KIND_EXPERIMENTAL_PROVIDER=${CRI_BIN}
 CONFIG_WORKER_CPU_MANAGER=${CONFIG_WORKER_CPU_MANAGER:-false}
 # only setup ipFamily when the environmental variable is not empty
 # avaliable value: ipv4, ipv6, dual
@@ -23,14 +31,11 @@ case ${PLATFORM} in
 x86_64* | i?86_64* | amd64*)
     ARCH="amd64"
     ;;
-ppc64le)
-    ARCH="ppc64le"
-    ;;
 aarch64* | arm64*)
     ARCH="arm64"
     ;;
 *)
-    echo "invalid Arch, only support x86_64, ppc64le, aarch64"
+    echo "invalid Arch, only support x86_64 and aarch64"
     exit 1
     ;;
 esac
@@ -95,6 +100,21 @@ function _reload-containerd-daemon-cmd() {
 function _insecure-registry-config-cmd() {
     echo "sed -i '/\[plugins.cri.registry.mirrors\]/a\        [plugins.cri.registry.mirrors.\"registry:5000\"]\n\          endpoint = [\"http://registry:5000\"]' /etc/containerd/config.toml"
 }
+
+function _configure_overlayfs_on_node() {
+    local -r node=${1}
+    _configure_overlayfs_mount_options "${NODE_CMD} ${node} bash -c"
+}
+
+function _configure_overlayfs_mount_options() {
+    local cmd_context="${1}" # context to run command e.g. sudo, docker exec
+    ${cmd_context} "$(_overlayfs_volatile_cmd)"
+    ${cmd_context} "$(_reload-containerd-daemon-cmd)"
+}
+
+ function _overlayfs_volatile_cmd(){
+    echo "sed -i '/^\[plugins\]$/a\  [plugins.\"io.containerd.snapshotter.v1.overlayfs\"]\n    mount_options = [\"volatile\"]' /etc/containerd/config.toml"
+ }
 
 # this works since the nodes use the same names as containers
 function _ssh_into_node() {
@@ -193,11 +213,9 @@ function _fix_node_labels() {
 }
 
 function setup_kind() {
-    $KIND --loglevel debug create cluster --retain --name=${CLUSTER_NAME} --config=${KUBEVIRTCI_CONFIG_PATH}/$KUBEVIRT_PROVIDER/kind.yaml --image=$KIND_NODE_IMAGE \
-        || ( $KIND --loglevel debug delete cluster --name=${CLUSTER_NAME} \
-        && $KIND --loglevel debug create cluster --retain --name=${CLUSTER_NAME} --config=${KUBEVIRTCI_CONFIG_PATH}/$KUBEVIRT_PROVIDER/kind.yaml --image=$KIND_NODE_IMAGE )
-
-    $KIND get kubeconfig --name=${CLUSTER_NAME} > ${KUBEVIRTCI_CONFIG_PATH}/$KUBEVIRT_PROVIDER/.kubeconfig
+    $KIND -v 9 create cluster --retain --name=${CLUSTER_NAME} --config=${KUBEVIRTCI_CONFIG_PATH}/$KUBEVIRT_PROVIDER/kind.yaml --image=$KIND_NODE_IMAGE --kubeconfig=${KUBEVIRTCI_CONFIG_PATH}/$KUBEVIRT_PROVIDER/.kubeconfig \
+        || ( $KIND -v 9 delete cluster --name=${CLUSTER_NAME} \
+        && $KIND -v 9 create cluster --retain --name=${CLUSTER_NAME} --config=${KUBEVIRTCI_CONFIG_PATH}/$KUBEVIRT_PROVIDER/kind.yaml --image=$KIND_NODE_IMAGE --kubeconfig=${KUBEVIRTCI_CONFIG_PATH}/$KUBEVIRT_PROVIDER/.kubeconfig )
 
     if ${CRI_BIN} exec ${CLUSTER_NAME}-control-plane ls /usr/bin/kubectl > /dev/null; then
         kubectl_path=/usr/bin/kubectl
@@ -246,10 +264,18 @@ function setup_kind() {
     _run_registry "$KIND_DEFAULT_NETWORK"
 
     for node in $(_get_nodes | awk '{print $1}'); do
+        _configure_overlayfs_on_node "$node"
         _configure_registry_on_node "$node" "$KIND_DEFAULT_NETWORK"
         _configure_network "$node"
     done
     prepare_config
+
+    if [[ $KUBEVIRT_DEPLOY_CDI == "true" ]]; then
+       KUBEVIRT_CUSTOM_CDI_VERSION=${KUBEVIRT_CUSTOM_CDI_VERSION:-"v1.63.0"}
+      _kubectl create -f https://github.com/kubevirt/containerized-data-importer/releases/download/"$KUBEVIRT_CUSTOM_CDI_VERSION"/cdi-operator.yaml
+      _kubectl create -f https://github.com/kubevirt/containerized-data-importer/releases/download/"$KUBEVIRT_CUSTOM_CDI_VERSION"/cdi-cr.yaml
+    fi
+
 }
 
 function _add_extra_mounts() {
@@ -342,10 +368,8 @@ EOF
 
 function _setup_ipfamily() {
     if [ "$IPFAMILY" != "" ]; then
-        cat <<EOF >> ${KUBEVIRTCI_CONFIG_PATH}/$KUBEVIRT_PROVIDER/kind.yaml
-networking:
-  ipFamily: $IPFAMILY
-EOF
+        IPFAMILY_REPLACE="networking:\n  ipFamily: $IPFAMILY"
+        sed -i "s/networking:/$IPFAMILY_REPLACE/" ${KUBEVIRTCI_CONFIG_PATH}/$KUBEVIRT_PROVIDER/kind.yaml
         echo "KIND cluster ip family has been set to $IPFAMILY"
     fi
 }
