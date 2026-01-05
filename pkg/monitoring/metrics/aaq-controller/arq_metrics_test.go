@@ -20,14 +20,15 @@
 package aaq_controller
 
 import (
-	"github.com/machadovilaca/operator-observability/pkg/operatormetrics"
+	"time"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rhobs/operator-observability-toolkit/pkg/operatormetrics"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
-	"time"
 
 	"kubevirt.io/application-aware-quota/tests/builders"
 )

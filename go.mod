@@ -40,13 +40,13 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/golang/mock v1.7.0-rc.1
 	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/machadovilaca/operator-observability v0.0.26
-	github.com/onsi/ginkgo/v2 v2.22.0
-	github.com/onsi/gomega v1.36.1
+	github.com/onsi/ginkgo/v2 v2.21.0
+	github.com/onsi/gomega v1.35.1
 	github.com/openshift/api v0.0.0-20251111013132-5c461e21bdb7
-	github.com/openshift/library-go v0.0.0-20251201053823-da1abba45a1c
+	github.com/openshift/library-go v0.0.0-20251222131241-289839b3ffe8
 	github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190105193533-81104ffdc4fb
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.74.0
+	github.com/rhobs/operator-observability-toolkit v0.0.29
 	github.com/rs/cors v1.7.0
 	k8s.io/client-go v12.0.0+incompatible
 	kubevirt.io/qe-tools v0.1.8
