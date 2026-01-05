@@ -45,13 +45,14 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/golang/mock v1.6.0
 	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/machadovilaca/operator-observability v0.0.26
+	github.com/kubevirt/monitoring/pkg/metrics/parser v0.0.0-20251228143350-c03b7c28986e
 	github.com/onsi/ginkgo/v2 v2.17.1
 	github.com/onsi/gomega v1.33.0
 	github.com/openshift/api v0.0.0-20240625084701-0689f006bcde
 	github.com/openshift/library-go v0.0.0-20230328115725-6ed98e0ed0b9
 	github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190105193533-81104ffdc4fb
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.74.0
+	github.com/rhobs/operator-observability-toolkit v0.0.29
 	github.com/rs/cors v1.7.0
 	k8s.io/client-go v8.0.0+incompatible
 	kubevirt.io/qe-tools v0.1.8
@@ -90,7 +91,7 @@ require (
 	github.com/openshift/custom-resource-status v1.1.2
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.16.0
-	github.com/prometheus/client_model v0.4.0 // indirect
+	github.com/prometheus/client_model v0.4.0
 	github.com/prometheus/common v0.44.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/spf13/pflag v1.0.5
