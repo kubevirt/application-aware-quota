@@ -40,6 +40,7 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/golang/mock v1.7.0-rc.1
 	github.com/kelseyhightower/envconfig v1.4.0
+	github.com/kubevirt/monitoring/pkg/metrics/parser v0.0.0-20251228143350-c03b7c28986e
 	github.com/onsi/ginkgo/v2 v2.21.0
 	github.com/onsi/gomega v1.35.1
 	github.com/openshift/api v0.0.0-20251111013132-5c461e21bdb7
@@ -97,7 +98,7 @@ require (
 	github.com/openshift/custom-resource-status v1.1.2
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.22.0
-	github.com/prometheus/client_model v0.6.1 // indirect
+	github.com/prometheus/client_model v0.6.1
 	github.com/prometheus/common v0.62.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/spf13/pflag v1.0.6
