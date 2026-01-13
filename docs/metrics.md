@@ -4,7 +4,8 @@
 Reports usage and hard limits for each resource in ApplicationAwareResourceQuota Type: Gauge.
 
 ### kube_application_aware_resourcequota_creation_timestamp
-Unix creation timestamp. Type: Gauge.
+[Deprecated] Backwards compatible alias for kube_application_aware_resourcequota_creation_timestamp_seconds Type: Gauge.
+
 ### kube_application_aware_resourcequota_creation_timestamp_seconds
 Unix creation timestamp Type: Gauge.
 
