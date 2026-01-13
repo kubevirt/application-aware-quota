@@ -7,7 +7,6 @@ import (
 	"github.com/go-logr/logr"
 	promv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"golang.org/x/net/context"
-	"k8s.io/apimachinery/pkg/api/equality"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -82,15 +81,6 @@ func ensurePrometheusResourcesExist(ctx context.Context, c client.Client, scheme
 				merged, err := sdk.MergeObject(desired, current, LastAppliedConfigAnnotation)
 				if err != nil {
 					return err
-				}
-				// For PrometheusRule, ensure Spec is reconciled as well (labels/annotations handled by MergeObject)
-				if prDesired, ok := desired.(*promv1.PrometheusRule); ok {
-					if prCurrent, ok2 := merged.(*promv1.PrometheusRule); ok2 {
-						// Copy spec if differs
-						if !equality.Semantic.DeepEqual(prCurrent.Spec, prDesired.Spec) {
-							prCurrent.Spec = prDesired.Spec
-						}
-					}
 				}
 				if !reflect.DeepEqual(currentObjCopy, merged) {
 					if err := c.Update(ctx, merged); err != nil {
