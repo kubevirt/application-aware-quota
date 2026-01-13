@@ -37,7 +37,7 @@ var (
 
 	arqCreatedInfo = operatormetrics.NewGaugeVec(
 		operatormetrics.MetricOpts{
-			Name: "kube_application_aware_resourcequota_creation_timestamp",
+			Name: "kube_application_aware_resourcequota_creation_timestamp_seconds",
 			Help: "Unix creation timestamp",
 		},
 		[]string{
