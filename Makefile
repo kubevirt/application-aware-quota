@@ -28,6 +28,7 @@ GOARCH ?= $(shell go env GOARCH)
 		bump-kubevirtci \
 		prom-rules-verify \
 		prom-rules-dumper \
+		prom-metrics-lint \
 all: build
 
 build:  aaq_controller aaq_server aaq_operator
@@ -131,3 +132,12 @@ prom-rules-dumper:
 # Lint and unit test Prometheus rules using promtool in a container
 prom-rules-verify: prom-rules-dumper
 	bash ./hack/prom-rule-ci/verify-rules.sh _out/rule-spec-dumper ./hack/prom-rule-ci/prom-rules-tests.yaml
+
+# Lint metric names using prom-metric-linter container
+prom-metrics-lint:
+	mkdir -p _out
+	${DO_BAZ} "bash ./hack/prom-metric-linter/metrics_collector.sh > _out/metrics.json"
+	bash ./hack/prom-metric-linter/metric_name_linter.sh \
+		--operator-name=kube_application_aware \
+		--sub-operator-name=resourcequota \
+		--metrics-file=_out/metrics.json
