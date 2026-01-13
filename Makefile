@@ -29,6 +29,7 @@ GOARCH ?= $(shell go env GOARCH)
 		prom-rules-verify \
 		prom-rules-dumper \
 		prom-metrics-lint \
+		doc-generator
 all: build
 
 build:  aaq_controller aaq_server aaq_operator
@@ -54,6 +55,8 @@ builder-push:
 
 generate:
 	${DO_BAZ} "./hack/update-codegen.sh"
+
+generate: doc-generator prom-metrics-lint prom-rules-verify
 
 generate-verify: generate
 	./hack/verify-generate.sh
@@ -123,8 +126,11 @@ run: build
 bump-kubevirtci:
 	./hack/bump-kubevirtci.sh
 
-build-metrics-docs:
-	${DO_BAZ} "./hack/build-metrics-docs.sh"
+# Generate metrics docs using the simplified doc-generator tool
+doc-generator:
+	${DO_BAZ} "go build -o _out/doc-generator ./tools/doc-generator"
+	${DO_BAZ} "_out/doc-generator > docs/metrics.md"
+
 # Build the Prometheus rules spec dumper used by promtool tests
 prom-rules-dumper:
 	${DO_BAZ} "go build -o _out/rule-spec-dumper ./hack/prom-rule-ci/rule-spec-dumper.go"
