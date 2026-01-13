@@ -1,0 +1,22 @@
+---
+rule_files:
+  - /tmp/rules.verify
+
+group_eval_order:
+  - recordingRules.rules
+
+# information about this format can be found in:
+# https://prometheus.io/docs/prometheus/latest/configuration/unit_testing_rules/
+tests:
+  # Verify legacy recording rule:
+  # kube_application_aware_resourcequota_creation_timestamp
+  - interval: 1m
+    input_series:
+      - series: 'kube_application_aware_resourcequota_creation_timestamp_seconds{namespace="ns1", resourcequota="rq1"}'
+        values: '1000 1000 1000'
+    promql_expr_test:
+      - expr: 'kube_application_aware_resourcequota_creation_timestamp'
+        eval_time: 2m
+        exp_samples:
+          - labels: 'kube_application_aware_resourcequota_creation_timestamp{namespace="ns1", resourcequota="rq1"}'
+            value: 1000
