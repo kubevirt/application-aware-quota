@@ -2,6 +2,7 @@ package built_in_usage_calculators
 
 import (
 	"fmt"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -10,6 +11,8 @@ import (
 	"k8s.io/kubernetes/pkg/quota/v1/evaluator/core"
 	"k8s.io/utils/clock"
 	v15 "kubevirt.io/api/core/v1"
+	"kubevirt.io/application-aware-quota/pkg/aaq-controller/built-in-usage-calculators/cpu"
+	"kubevirt.io/application-aware-quota/pkg/aaq-controller/built-in-usage-calculators/overhead_calculator"
 	"kubevirt.io/application-aware-quota/pkg/log"
 	"kubevirt.io/application-aware-quota/pkg/util"
 	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
@@ -17,10 +20,11 @@ import (
 
 const launcherLabel = "virt-launcher"
 
-var MyConfigs = []v1alpha1.VmiCalcConfigName{v1alpha1.VmiPodUsage, v1alpha1.VirtualResources, v1alpha1.DedicatedVirtualResources}
+var MyConfigs = []v1alpha1.VmiCalcConfigName{v1alpha1.VmiPodUsage, v1alpha1.VirtualResources, v1alpha1.DedicatedVirtualResources, v1alpha1.GuestEffectiveResources}
 
-func NewVirtLauncherCalculator(vmiInformer cache.SharedIndexInformer, migrationInformer cache.SharedIndexInformer, calcConfig v1alpha1.VmiCalcConfigName) *VirtLauncherCalculator {
+func NewVirtLauncherCalculator(kvInformer cache.SharedIndexInformer, vmiInformer cache.SharedIndexInformer, migrationInformer cache.SharedIndexInformer, calcConfig v1alpha1.VmiCalcConfigName) *VirtLauncherCalculator {
 	return &VirtLauncherCalculator{
+		kvInformer:        kvInformer,
 		vmiInformer:       vmiInformer,
 		migrationInformer: migrationInformer,
 		calcConfig:        calcConfig,
@@ -28,6 +32,7 @@ func NewVirtLauncherCalculator(vmiInformer cache.SharedIndexInformer, migrationI
 }
 
 type VirtLauncherCalculator struct {
+	kvInformer        cache.SharedIndexInformer
 	vmiInformer       cache.SharedIndexInformer
 	migrationInformer cache.SharedIndexInformer
 	calcConfig        v1alpha1.VmiCalcConfigName
@@ -117,6 +122,30 @@ func (launchercalc *VirtLauncherCalculator) CalculateUsageByConfig(pod *corev1.P
 			vmiRl[v1alpha1.ResourceRequestsVmiCPUShort] = cpuLim
 		}
 		return vmiRl, nil
+	case v1alpha1.GuestEffectiveResources:
+		computeOnlyPod := createPodWithComputeContainerOnly(pod)
+		podEvaluator := core.NewPodEvaluator(nil, clock.RealClock{})
+		usageWithOverhead, err := podEvaluator.Usage(computeOnlyPod)
+		if err != nil {
+			return nil, err
+		}
+
+		overheadResources := corev1.ResourceList{}
+		if launchercalc.kvInformer != nil {
+			kvConfig := overhead_calculator.GetConfigFromKubeVirtCR(launchercalc.kvInformer)
+			if kvConfig != nil {
+				memoryOverhead := overhead_calculator.CalculateMemoryOverhead(kvConfig, overhead_calculator.MemoryCalculator{}, vmi)
+				if !memoryOverhead.IsZero() {
+					if _, hasMemoryRequests := usageWithOverhead[corev1.ResourceRequestsMemory]; hasMemoryRequests {
+						overheadResources[corev1.ResourceRequestsMemory] = memoryOverhead
+					}
+					if _, hasMemoryLimits := usageWithOverhead[corev1.ResourceLimitsMemory]; hasMemoryLimits {
+						overheadResources[corev1.ResourceLimitsMemory] = memoryOverhead
+					}
+				}
+			}
+		}
+		return v12.SubtractWithNonNegativeResult(usageWithOverhead, overheadResources), nil
 	}
 
 	podEvaluator := core.NewPodEvaluator(nil, clock.RealClock{})
@@ -174,7 +203,7 @@ func CalculateResourceLauncherVMIUsagePodResources(vmi *v15.VirtualMachineInstan
 			Sockets: vmi.Spec.Domain.CPU.Sockets,
 			Threads: vmi.Spec.Domain.CPU.Threads,
 		}
-		vcpus := GetNumberOfVCPUs(cpuTopology)
+		vcpus := cpu.GetNumberOfVCPUs(cpuTopology)
 		cpuGuest = *resource.NewQuantity(vcpus, resource.BinarySI)
 	}
 
@@ -197,7 +226,7 @@ func CalculateResourceLauncherVMIUsagePodResources(vmi *v15.VirtualMachineInstan
 
 	if isSourceOrSingleLauncher && vmi.Status.CurrentCPUTopology != nil {
 		cpuTopology = vmi.Status.CurrentCPUTopology
-		vcpus := GetNumberOfVCPUs(cpuTopology)
+		vcpus := cpu.GetNumberOfVCPUs(cpuTopology)
 		cpuGuest = *resource.NewQuantity(vcpus, resource.BinarySI)
 	}
 
@@ -222,25 +251,6 @@ func CalculateResourceLauncherVMIUsagePodResources(vmi *v15.VirtualMachineInstan
 	result = v12.Add(result, requests)
 	result = v12.Add(result, limits)
 	return result
-}
-
-func GetNumberOfVCPUs(cpuSpec *v15.CPUTopology) int64 {
-	vCPUs := cpuSpec.Cores
-	if cpuSpec.Sockets != 0 {
-		if vCPUs == 0 {
-			vCPUs = cpuSpec.Sockets
-		} else {
-			vCPUs *= cpuSpec.Sockets
-		}
-	}
-	if cpuSpec.Threads != 0 {
-		if vCPUs == 0 {
-			vCPUs = cpuSpec.Threads
-		} else {
-			vCPUs *= cpuSpec.Threads
-		}
-	}
-	return int64(vCPUs)
 }
 
 func UnfinishedVMIPods(pods []*corev1.Pod, vmi *v15.VirtualMachineInstance) (podsToReturn []*corev1.Pod) {
@@ -331,4 +341,25 @@ func getSourcePod(pods []*corev1.Pod, vmi *v15.VirtualMachineInstance) *corev1.P
 	}
 
 	return curPod
+}
+
+const computeContainerName = "compute"
+
+func createPodWithComputeContainerOnly(pod *corev1.Pod) *corev1.Pod {
+	computeOnlyPod := &corev1.Pod{
+		ObjectMeta: pod.ObjectMeta,
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{},
+		},
+		Status: pod.Status,
+	}
+
+	for _, container := range pod.Spec.Containers {
+		if container.Name == computeContainerName {
+			computeOnlyPod.Spec.Containers = append(computeOnlyPod.Spec.Containers, container)
+			break
+		}
+	}
+
+	return computeOnlyPod
 }
