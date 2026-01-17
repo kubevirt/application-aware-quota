@@ -212,6 +212,7 @@ To configure AAQ Operator, set the following fields of the aaq object:
     - **VmiPodUsage**: Uses pod resource requests/limits and excludes migration pods.
     - **VirtualResources**: Uses the VM's memory and virtual CPUs directly from the VM spec.
     - **DedicatedVirtualResources** (default): Same as VirtualResources, but adds a `/vmi` suffix to CPU and memory resource names (e.g., `cpu/vmi`) to track VM resource usage separately.
+    - **GuestEffectiveResources**: Calculates pod usage like VmiPodUsage but excludes memory overhead, providing a more accurate representation of guest-requested resources.
 
 
 * `aaq.spec.configuration.SidecarEvaluators` - Slice of standard Kubernetes container objects. Adding containers to the SidecarEvaluators includes a 

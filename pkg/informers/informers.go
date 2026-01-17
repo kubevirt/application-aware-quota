@@ -67,6 +67,11 @@ func GetVMIInformer(aaqCli client.AAQClient) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(listWatcher, &k6tv1.VirtualMachineInstance{}, 1*time.Hour, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 }
 
+func GetKVInformer(aaqCli client.AAQClient) cache.SharedIndexInformer {
+	listWatcher := NewListWatchFromClient(aaqCli.KubevirtClient().KubevirtV1().RESTClient(), "kubevirts", metav1.NamespaceAll, fields.Everything(), labels.Everything())
+	return cache.NewSharedIndexInformer(listWatcher, &k6tv1.KubeVirt{}, 1*time.Hour, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+}
+
 func GetResourceQuotaInformer(aaqCli client.AAQClient) cache.SharedIndexInformer {
 	labelSelector, err := labels.Parse(util.AAQLabel)
 	if err != nil {

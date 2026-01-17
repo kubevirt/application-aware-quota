@@ -151,17 +151,20 @@ func Execute() {
 	}
 	if v1alpha12.VmiCalcConfigName(*launcherConfig) != v1alpha12.IgnoreVmiCalculator {
 		vmiInformer := informers.GetVMIInformer(app.aaqCli)
+		kvInformer := informers.GetKVInformer(app.aaqCli)
 		migrationInformer := informers.GetMigrationInformer(app.aaqCli)
 		go migrationInformer.Run(stop)
 		go vmiInformer.Run(stop)
+		go kvInformer.Run(stop)
 
 		if !cache.WaitForCacheSync(stop,
 			migrationInformer.HasSynced,
 			vmiInformer.HasSynced,
+			kvInformer.HasSynced,
 		) {
 			klog.Warningf("failed to wait for caches to sync")
 		}
-		evaluatorsRegistry.Add(built_in_usage_calculators.NewVirtLauncherCalculator(vmiInformer, migrationInformer, v1alpha12.VmiCalcConfigName(*launcherConfig)))
+		evaluatorsRegistry.Add(built_in_usage_calculators.NewVirtLauncherCalculator(kvInformer, vmiInformer, migrationInformer, v1alpha12.VmiCalcConfigName(*launcherConfig)))
 	}
 	app.calcRegistry = evaluatorsRegistry
 	namespaceLister := v12.NewNamespaceLister(app.nsInformer.GetIndexer())
