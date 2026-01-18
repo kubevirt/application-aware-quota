@@ -28,7 +28,7 @@ RUN 	dnf -y install dnf-plugins-core && \
 
 
 
-ENV GIMME_GO_VERSION=1.23.6 GOPATH="/go" GO111MODULE="on" GOLANGCI_LINT_VERSION=v1.60.1
+ENV GIMME_GO_VERSION=1.24.0 GOPATH="/go" GO111MODULE="on" GOLANGCI_LINT_VERSION=v1.60.1
 
 # reference to master is for an external repo and can't yet be changed
 RUN mkdir -p /gimme && curl -sL \
@@ -44,7 +44,7 @@ RUN \
 	go install golang.org/x/lint/golint@latest && \
     go install -v github.com/golang/protobuf/protoc-gen-go@1643683 && \
 	go install github.com/rmohr/go-swagger-utils/swagger-doc@latest && \
-	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.14.0 && \
+	go install -v sigs.k8s.io/controller-tools/cmd/controller-gen@v0.16.3 && \
 	go install github.com/securego/gosec/v2/cmd/gosec@latest && \
 	rm -rf "${GOPATH}/pkg"
 
