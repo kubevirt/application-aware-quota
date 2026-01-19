@@ -1,6 +1,7 @@
 package tests_utils
 
 import (
+	"context"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -12,6 +13,21 @@ import (
 type FakeSharedIndexInformer struct {
 	indexer            cache.Indexer
 	InternalGetIndexer func(cache.Indexer) cache.Indexer
+}
+
+func (i FakeSharedIndexInformer) AddEventHandlerWithOptions(handler cache.ResourceEventHandler, options cache.HandlerOptions) (cache.ResourceEventHandlerRegistration, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (i FakeSharedIndexInformer) RunWithContext(ctx context.Context) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (i FakeSharedIndexInformer) SetWatchErrorHandlerWithContext(handler cache.WatchErrorHandlerWithContext) error {
+	//TODO implement me
+	panic("implement me")
 }
 
 func NewFakeSharedIndexInformer(objs []metav1.Object) FakeSharedIndexInformer {
