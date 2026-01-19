@@ -29,9 +29,7 @@ require (
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250303144028-a0af3efb3deb // indirect
 	google.golang.org/grpc v1.72.1
-	k8s.io/kube-aggregator v0.30.1 // indirect
 	kubevirt.io/containerized-data-importer-api v1.63.1 // indirect
-	sigs.k8s.io/kube-storage-version-migrator v0.0.6-0.20230721195810-5c8923c5ff96 // indirect
 
 )
 
@@ -45,8 +43,8 @@ require (
 	github.com/machadovilaca/operator-observability v0.0.26
 	github.com/onsi/ginkgo/v2 v2.22.0
 	github.com/onsi/gomega v1.36.1
-	github.com/openshift/api v0.0.0-20240625084701-0689f006bcde
-	github.com/openshift/library-go v0.0.0-20230328115725-6ed98e0ed0b9
+	github.com/openshift/api v0.0.0-20251111013132-5c461e21bdb7
+	github.com/openshift/library-go v0.0.0-20251201053823-da1abba45a1c
 	github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190105193533-81104ffdc4fb
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.74.0
 	github.com/rs/cors v1.7.0
@@ -59,6 +57,7 @@ require (
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
+	github.com/openshift/client-go v0.0.0-20251015124057-db0dee36e235 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	go.opentelemetry.io/otel v1.35.0 // indirect
@@ -131,9 +130,6 @@ require (
 replace k8s.io/component-helpers => k8s.io/component-helpers v0.34.3
 
 replace (
-	github.com/openshift/api => github.com/openshift/api v0.0.0-20240625084701-0689f006bcde
-	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20240528061634-b054aa794d87
-	github.com/openshift/library-go => github.com/openshift/library-go v0.0.0-20240621150525-4bb4238aef81
 	github.com/operator-framework/operator-lifecycle-manager => github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190128024246-5eb7ae5bdb7a
 	k8s.io/api => k8s.io/api v0.34.3
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.34.3
