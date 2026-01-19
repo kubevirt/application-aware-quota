@@ -16,6 +16,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	listerscorev1 "k8s.io/client-go/listers/core/v1"
 	toolscache "k8s.io/client-go/tools/cache"
+	"k8s.io/utils/clock"
 	aaqcerts "kubevirt.io/application-aware-quota/pkg/aaq-operator/resources/cert"
 
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -76,7 +77,7 @@ func newCertManager(client kubernetes.Interface, installNamespace string, additi
 		log.Info("Unable to get controller reference, using namespace")
 	}
 
-	eventRecorder := events.NewRecorder(client.CoreV1().Events(installNamespace), installNamespace, controllerRef)
+	eventRecorder := events.NewRecorder(client.CoreV1().Events(installNamespace), installNamespace, controllerRef, clock.RealClock{})
 
 	return &certManager{
 		namespaces:    namespaces,
@@ -242,7 +243,7 @@ func (cm *certManager) ensureCertBundle(cd aaqcerts.CertificateDefinition, ca *c
 		EventRecorder: cm.eventRecorder,
 	}
 
-	certs, err := br.EnsureConfigMapCABundle(context.TODO(), ca)
+	certs, err := br.EnsureConfigMapCABundle(context.TODO(), ca, fmt.Sprintf("%s/%s", cd.SignerSecret.Namespace, cd.SignerSecret.Name))
 	if err != nil {
 		return nil, err
 	}

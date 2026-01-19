@@ -3839,7 +3839,7 @@ spec:
             description: Spec defines the desired quota
             properties:
               quota:
-                description: Quota defines the desired quota
+                description: quota defines the desired quota
                 properties:
                   hard:
                     additionalProperties:
@@ -3906,7 +3906,7 @@ spec:
                 type: object
               selector:
                 description: |-
-                  Selector is the selector used to match projects.
+                  selector is the selector used to match projects.
                   It should only select active projects on the scale of dozens (though it can select
                   many more less active projects).  These projects will contend on object creation through
                   this resource.
@@ -3976,7 +3976,7 @@ spec:
             properties:
               namespaces:
                 description: |-
-                  Namespaces slices the usage by project.  This division allows for quick resolution of
+                  namespaces slices the usage by project.  This division allows for quick resolution of
                   deletion reconciliation inside of a single project without requiring a recalculation
                   across all projects.  This can be used to pull the deltas for a given project.
                 items:
@@ -3984,10 +3984,10 @@ spec:
                     project
                   properties:
                     namespace:
-                      description: Namespace the project this status applies to
+                      description: namespace the project this status applies to
                       type: string
                     status:
-                      description: Status indicates how many resources have been consumed
+                      description: status indicates how many resources have been consumed
                         by this project
                       properties:
                         hard:
@@ -4019,7 +4019,7 @@ spec:
                 nullable: true
                 type: array
               total:
-                description: Total defines the actual enforced quota and its current
+                description: total defines the actual enforced quota and its current
                   usage across all projects
                 properties:
                   hard:
@@ -4106,7 +4106,7 @@ spec:
             description: Spec defines the desired quota
             properties:
               quota:
-                description: Quota defines the desired quota
+                description: quota defines the desired quota
                 properties:
                   hard:
                     additionalProperties:
@@ -4173,7 +4173,7 @@ spec:
                 type: object
               selector:
                 description: |-
-                  Selector is the selector used to match projects.
+                  selector is the selector used to match projects.
                   It should only select active projects on the scale of dozens (though it can select
                   many more less active projects).  These projects will contend on object creation through
                   this resource.
@@ -4243,7 +4243,7 @@ spec:
             properties:
               namespaces:
                 description: |-
-                  Namespaces slices the usage by project.  This division allows for quick resolution of
+                  namespaces slices the usage by project.  This division allows for quick resolution of
                   deletion reconciliation inside of a single project without requiring a recalculation
                   across all projects.  This can be used to pull the deltas for a given project.
                 items:
@@ -4251,10 +4251,10 @@ spec:
                     project
                   properties:
                     namespace:
-                      description: Namespace the project this status applies to
+                      description: namespace the project this status applies to
                       type: string
                     status:
-                      description: Status indicates how many resources have been consumed
+                      description: status indicates how many resources have been consumed
                         by this project
                       properties:
                         hard:
@@ -4286,7 +4286,7 @@ spec:
                 nullable: true
                 type: array
               total:
-                description: Total defines the actual enforced quota and its current
+                description: total defines the actual enforced quota and its current
                   usage across all projects
                 properties:
                   hard:
