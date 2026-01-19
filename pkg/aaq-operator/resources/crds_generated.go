@@ -7,7 +7,6 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.3
-  creationTimestamp: null
   name: aaqs.aaq.kubevirt.io
 spec:
   group: aaq.kubevirt.io
@@ -139,8 +138,9 @@ spec:
                               present in a Container.
                             properties:
                               name:
-                                description: Name of the environment variable. Must
-                                  be a C_IDENTIFIER.
+                                description: |-
+                                  Name of the environment variable.
+                                  May consist of any printable ASCII characters except '='.
                                 type: string
                               value:
                                 description: |-
@@ -196,6 +196,43 @@ spec:
                                         type: string
                                     required:
                                     - fieldPath
+                                    type: object
+                                    x-kubernetes-map-type: atomic
+                                  fileKeyRef:
+                                    description: |-
+                                      FileKeyRef selects a key of the env file.
+                                      Requires the EnvFiles feature gate to be enabled.
+                                    properties:
+                                      key:
+                                        description: |-
+                                          The key within the env file. An invalid key will prevent the pod from starting.
+                                          The keys defined within a source may consist of any printable ASCII characters except '='.
+                                          During Alpha stage of the EnvFiles feature gate, the key size is limited to 128 characters.
+                                        type: string
+                                      optional:
+                                        default: false
+                                        description: |-
+                                          Specify whether the file or its key must be defined. If the file or key
+                                          does not exist, then the env var is not published.
+                                          If optional is set to true and the specified key does not exist,
+                                          the environment variable will not be set in the Pod's containers.
+
+                                          If optional is set to false and the specified key does not exist,
+                                          an error will be returned during Pod creation.
+                                        type: boolean
+                                      path:
+                                        description: |-
+                                          The path within the volume from which to select the file.
+                                          Must be relative and may not contain the '..' path or start with '..'.
+                                        type: string
+                                      volumeName:
+                                        description: The name of the volume mount
+                                          containing the env file.
+                                        type: string
+                                    required:
+                                    - key
+                                    - path
+                                    - volumeName
                                     type: object
                                     x-kubernetes-map-type: atomic
                                   resourceFieldRef:
@@ -258,14 +295,14 @@ spec:
                         envFrom:
                           description: |-
                             List of sources to populate environment variables in the container.
-                            The keys defined within a source must be a C_IDENTIFIER. All invalid keys
-                            will be reported as an event when the container is starting. When a key exists in multiple
+                            The keys defined within a source may consist of any printable ASCII characters except '='.
+                            When a key exists in multiple
                             sources, the value associated with the last source will take precedence.
                             Values defined by an Env with a duplicate key will take precedence.
                             Cannot be updated.
                           items:
                             description: EnvFromSource represents the source of a
-                              set of ConfigMaps
+                              set of ConfigMaps or Secrets
                             properties:
                               configMapRef:
                                 description: The ConfigMap to select from
@@ -286,8 +323,9 @@ spec:
                                 type: object
                                 x-kubernetes-map-type: atomic
                               prefix:
-                                description: An optional identifier to prepend to
-                                  each key in the ConfigMap. Must be a C_IDENTIFIER.
+                                description: |-
+                                  Optional text to prepend to the name of each environment variable.
+                                  May consist of any printable ASCII characters except '='.
                                 type: string
                               secretRef:
                                 description: The Secret to select from
@@ -338,7 +376,8 @@ spec:
                                 More info: https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#container-hooks
                               properties:
                                 exec:
-                                  description: Exec specifies the action to take.
+                                  description: Exec specifies a command to execute
+                                    in the container.
                                   properties:
                                     command:
                                       description: |-
@@ -353,7 +392,7 @@ spec:
                                       x-kubernetes-list-type: atomic
                                   type: object
                                 httpGet:
-                                  description: HTTPGet specifies the http request
+                                  description: HTTPGet specifies an HTTP GET request
                                     to perform.
                                   properties:
                                     host:
@@ -403,8 +442,8 @@ spec:
                                   - port
                                   type: object
                                 sleep:
-                                  description: Sleep represents the duration that
-                                    the container should sleep before being terminated.
+                                  description: Sleep represents a duration that the
+                                    container should sleep.
                                   properties:
                                     seconds:
                                       description: Seconds is the number of seconds
@@ -417,8 +456,8 @@ spec:
                                 tcpSocket:
                                   description: |-
                                     Deprecated. TCPSocket is NOT supported as a LifecycleHandler and kept
-                                    for the backward compatibility. There are no validation of this field and
-                                    lifecycle hooks will fail in runtime when tcp handler is specified.
+                                    for backward compatibility. There is no validation of this field and
+                                    lifecycle hooks will fail at runtime when it is specified.
                                   properties:
                                     host:
                                       description: 'Optional: Host name to connect
@@ -450,7 +489,8 @@ spec:
                                 More info: https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#container-hooks
                               properties:
                                 exec:
-                                  description: Exec specifies the action to take.
+                                  description: Exec specifies a command to execute
+                                    in the container.
                                   properties:
                                     command:
                                       description: |-
@@ -465,7 +505,7 @@ spec:
                                       x-kubernetes-list-type: atomic
                                   type: object
                                 httpGet:
-                                  description: HTTPGet specifies the http request
+                                  description: HTTPGet specifies an HTTP GET request
                                     to perform.
                                   properties:
                                     host:
@@ -515,8 +555,8 @@ spec:
                                   - port
                                   type: object
                                 sleep:
-                                  description: Sleep represents the duration that
-                                    the container should sleep before being terminated.
+                                  description: Sleep represents a duration that the
+                                    container should sleep.
                                   properties:
                                     seconds:
                                       description: Seconds is the number of seconds
@@ -529,8 +569,8 @@ spec:
                                 tcpSocket:
                                   description: |-
                                     Deprecated. TCPSocket is NOT supported as a LifecycleHandler and kept
-                                    for the backward compatibility. There are no validation of this field and
-                                    lifecycle hooks will fail in runtime when tcp handler is specified.
+                                    for backward compatibility. There is no validation of this field and
+                                    lifecycle hooks will fail at runtime when it is specified.
                                   properties:
                                     host:
                                       description: 'Optional: Host name to connect
@@ -549,6 +589,12 @@ spec:
                                   - port
                                   type: object
                               type: object
+                            stopSignal:
+                              description: |-
+                                StopSignal defines which signal will be sent to a container when it is being stopped.
+                                If not specified, the default is defined by the container runtime in use.
+                                StopSignal can only be set for Pods with a non-empty .spec.os.name
+                              type: string
                           type: object
                         livenessProbe:
                           description: |-
@@ -558,7 +604,8 @@ spec:
                             More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes
                           properties:
                             exec:
-                              description: Exec specifies the action to take.
+                              description: Exec specifies a command to execute in
+                                the container.
                               properties:
                                 command:
                                   description: |-
@@ -579,8 +626,7 @@ spec:
                               format: int32
                               type: integer
                             grpc:
-                              description: GRPC specifies an action involving a GRPC
-                                port.
+                              description: GRPC specifies a GRPC HealthCheckRequest.
                               properties:
                                 port:
                                   description: Port number of the gRPC service. Number
@@ -599,7 +645,8 @@ spec:
                               - port
                               type: object
                             httpGet:
-                              description: HTTPGet specifies the http request to perform.
+                              description: HTTPGet specifies an HTTP GET request to
+                                perform.
                               properties:
                                 host:
                                   description: |-
@@ -666,8 +713,8 @@ spec:
                               format: int32
                               type: integer
                             tcpSocket:
-                              description: TCPSocket specifies an action involving
-                                a TCP port.
+                              description: TCPSocket specifies a connection to a TCP
+                                port.
                               properties:
                                 host:
                                   description: 'Optional: Host name to connect to,
@@ -772,7 +819,8 @@ spec:
                             More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes
                           properties:
                             exec:
-                              description: Exec specifies the action to take.
+                              description: Exec specifies a command to execute in
+                                the container.
                               properties:
                                 command:
                                   description: |-
@@ -793,8 +841,7 @@ spec:
                               format: int32
                               type: integer
                             grpc:
-                              description: GRPC specifies an action involving a GRPC
-                                port.
+                              description: GRPC specifies a GRPC HealthCheckRequest.
                               properties:
                                 port:
                                   description: Port number of the gRPC service. Number
@@ -813,7 +860,8 @@ spec:
                               - port
                               type: object
                             httpGet:
-                              description: HTTPGet specifies the http request to perform.
+                              description: HTTPGet specifies an HTTP GET request to
+                                perform.
                               properties:
                                 host:
                                   description: |-
@@ -880,8 +928,8 @@ spec:
                               format: int32
                               type: integer
                             tcpSocket:
-                              description: TCPSocket specifies an action involving
-                                a TCP port.
+                              description: TCPSocket specifies a connection to a TCP
+                                port.
                               properties:
                                 host:
                                   description: 'Optional: Host name to connect to,
@@ -954,7 +1002,7 @@ spec:
                                 Claims lists the names of resources, defined in spec.resourceClaims,
                                 that are used by this container.
 
-                                This is an alpha field and requires enabling the
+                                This field depends on the
                                 DynamicResourceAllocation feature gate.
 
                                 This field is immutable. It can only be set for containers.
@@ -967,6 +1015,12 @@ spec:
                                       Name must match the name of one entry in pod.spec.resourceClaims of
                                       the Pod where this field is used. It makes that resource available
                                       inside a container.
+                                    type: string
+                                  request:
+                                    description: |-
+                                      Request is the name chosen for a request in the referenced claim.
+                                      If empty, everything from the claim is made available, otherwise
+                                      only the result of this request.
                                     type: string
                                 required:
                                 - name
@@ -1003,10 +1057,10 @@ spec:
                         restartPolicy:
                           description: |-
                             RestartPolicy defines the restart behavior of individual containers in a pod.
-                            This field may only be set for init containers, and the only allowed value is "Always".
-                            For non-init containers or when this field is not specified,
+                            This overrides the pod-level restart policy. When this field is not specified,
                             the restart behavior is defined by the Pod's restart policy and the container type.
-                            Setting the RestartPolicy as "Always" for the init container will have the following effect:
+                            Additionally, setting the RestartPolicy as "Always" for the init container will
+                            have the following effect:
                             this init container will be continually restarted on
                             exit until all regular containers have terminated. Once all regular
                             containers have completed, all init containers with restartPolicy "Always"
@@ -1018,6 +1072,59 @@ spec:
                             init container is started, or after any startupProbe has successfully
                             completed.
                           type: string
+                        restartPolicyRules:
+                          description: |-
+                            Represents a list of rules to be checked to determine if the
+                            container should be restarted on exit. The rules are evaluated in
+                            order. Once a rule matches a container exit condition, the remaining
+                            rules are ignored. If no rule matches the container exit condition,
+                            the Container-level restart policy determines the whether the container
+                            is restarted or not. Constraints on the rules:
+                            - At most 20 rules are allowed.
+                            - Rules can have the same action.
+                            - Identical rules are not forbidden in validations.
+                            When rules are specified, container MUST set RestartPolicy explicitly
+                            even it if matches the Pod's RestartPolicy.
+                          items:
+                            description: ContainerRestartRule describes how a container
+                              exit is handled.
+                            properties:
+                              action:
+                                description: |-
+                                  Specifies the action taken on a container exit if the requirements
+                                  are satisfied. The only possible value is "Restart" to restart the
+                                  container.
+                                type: string
+                              exitCodes:
+                                description: Represents the exit codes to check on
+                                  container exits.
+                                properties:
+                                  operator:
+                                    description: |-
+                                      Represents the relationship between the container exit code(s) and the
+                                      specified values. Possible values are:
+                                      - In: the requirement is satisfied if the container exit code is in the
+                                        set of specified values.
+                                      - NotIn: the requirement is satisfied if the container exit code is
+                                        not in the set of specified values.
+                                    type: string
+                                  values:
+                                    description: |-
+                                      Specifies the set of values to check for container exit codes.
+                                      At most 255 elements are allowed.
+                                    items:
+                                      format: int32
+                                      type: integer
+                                    type: array
+                                    x-kubernetes-list-type: set
+                                required:
+                                - operator
+                                type: object
+                            required:
+                            - action
+                            type: object
+                          type: array
+                          x-kubernetes-list-type: atomic
                         securityContext:
                           description: |-
                             SecurityContext defines the security options the container should be run with.
@@ -1091,7 +1198,7 @@ spec:
                             procMount:
                               description: |-
                                 procMount denotes the type of proc mount to use for the containers.
-                                The default is DefaultProcMount which uses the container runtime defaults for
+                                The default value is Default which uses the container runtime defaults for
                                 readonly paths and masked paths.
                                 This requires the ProcMountType feature flag to be enabled.
                                 Note that this field cannot be set when spec.os.name is windows.
@@ -1224,7 +1331,8 @@ spec:
                             More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes
                           properties:
                             exec:
-                              description: Exec specifies the action to take.
+                              description: Exec specifies a command to execute in
+                                the container.
                               properties:
                                 command:
                                   description: |-
@@ -1245,8 +1353,7 @@ spec:
                               format: int32
                               type: integer
                             grpc:
-                              description: GRPC specifies an action involving a GRPC
-                                port.
+                              description: GRPC specifies a GRPC HealthCheckRequest.
                               properties:
                                 port:
                                   description: Port number of the gRPC service. Number
@@ -1265,7 +1372,8 @@ spec:
                               - port
                               type: object
                             httpGet:
-                              description: HTTPGet specifies the http request to perform.
+                              description: HTTPGet specifies an HTTP GET request to
+                                perform.
                               properties:
                                 host:
                                   description: |-
@@ -1332,8 +1440,8 @@ spec:
                               format: int32
                               type: integer
                             tcpSocket:
-                              description: TCPSocket specifies an action involving
-                                a TCP port.
+                              description: TCPSocket specifies a connection to a TCP
+                                port.
                               properties:
                                 host:
                                   description: 'Optional: Host name to connect to,
@@ -1836,7 +1944,6 @@ spec:
                                         pod labels will be ignored. The default value is empty.
                                         The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                         Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                        This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
                                       items:
                                         type: string
                                       type: array
@@ -1851,7 +1958,6 @@ spec:
                                         pod labels will be ignored. The default value is empty.
                                         The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                         Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                        This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
                                       items:
                                         type: string
                                       type: array
@@ -2018,7 +2124,6 @@ spec:
                                     pod labels will be ignored. The default value is empty.
                                     The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                     Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                    This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
                                   items:
                                     type: string
                                   type: array
@@ -2033,7 +2138,6 @@ spec:
                                     pod labels will be ignored. The default value is empty.
                                     The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                     Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                    This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
                                   items:
                                     type: string
                                   type: array
@@ -2127,8 +2231,8 @@ spec:
                               most preferred is the one with the greatest sum of weights, i.e.
                               for each node that meets all of the scheduling requirements (resource
                               request, requiredDuringScheduling anti-affinity expressions, etc.),
-                              compute a sum by iterating through the elements of this field and adding
-                              "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the
+                              compute a sum by iterating through the elements of this field and subtracting
+                              "weight" from the sum if the node has pods which matches the corresponding podAffinityTerm; the
                               node(s) with the highest sum are the most preferred.
                             items:
                               description: The weights of all of the matched WeightedPodAffinityTerm
@@ -2198,7 +2302,6 @@ spec:
                                         pod labels will be ignored. The default value is empty.
                                         The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                         Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                        This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
                                       items:
                                         type: string
                                       type: array
@@ -2213,7 +2316,6 @@ spec:
                                         pod labels will be ignored. The default value is empty.
                                         The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                         Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                        This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
                                       items:
                                         type: string
                                       type: array
@@ -2380,7 +2482,6 @@ spec:
                                     pod labels will be ignored. The default value is empty.
                                     The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                     Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                    This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
                                   items:
                                     type: string
                                   type: array
@@ -2395,7 +2496,6 @@ spec:
                                     pod labels will be ignored. The default value is empty.
                                     The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                     Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                    This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
                                   items:
                                     type: string
                                   type: array
@@ -2874,7 +2974,6 @@ spec:
                                         pod labels will be ignored. The default value is empty.
                                         The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                         Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                        This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
                                       items:
                                         type: string
                                       type: array
@@ -2889,7 +2988,6 @@ spec:
                                         pod labels will be ignored. The default value is empty.
                                         The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                         Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                        This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
                                       items:
                                         type: string
                                       type: array
@@ -3056,7 +3154,6 @@ spec:
                                     pod labels will be ignored. The default value is empty.
                                     The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                     Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                    This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
                                   items:
                                     type: string
                                   type: array
@@ -3071,7 +3168,6 @@ spec:
                                     pod labels will be ignored. The default value is empty.
                                     The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                     Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                    This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
                                   items:
                                     type: string
                                   type: array
@@ -3165,8 +3261,8 @@ spec:
                               most preferred is the one with the greatest sum of weights, i.e.
                               for each node that meets all of the scheduling requirements (resource
                               request, requiredDuringScheduling anti-affinity expressions, etc.),
-                              compute a sum by iterating through the elements of this field and adding
-                              "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the
+                              compute a sum by iterating through the elements of this field and subtracting
+                              "weight" from the sum if the node has pods which matches the corresponding podAffinityTerm; the
                               node(s) with the highest sum are the most preferred.
                             items:
                               description: The weights of all of the matched WeightedPodAffinityTerm
@@ -3236,7 +3332,6 @@ spec:
                                         pod labels will be ignored. The default value is empty.
                                         The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                         Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                        This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
                                       items:
                                         type: string
                                       type: array
@@ -3251,7 +3346,6 @@ spec:
                                         pod labels will be ignored. The default value is empty.
                                         The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                         Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                        This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
                                       items:
                                         type: string
                                       type: array
@@ -3418,7 +3512,6 @@ spec:
                                     pod labels will be ignored. The default value is empty.
                                     The same key is forbidden to exist in both matchLabelKeys and labelSelector.
                                     Also, matchLabelKeys cannot be set when labelSelector isn't set.
-                                    This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
                                   items:
                                     type: string
                                   type: array
@@ -3433,7 +3526,6 @@ spec:
                                     pod labels will be ignored. The default value is empty.
                                     The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
                                     Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
-                                    This is an alpha field and requires enabling MatchLabelKeysInPodAffinity feature gate.
                                   items:
                                     type: string
                                   type: array
@@ -3632,7 +3724,6 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.3
-  creationTimestamp: null
   name: aaqjobqueueconfigs.aaq.kubevirt.io
 spec:
   group: aaq.kubevirt.io
@@ -3706,7 +3797,6 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.3
-  creationTimestamp: null
   name: applicationawareappliedclusterresourcequotas.aaq.kubevirt.io
 spec:
   group: aaq.kubevirt.io
@@ -3975,7 +4065,6 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.3
-  creationTimestamp: null
   name: applicationawareclusterresourcequotas.aaq.kubevirt.io
 spec:
   group: aaq.kubevirt.io
@@ -4245,7 +4334,6 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.3
-  creationTimestamp: null
   name: applicationawareresourcequotas.aaq.kubevirt.io
 spec:
   group: aaq.kubevirt.io

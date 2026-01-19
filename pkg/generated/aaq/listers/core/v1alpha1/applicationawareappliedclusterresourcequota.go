@@ -19,10 +19,10 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/tools/cache"
-	v1alpha1 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
+	corev1alpha1 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 )
 
 // ApplicationAwareAppliedClusterResourceQuotaLister helps list ApplicationAwareAppliedClusterResourceQuotas.
@@ -30,7 +30,7 @@ import (
 type ApplicationAwareAppliedClusterResourceQuotaLister interface {
 	// List lists all ApplicationAwareAppliedClusterResourceQuotas in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.ApplicationAwareAppliedClusterResourceQuota, err error)
+	List(selector labels.Selector) (ret []*corev1alpha1.ApplicationAwareAppliedClusterResourceQuota, err error)
 	// ApplicationAwareAppliedClusterResourceQuotas returns an object that can list and get ApplicationAwareAppliedClusterResourceQuotas.
 	ApplicationAwareAppliedClusterResourceQuotas(namespace string) ApplicationAwareAppliedClusterResourceQuotaNamespaceLister
 	ApplicationAwareAppliedClusterResourceQuotaListerExpansion
@@ -38,25 +38,17 @@ type ApplicationAwareAppliedClusterResourceQuotaLister interface {
 
 // applicationAwareAppliedClusterResourceQuotaLister implements the ApplicationAwareAppliedClusterResourceQuotaLister interface.
 type applicationAwareAppliedClusterResourceQuotaLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*corev1alpha1.ApplicationAwareAppliedClusterResourceQuota]
 }
 
 // NewApplicationAwareAppliedClusterResourceQuotaLister returns a new ApplicationAwareAppliedClusterResourceQuotaLister.
 func NewApplicationAwareAppliedClusterResourceQuotaLister(indexer cache.Indexer) ApplicationAwareAppliedClusterResourceQuotaLister {
-	return &applicationAwareAppliedClusterResourceQuotaLister{indexer: indexer}
-}
-
-// List lists all ApplicationAwareAppliedClusterResourceQuotas in the indexer.
-func (s *applicationAwareAppliedClusterResourceQuotaLister) List(selector labels.Selector) (ret []*v1alpha1.ApplicationAwareAppliedClusterResourceQuota, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.ApplicationAwareAppliedClusterResourceQuota))
-	})
-	return ret, err
+	return &applicationAwareAppliedClusterResourceQuotaLister{listers.New[*corev1alpha1.ApplicationAwareAppliedClusterResourceQuota](indexer, corev1alpha1.Resource("applicationawareappliedclusterresourcequota"))}
 }
 
 // ApplicationAwareAppliedClusterResourceQuotas returns an object that can list and get ApplicationAwareAppliedClusterResourceQuotas.
 func (s *applicationAwareAppliedClusterResourceQuotaLister) ApplicationAwareAppliedClusterResourceQuotas(namespace string) ApplicationAwareAppliedClusterResourceQuotaNamespaceLister {
-	return applicationAwareAppliedClusterResourceQuotaNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return applicationAwareAppliedClusterResourceQuotaNamespaceLister{listers.NewNamespaced[*corev1alpha1.ApplicationAwareAppliedClusterResourceQuota](s.ResourceIndexer, namespace)}
 }
 
 // ApplicationAwareAppliedClusterResourceQuotaNamespaceLister helps list and get ApplicationAwareAppliedClusterResourceQuotas.
@@ -64,36 +56,15 @@ func (s *applicationAwareAppliedClusterResourceQuotaLister) ApplicationAwareAppl
 type ApplicationAwareAppliedClusterResourceQuotaNamespaceLister interface {
 	// List lists all ApplicationAwareAppliedClusterResourceQuotas in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.ApplicationAwareAppliedClusterResourceQuota, err error)
+	List(selector labels.Selector) (ret []*corev1alpha1.ApplicationAwareAppliedClusterResourceQuota, err error)
 	// Get retrieves the ApplicationAwareAppliedClusterResourceQuota from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.ApplicationAwareAppliedClusterResourceQuota, error)
+	Get(name string) (*corev1alpha1.ApplicationAwareAppliedClusterResourceQuota, error)
 	ApplicationAwareAppliedClusterResourceQuotaNamespaceListerExpansion
 }
 
 // applicationAwareAppliedClusterResourceQuotaNamespaceLister implements the ApplicationAwareAppliedClusterResourceQuotaNamespaceLister
 // interface.
 type applicationAwareAppliedClusterResourceQuotaNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all ApplicationAwareAppliedClusterResourceQuotas in the indexer for a given namespace.
-func (s applicationAwareAppliedClusterResourceQuotaNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.ApplicationAwareAppliedClusterResourceQuota, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.ApplicationAwareAppliedClusterResourceQuota))
-	})
-	return ret, err
-}
-
-// Get retrieves the ApplicationAwareAppliedClusterResourceQuota from the indexer for a given namespace and name.
-func (s applicationAwareAppliedClusterResourceQuotaNamespaceLister) Get(name string) (*v1alpha1.ApplicationAwareAppliedClusterResourceQuota, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1alpha1.Resource("applicationawareappliedclusterresourcequota"), name)
-	}
-	return obj.(*v1alpha1.ApplicationAwareAppliedClusterResourceQuota), nil
+	listers.ResourceIndexer[*corev1alpha1.ApplicationAwareAppliedClusterResourceQuota]
 }

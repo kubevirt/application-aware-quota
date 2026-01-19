@@ -19,14 +19,13 @@ limitations under the License.
 package v1
 
 import (
-	"context"
-	"time"
+	context "context"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
-	rest "k8s.io/client-go/rest"
-	v1 "kubevirt.io/api/core/v1"
+	gentype "k8s.io/client-go/gentype"
+	corev1 "kubevirt.io/api/core/v1"
 	scheme "kubevirt.io/application-aware-quota/pkg/generated/kubevirt/clientset/versioned/scheme"
 )
 
@@ -38,158 +37,34 @@ type VirtualMachineInstancesGetter interface {
 
 // VirtualMachineInstanceInterface has methods to work with VirtualMachineInstance resources.
 type VirtualMachineInstanceInterface interface {
-	Create(ctx context.Context, virtualMachineInstance *v1.VirtualMachineInstance, opts metav1.CreateOptions) (*v1.VirtualMachineInstance, error)
-	Update(ctx context.Context, virtualMachineInstance *v1.VirtualMachineInstance, opts metav1.UpdateOptions) (*v1.VirtualMachineInstance, error)
-	UpdateStatus(ctx context.Context, virtualMachineInstance *v1.VirtualMachineInstance, opts metav1.UpdateOptions) (*v1.VirtualMachineInstance, error)
+	Create(ctx context.Context, virtualMachineInstance *corev1.VirtualMachineInstance, opts metav1.CreateOptions) (*corev1.VirtualMachineInstance, error)
+	Update(ctx context.Context, virtualMachineInstance *corev1.VirtualMachineInstance, opts metav1.UpdateOptions) (*corev1.VirtualMachineInstance, error)
+	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
+	UpdateStatus(ctx context.Context, virtualMachineInstance *corev1.VirtualMachineInstance, opts metav1.UpdateOptions) (*corev1.VirtualMachineInstance, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
-	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.VirtualMachineInstance, error)
-	List(ctx context.Context, opts metav1.ListOptions) (*v1.VirtualMachineInstanceList, error)
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*corev1.VirtualMachineInstance, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*corev1.VirtualMachineInstanceList, error)
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.VirtualMachineInstance, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *corev1.VirtualMachineInstance, err error)
 	VirtualMachineInstanceExpansion
 }
 
 // virtualMachineInstances implements VirtualMachineInstanceInterface
 type virtualMachineInstances struct {
-	client rest.Interface
-	ns     string
+	*gentype.ClientWithList[*corev1.VirtualMachineInstance, *corev1.VirtualMachineInstanceList]
 }
 
 // newVirtualMachineInstances returns a VirtualMachineInstances
 func newVirtualMachineInstances(c *KubevirtV1Client, namespace string) *virtualMachineInstances {
 	return &virtualMachineInstances{
-		client: c.RESTClient(),
-		ns:     namespace,
+		gentype.NewClientWithList[*corev1.VirtualMachineInstance, *corev1.VirtualMachineInstanceList](
+			"virtualmachineinstances",
+			c.RESTClient(),
+			scheme.ParameterCodec,
+			namespace,
+			func() *corev1.VirtualMachineInstance { return &corev1.VirtualMachineInstance{} },
+			func() *corev1.VirtualMachineInstanceList { return &corev1.VirtualMachineInstanceList{} },
+		),
 	}
-}
-
-// Get takes name of the virtualMachineInstance, and returns the corresponding virtualMachineInstance object, and an error if there is any.
-func (c *virtualMachineInstances) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.VirtualMachineInstance, err error) {
-	result = &v1.VirtualMachineInstance{}
-	err = c.client.Get().
-		Namespace(c.ns).
-		Resource("virtualmachineinstances").
-		Name(name).
-		VersionedParams(&options, scheme.ParameterCodec).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// List takes label and field selectors, and returns the list of VirtualMachineInstances that match those selectors.
-func (c *virtualMachineInstances) List(ctx context.Context, opts metav1.ListOptions) (result *v1.VirtualMachineInstanceList, err error) {
-	var timeout time.Duration
-	if opts.TimeoutSeconds != nil {
-		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
-	}
-	result = &v1.VirtualMachineInstanceList{}
-	err = c.client.Get().
-		Namespace(c.ns).
-		Resource("virtualmachineinstances").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Watch returns a watch.Interface that watches the requested virtualMachineInstances.
-func (c *virtualMachineInstances) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
-	var timeout time.Duration
-	if opts.TimeoutSeconds != nil {
-		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
-	}
-	opts.Watch = true
-	return c.client.Get().
-		Namespace(c.ns).
-		Resource("virtualmachineinstances").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Watch(ctx)
-}
-
-// Create takes the representation of a virtualMachineInstance and creates it.  Returns the server's representation of the virtualMachineInstance, and an error, if there is any.
-func (c *virtualMachineInstances) Create(ctx context.Context, virtualMachineInstance *v1.VirtualMachineInstance, opts metav1.CreateOptions) (result *v1.VirtualMachineInstance, err error) {
-	result = &v1.VirtualMachineInstance{}
-	err = c.client.Post().
-		Namespace(c.ns).
-		Resource("virtualmachineinstances").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(virtualMachineInstance).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Update takes the representation of a virtualMachineInstance and updates it. Returns the server's representation of the virtualMachineInstance, and an error, if there is any.
-func (c *virtualMachineInstances) Update(ctx context.Context, virtualMachineInstance *v1.VirtualMachineInstance, opts metav1.UpdateOptions) (result *v1.VirtualMachineInstance, err error) {
-	result = &v1.VirtualMachineInstance{}
-	err = c.client.Put().
-		Namespace(c.ns).
-		Resource("virtualmachineinstances").
-		Name(virtualMachineInstance.Name).
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(virtualMachineInstance).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *virtualMachineInstances) UpdateStatus(ctx context.Context, virtualMachineInstance *v1.VirtualMachineInstance, opts metav1.UpdateOptions) (result *v1.VirtualMachineInstance, err error) {
-	result = &v1.VirtualMachineInstance{}
-	err = c.client.Put().
-		Namespace(c.ns).
-		Resource("virtualmachineinstances").
-		Name(virtualMachineInstance.Name).
-		SubResource("status").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(virtualMachineInstance).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Delete takes name of the virtualMachineInstance and deletes it. Returns an error if one occurs.
-func (c *virtualMachineInstances) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
-	return c.client.Delete().
-		Namespace(c.ns).
-		Resource("virtualmachineinstances").
-		Name(name).
-		Body(&opts).
-		Do(ctx).
-		Error()
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *virtualMachineInstances) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
-	var timeout time.Duration
-	if listOpts.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
-	}
-	return c.client.Delete().
-		Namespace(c.ns).
-		Resource("virtualmachineinstances").
-		VersionedParams(&listOpts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Body(&opts).
-		Do(ctx).
-		Error()
-}
-
-// Patch applies the patch and returns the patched virtualMachineInstance.
-func (c *virtualMachineInstances) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.VirtualMachineInstance, err error) {
-	result = &v1.VirtualMachineInstance{}
-	err = c.client.Patch(pt).
-		Namespace(c.ns).
-		Resource("virtualmachineinstances").
-		Name(name).
-		SubResource(subresources...).
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(data).
-		Do(ctx).
-		Into(result)
-	return
 }
