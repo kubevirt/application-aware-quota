@@ -31,7 +31,7 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250303144028-a0af3efb3deb // indirect
 	google.golang.org/grpc v1.72.1
 	k8s.io/kube-aggregator v0.30.1 // indirect
-	kubevirt.io/containerized-data-importer-api v1.57.0-alpha1 // indirect
+	kubevirt.io/containerized-data-importer-api v1.63.1 // indirect
 	sigs.k8s.io/kube-storage-version-migrator v0.0.6-0.20230721195810-5c8923c5ff96 // indirect
 
 )
@@ -121,7 +121,7 @@ require (
 	k8s.io/kube-openapi v0.0.0-20250710124328-f3f2b991d03b // indirect
 	k8s.io/kubernetes v1.34.3
 	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397
-	kubevirt.io/api v1.2.0
+	kubevirt.io/api v1.7.0
 	kubevirt.io/controller-lifecycle-operator-sdk v0.2.7
 	kubevirt.io/controller-lifecycle-operator-sdk/api v0.0.0-20220329064328-f3cc58c6ed90
 	sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8 // indirect
