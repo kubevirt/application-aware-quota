@@ -137,7 +137,7 @@ func (aaqe *AaqEvaluatorRegistry) Usage(pod *corev1.Pod, podsState []*corev1.Pod
 				rlToRet = quota.Add(rlToRet, rl)
 				break
 			} else {
-				log.Log.Infof(fmt.Sprintf("Retries: %v Error: %v ", retries, err))
+				log.Log.Infof("Retries: %v Error: %v ", retries, err)
 			}
 		}
 	}
