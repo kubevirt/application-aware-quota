@@ -53,7 +53,7 @@ func (aaqsc *AaqSocketCalculator) PodUsageFunc(pod *corev1.Pod, podsState []*cor
 	}
 	var resErr error
 	if result.Error.Error {
-		resErr = fmt.Errorf(result.Error.ErrorMessage)
+		resErr = fmt.Errorf("%s", result.Error.ErrorMessage)
 	}
 	return rl, resErr, result.Match
 }
