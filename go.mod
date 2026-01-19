@@ -16,7 +16,7 @@ require (
 require (
 	github.com/appscode/jsonpatch v1.0.1 // indirect
 	github.com/blang/semver v3.5.1+incompatible // indirect
-	github.com/evanphx/json-patch/v5 v5.9.0 // indirect
+	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
 	github.com/go-openapi/swag v0.23.0 // indirect
 	github.com/google/gnostic-models v0.7.0 // indirect
 	github.com/google/pprof v0.0.0-20241029153458-d1b30febd7db // indirect
@@ -24,7 +24,6 @@ require (
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/robfig/cron v1.2.0 // indirect
-	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 // indirect
 	golang.org/x/mod v0.29.0 // indirect
 	golang.org/x/tools v0.38.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
@@ -44,8 +43,8 @@ require (
 	github.com/golang/mock v1.7.0-rc.1
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/machadovilaca/operator-observability v0.0.26
-	github.com/onsi/ginkgo/v2 v2.21.0
-	github.com/onsi/gomega v1.35.1
+	github.com/onsi/ginkgo/v2 v2.22.0
+	github.com/onsi/gomega v1.36.1
 	github.com/openshift/api v0.0.0-20240625084701-0689f006bcde
 	github.com/openshift/library-go v0.0.0-20230328115725-6ed98e0ed0b9
 	github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190105193533-81104ffdc4fb
@@ -53,7 +52,7 @@ require (
 	github.com/rs/cors v1.7.0
 	k8s.io/client-go v12.0.0+incompatible
 	kubevirt.io/qe-tools v0.1.8
-	sigs.k8s.io/controller-runtime v0.18.4
+	sigs.k8s.io/controller-runtime v0.19.5
 )
 
 require (
@@ -66,6 +65,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
+	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 // indirect
 	golang.org/x/sync v0.18.0 // indirect
 	golang.org/x/tools/go/packages/packagestest v0.1.1-deprecated // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
@@ -159,7 +159,7 @@ replace (
 	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.34.3
 	k8s.io/sample-controller => k8s.io/sample-controller v0.34.3
 	kubevirt.io/qe-tools => kubevirt.io/qe-tools v0.1.8
-	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.18.4
+	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.19.5
 )
 
 replace k8s.io/controller-manager => k8s.io/controller-manager v0.34.3
