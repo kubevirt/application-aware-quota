@@ -6,7 +6,7 @@ var AAQCRDs map[string]string = map[string]string{
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.3
   creationTimestamp: null
   name: aaqs.aaq.kubevirt.io
 spec:
@@ -171,9 +171,7 @@ spec:
                                           This field is effectively required, but due to backwards compatibility is
                                           allowed to be empty. Instances of this type with an empty value here are
                                           almost certainly wrong.
-                                          TODO: Add other useful fields. apiVersion, kind, uid?
                                           More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                          TODO: Drop ` + "`" + `kubebuilder:default` + "`" + ` when controller-gen doesn't need it https://github.com/kubernetes-sigs/kubebuilder/issues/3896.
                                         type: string
                                       optional:
                                         description: Specify whether the ConfigMap
@@ -239,9 +237,7 @@ spec:
                                           This field is effectively required, but due to backwards compatibility is
                                           allowed to be empty. Instances of this type with an empty value here are
                                           almost certainly wrong.
-                                          TODO: Add other useful fields. apiVersion, kind, uid?
                                           More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                          TODO: Drop ` + "`" + `kubebuilder:default` + "`" + ` when controller-gen doesn't need it https://github.com/kubernetes-sigs/kubebuilder/issues/3896.
                                         type: string
                                       optional:
                                         description: Specify whether the Secret or
@@ -281,9 +277,7 @@ spec:
                                       This field is effectively required, but due to backwards compatibility is
                                       allowed to be empty. Instances of this type with an empty value here are
                                       almost certainly wrong.
-                                      TODO: Add other useful fields. apiVersion, kind, uid?
                                       More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                      TODO: Drop ` + "`" + `kubebuilder:default` + "`" + ` when controller-gen doesn't need it https://github.com/kubernetes-sigs/kubebuilder/issues/3896.
                                     type: string
                                   optional:
                                     description: Specify whether the ConfigMap must
@@ -305,9 +299,7 @@ spec:
                                       This field is effectively required, but due to backwards compatibility is
                                       allowed to be empty. Instances of this type with an empty value here are
                                       almost certainly wrong.
-                                      TODO: Add other useful fields. apiVersion, kind, uid?
                                       More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                      TODO: Drop ` + "`" + `kubebuilder:default` + "`" + ` when controller-gen doesn't need it https://github.com/kubernetes-sigs/kubebuilder/issues/3896.
                                     type: string
                                   optional:
                                     description: Specify whether the Secret must be
@@ -596,10 +588,10 @@ spec:
                                   format: int32
                                   type: integer
                                 service:
+                                  default: ""
                                   description: |-
                                     Service is the name of the service to place in the gRPC HealthCheckRequest
                                     (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).
-
 
                                     If this is not specified, the default behavior is defined by gRPC.
                                   type: string
@@ -810,10 +802,10 @@ spec:
                                   format: int32
                                   type: integer
                                 service:
+                                  default: ""
                                   description: |-
                                     Service is the name of the service to place in the gRPC HealthCheckRequest
                                     (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).
-
 
                                     If this is not specified, the default behavior is defined by gRPC.
                                   type: string
@@ -962,10 +954,8 @@ spec:
                                 Claims lists the names of resources, defined in spec.resourceClaims,
                                 that are used by this container.
 
-
                                 This is an alpha field and requires enabling the
                                 DynamicResourceAllocation feature gate.
-
 
                                 This field is immutable. It can only be set for containers.
                               items:
@@ -1183,7 +1173,6 @@ spec:
                                     type indicates which kind of seccomp profile will be applied.
                                     Valid options are:
 
-
                                     Localhost - a profile defined in a file on the node should be used.
                                     RuntimeDefault - the container runtime default profile should be used.
                                     Unconfined - no profile should be applied.
@@ -1265,10 +1254,10 @@ spec:
                                   format: int32
                                   type: integer
                                 service:
+                                  default: ""
                                   description: |-
                                     Service is the name of the service to place in the gRPC HealthCheckRequest
                                     (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).
-
 
                                     If this is not specified, the default behavior is defined by gRPC.
                                   type: string
@@ -1483,9 +1472,7 @@ spec:
                                   RecursiveReadOnly specifies whether read-only mounts should be handled
                                   recursively.
 
-
                                   If ReadOnly is false, this field has no meaning and must be unspecified.
-
 
                                   If ReadOnly is true, and this field is set to Disabled, the mount is not made
                                   recursively read-only.  If this field is set to IfPossible, the mount is made
@@ -1494,10 +1481,8 @@ spec:
                                   supported by the container runtime, otherwise the pod will not be started and
                                   an error will be generated to indicate the reason.
 
-
                                   If this field is set to IfPossible or Enabled, MountPropagation must be set to
                                   None (or be unspecified, which defaults to None).
-
 
                                   If this field is not specified, it is treated as an equivalent of Disabled.
                                 type: string
@@ -3646,7 +3631,7 @@ status:
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.3
   creationTimestamp: null
   name: aaqjobqueueconfigs.aaq.kubevirt.io
 spec:
@@ -3720,7 +3705,7 @@ status:
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.3
   creationTimestamp: null
   name: applicationawareappliedclusterresourcequotas.aaq.kubevirt.io
 spec:
@@ -3989,7 +3974,7 @@ status:
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.3
   creationTimestamp: null
   name: applicationawareclusterresourcequotas.aaq.kubevirt.io
 spec:
@@ -4259,7 +4244,7 @@ status:
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.3
   creationTimestamp: null
   name: applicationawareresourcequotas.aaq.kubevirt.io
 spec:
