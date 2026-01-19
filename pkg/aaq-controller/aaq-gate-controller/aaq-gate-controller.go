@@ -2,7 +2,6 @@ package arq_controller
 
 import (
 	"context"
-	"fmt"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -245,7 +244,7 @@ func (ctrl *AaqGateController) Execute() bool {
 
 	err, enqueueState := ctrl.execute(key.(string))
 	if err != nil {
-		klog.Errorf(fmt.Sprintf("AaqGateController: Error with key: %v err: %v", key, err))
+		klog.Errorf("AaqGateController: Error with key: %v err: %v", key, err)
 	}
 	switch enqueueState {
 	case BackOff:
