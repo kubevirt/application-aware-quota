@@ -29,23 +29,23 @@ type FakeAaqV1alpha1 struct {
 }
 
 func (c *FakeAaqV1alpha1) AAQs() v1alpha1.AAQInterface {
-	return &FakeAAQs{c}
+	return newFakeAAQs(c)
 }
 
 func (c *FakeAaqV1alpha1) AAQJobQueueConfigs(namespace string) v1alpha1.AAQJobQueueConfigInterface {
-	return &FakeAAQJobQueueConfigs{c, namespace}
+	return newFakeAAQJobQueueConfigs(c, namespace)
 }
 
 func (c *FakeAaqV1alpha1) ApplicationAwareAppliedClusterResourceQuotas(namespace string) v1alpha1.ApplicationAwareAppliedClusterResourceQuotaInterface {
-	return &FakeApplicationAwareAppliedClusterResourceQuotas{c, namespace}
+	return newFakeApplicationAwareAppliedClusterResourceQuotas(c, namespace)
 }
 
 func (c *FakeAaqV1alpha1) ApplicationAwareClusterResourceQuotas() v1alpha1.ApplicationAwareClusterResourceQuotaInterface {
-	return &FakeApplicationAwareClusterResourceQuotas{c}
+	return newFakeApplicationAwareClusterResourceQuotas(c)
 }
 
 func (c *FakeAaqV1alpha1) ApplicationAwareResourceQuotas(namespace string) v1alpha1.ApplicationAwareResourceQuotaInterface {
-	return &FakeApplicationAwareResourceQuotas{c, namespace}
+	return newFakeApplicationAwareResourceQuotas(c, namespace)
 }
 
 // RESTClient returns a RESTClient that is used to communicate

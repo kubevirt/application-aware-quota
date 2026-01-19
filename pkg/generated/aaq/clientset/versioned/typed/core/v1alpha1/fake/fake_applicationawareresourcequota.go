@@ -19,123 +19,36 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	gentype "k8s.io/client-go/gentype"
+	corev1alpha1 "kubevirt.io/application-aware-quota/pkg/generated/aaq/clientset/versioned/typed/core/v1alpha1"
 	v1alpha1 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 )
 
-// FakeApplicationAwareResourceQuotas implements ApplicationAwareResourceQuotaInterface
-type FakeApplicationAwareResourceQuotas struct {
+// fakeApplicationAwareResourceQuotas implements ApplicationAwareResourceQuotaInterface
+type fakeApplicationAwareResourceQuotas struct {
+	*gentype.FakeClientWithList[*v1alpha1.ApplicationAwareResourceQuota, *v1alpha1.ApplicationAwareResourceQuotaList]
 	Fake *FakeAaqV1alpha1
-	ns   string
 }
 
-var applicationawareresourcequotasResource = v1alpha1.SchemeGroupVersion.WithResource("applicationawareresourcequotas")
-
-var applicationawareresourcequotasKind = v1alpha1.SchemeGroupVersion.WithKind("ApplicationAwareResourceQuota")
-
-// Get takes name of the applicationAwareResourceQuota, and returns the corresponding applicationAwareResourceQuota object, and an error if there is any.
-func (c *FakeApplicationAwareResourceQuotas) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ApplicationAwareResourceQuota, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(applicationawareresourcequotasResource, c.ns, name), &v1alpha1.ApplicationAwareResourceQuota{})
-
-	if obj == nil {
-		return nil, err
+func newFakeApplicationAwareResourceQuotas(fake *FakeAaqV1alpha1, namespace string) corev1alpha1.ApplicationAwareResourceQuotaInterface {
+	return &fakeApplicationAwareResourceQuotas{
+		gentype.NewFakeClientWithList[*v1alpha1.ApplicationAwareResourceQuota, *v1alpha1.ApplicationAwareResourceQuotaList](
+			fake.Fake,
+			namespace,
+			v1alpha1.SchemeGroupVersion.WithResource("applicationawareresourcequotas"),
+			v1alpha1.SchemeGroupVersion.WithKind("ApplicationAwareResourceQuota"),
+			func() *v1alpha1.ApplicationAwareResourceQuota { return &v1alpha1.ApplicationAwareResourceQuota{} },
+			func() *v1alpha1.ApplicationAwareResourceQuotaList {
+				return &v1alpha1.ApplicationAwareResourceQuotaList{}
+			},
+			func(dst, src *v1alpha1.ApplicationAwareResourceQuotaList) { dst.ListMeta = src.ListMeta },
+			func(list *v1alpha1.ApplicationAwareResourceQuotaList) []*v1alpha1.ApplicationAwareResourceQuota {
+				return gentype.ToPointerSlice(list.Items)
+			},
+			func(list *v1alpha1.ApplicationAwareResourceQuotaList, items []*v1alpha1.ApplicationAwareResourceQuota) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1alpha1.ApplicationAwareResourceQuota), err
-}
-
-// List takes label and field selectors, and returns the list of ApplicationAwareResourceQuotas that match those selectors.
-func (c *FakeApplicationAwareResourceQuotas) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.ApplicationAwareResourceQuotaList, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewListAction(applicationawareresourcequotasResource, applicationawareresourcequotasKind, c.ns, opts), &v1alpha1.ApplicationAwareResourceQuotaList{})
-
-	if obj == nil {
-		return nil, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1alpha1.ApplicationAwareResourceQuotaList{ListMeta: obj.(*v1alpha1.ApplicationAwareResourceQuotaList).ListMeta}
-	for _, item := range obj.(*v1alpha1.ApplicationAwareResourceQuotaList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested applicationAwareResourceQuotas.
-func (c *FakeApplicationAwareResourceQuotas) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(applicationawareresourcequotasResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a applicationAwareResourceQuota and creates it.  Returns the server's representation of the applicationAwareResourceQuota, and an error, if there is any.
-func (c *FakeApplicationAwareResourceQuotas) Create(ctx context.Context, applicationAwareResourceQuota *v1alpha1.ApplicationAwareResourceQuota, opts v1.CreateOptions) (result *v1alpha1.ApplicationAwareResourceQuota, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(applicationawareresourcequotasResource, c.ns, applicationAwareResourceQuota), &v1alpha1.ApplicationAwareResourceQuota{})
-
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*v1alpha1.ApplicationAwareResourceQuota), err
-}
-
-// Update takes the representation of a applicationAwareResourceQuota and updates it. Returns the server's representation of the applicationAwareResourceQuota, and an error, if there is any.
-func (c *FakeApplicationAwareResourceQuotas) Update(ctx context.Context, applicationAwareResourceQuota *v1alpha1.ApplicationAwareResourceQuota, opts v1.UpdateOptions) (result *v1alpha1.ApplicationAwareResourceQuota, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(applicationawareresourcequotasResource, c.ns, applicationAwareResourceQuota), &v1alpha1.ApplicationAwareResourceQuota{})
-
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*v1alpha1.ApplicationAwareResourceQuota), err
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeApplicationAwareResourceQuotas) UpdateStatus(ctx context.Context, applicationAwareResourceQuota *v1alpha1.ApplicationAwareResourceQuota, opts v1.UpdateOptions) (*v1alpha1.ApplicationAwareResourceQuota, error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(applicationawareresourcequotasResource, "status", c.ns, applicationAwareResourceQuota), &v1alpha1.ApplicationAwareResourceQuota{})
-
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*v1alpha1.ApplicationAwareResourceQuota), err
-}
-
-// Delete takes name of the applicationAwareResourceQuota and deletes it. Returns an error if one occurs.
-func (c *FakeApplicationAwareResourceQuotas) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(applicationawareresourcequotasResource, c.ns, name, opts), &v1alpha1.ApplicationAwareResourceQuota{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeApplicationAwareResourceQuotas) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(applicationawareresourcequotasResource, c.ns, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1alpha1.ApplicationAwareResourceQuotaList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched applicationAwareResourceQuota.
-func (c *FakeApplicationAwareResourceQuotas) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.ApplicationAwareResourceQuota, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(applicationawareresourcequotasResource, c.ns, name, pt, data, subresources...), &v1alpha1.ApplicationAwareResourceQuota{})
-
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*v1alpha1.ApplicationAwareResourceQuota), err
 }
