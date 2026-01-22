@@ -19,114 +19,38 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	gentype "k8s.io/client-go/gentype"
+	corev1alpha1 "kubevirt.io/application-aware-quota/pkg/generated/aaq/clientset/versioned/typed/core/v1alpha1"
 	v1alpha1 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 )
 
-// FakeApplicationAwareClusterResourceQuotas implements ApplicationAwareClusterResourceQuotaInterface
-type FakeApplicationAwareClusterResourceQuotas struct {
+// fakeApplicationAwareClusterResourceQuotas implements ApplicationAwareClusterResourceQuotaInterface
+type fakeApplicationAwareClusterResourceQuotas struct {
+	*gentype.FakeClientWithList[*v1alpha1.ApplicationAwareClusterResourceQuota, *v1alpha1.ApplicationAwareClusterResourceQuotaList]
 	Fake *FakeAaqV1alpha1
 }
 
-var applicationawareclusterresourcequotasResource = v1alpha1.SchemeGroupVersion.WithResource("applicationawareclusterresourcequotas")
-
-var applicationawareclusterresourcequotasKind = v1alpha1.SchemeGroupVersion.WithKind("ApplicationAwareClusterResourceQuota")
-
-// Get takes name of the applicationAwareClusterResourceQuota, and returns the corresponding applicationAwareClusterResourceQuota object, and an error if there is any.
-func (c *FakeApplicationAwareClusterResourceQuotas) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ApplicationAwareClusterResourceQuota, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(applicationawareclusterresourcequotasResource, name), &v1alpha1.ApplicationAwareClusterResourceQuota{})
-	if obj == nil {
-		return nil, err
+func newFakeApplicationAwareClusterResourceQuotas(fake *FakeAaqV1alpha1) corev1alpha1.ApplicationAwareClusterResourceQuotaInterface {
+	return &fakeApplicationAwareClusterResourceQuotas{
+		gentype.NewFakeClientWithList[*v1alpha1.ApplicationAwareClusterResourceQuota, *v1alpha1.ApplicationAwareClusterResourceQuotaList](
+			fake.Fake,
+			"",
+			v1alpha1.SchemeGroupVersion.WithResource("applicationawareclusterresourcequotas"),
+			v1alpha1.SchemeGroupVersion.WithKind("ApplicationAwareClusterResourceQuota"),
+			func() *v1alpha1.ApplicationAwareClusterResourceQuota {
+				return &v1alpha1.ApplicationAwareClusterResourceQuota{}
+			},
+			func() *v1alpha1.ApplicationAwareClusterResourceQuotaList {
+				return &v1alpha1.ApplicationAwareClusterResourceQuotaList{}
+			},
+			func(dst, src *v1alpha1.ApplicationAwareClusterResourceQuotaList) { dst.ListMeta = src.ListMeta },
+			func(list *v1alpha1.ApplicationAwareClusterResourceQuotaList) []*v1alpha1.ApplicationAwareClusterResourceQuota {
+				return gentype.ToPointerSlice(list.Items)
+			},
+			func(list *v1alpha1.ApplicationAwareClusterResourceQuotaList, items []*v1alpha1.ApplicationAwareClusterResourceQuota) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1alpha1.ApplicationAwareClusterResourceQuota), err
-}
-
-// List takes label and field selectors, and returns the list of ApplicationAwareClusterResourceQuotas that match those selectors.
-func (c *FakeApplicationAwareClusterResourceQuotas) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.ApplicationAwareClusterResourceQuotaList, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(applicationawareclusterresourcequotasResource, applicationawareclusterresourcequotasKind, opts), &v1alpha1.ApplicationAwareClusterResourceQuotaList{})
-	if obj == nil {
-		return nil, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1alpha1.ApplicationAwareClusterResourceQuotaList{ListMeta: obj.(*v1alpha1.ApplicationAwareClusterResourceQuotaList).ListMeta}
-	for _, item := range obj.(*v1alpha1.ApplicationAwareClusterResourceQuotaList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested applicationAwareClusterResourceQuotas.
-func (c *FakeApplicationAwareClusterResourceQuotas) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewRootWatchAction(applicationawareclusterresourcequotasResource, opts))
-}
-
-// Create takes the representation of a applicationAwareClusterResourceQuota and creates it.  Returns the server's representation of the applicationAwareClusterResourceQuota, and an error, if there is any.
-func (c *FakeApplicationAwareClusterResourceQuotas) Create(ctx context.Context, applicationAwareClusterResourceQuota *v1alpha1.ApplicationAwareClusterResourceQuota, opts v1.CreateOptions) (result *v1alpha1.ApplicationAwareClusterResourceQuota, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(applicationawareclusterresourcequotasResource, applicationAwareClusterResourceQuota), &v1alpha1.ApplicationAwareClusterResourceQuota{})
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*v1alpha1.ApplicationAwareClusterResourceQuota), err
-}
-
-// Update takes the representation of a applicationAwareClusterResourceQuota and updates it. Returns the server's representation of the applicationAwareClusterResourceQuota, and an error, if there is any.
-func (c *FakeApplicationAwareClusterResourceQuotas) Update(ctx context.Context, applicationAwareClusterResourceQuota *v1alpha1.ApplicationAwareClusterResourceQuota, opts v1.UpdateOptions) (result *v1alpha1.ApplicationAwareClusterResourceQuota, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(applicationawareclusterresourcequotasResource, applicationAwareClusterResourceQuota), &v1alpha1.ApplicationAwareClusterResourceQuota{})
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*v1alpha1.ApplicationAwareClusterResourceQuota), err
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeApplicationAwareClusterResourceQuotas) UpdateStatus(ctx context.Context, applicationAwareClusterResourceQuota *v1alpha1.ApplicationAwareClusterResourceQuota, opts v1.UpdateOptions) (*v1alpha1.ApplicationAwareClusterResourceQuota, error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateSubresourceAction(applicationawareclusterresourcequotasResource, "status", applicationAwareClusterResourceQuota), &v1alpha1.ApplicationAwareClusterResourceQuota{})
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*v1alpha1.ApplicationAwareClusterResourceQuota), err
-}
-
-// Delete takes name of the applicationAwareClusterResourceQuota and deletes it. Returns an error if one occurs.
-func (c *FakeApplicationAwareClusterResourceQuotas) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteActionWithOptions(applicationawareclusterresourcequotasResource, name, opts), &v1alpha1.ApplicationAwareClusterResourceQuota{})
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeApplicationAwareClusterResourceQuotas) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(applicationawareclusterresourcequotasResource, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1alpha1.ApplicationAwareClusterResourceQuotaList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched applicationAwareClusterResourceQuota.
-func (c *FakeApplicationAwareClusterResourceQuotas) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.ApplicationAwareClusterResourceQuota, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(applicationawareclusterresourcequotasResource, name, pt, data, subresources...), &v1alpha1.ApplicationAwareClusterResourceQuota{})
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*v1alpha1.ApplicationAwareClusterResourceQuota), err
 }

@@ -10,15 +10,75 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/openshift/library-go/pkg/operator/certrotation"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
+	clocktesting "k8s.io/utils/clock/testing"
 	"kubevirt.io/application-aware-quota/pkg/aaq-operator/resources/cert"
 )
 
+type noInformerStartCertManager struct {
+	*certManager
+}
+
+func (cm *noInformerStartCertManager) Start(ctx context.Context) error {
+	for _, ns := range cm.namespaces {
+		if cm.listerMap == nil {
+			cm.listerMap = make(map[string]*certListers)
+		}
+
+		cm.listerMap[ns] = &certListers{
+			secretLister:    cm.informers.InformersFor(ns).Core().V1().Secrets().Lister(),
+			configMapLister: cm.informers.InformersFor(ns).Core().V1().ConfigMaps().Lister(),
+		}
+	}
+
+	return nil
+}
+
 func newCertManagerForTest(client kubernetes.Interface, namespace string) CertManager {
-	return newCertManager(client, namespace)
+	cm := newCertManager(client, namespace, clocktesting.NewFakePassiveClock(time.Now()))
+
+	fakeClient := client.(*fake.Clientset)
+
+	secretIndexer := cm.informers.InformersFor(namespace).Core().V1().Secrets().Informer().GetIndexer()
+	configMapIndexer := cm.informers.InformersFor(namespace).Core().V1().ConfigMaps().Informer().GetIndexer()
+
+	fakeClient.PrependReactor("create", "secrets", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		createAction := action.(k8stesting.CreateAction)
+		obj := createAction.GetObject().(*corev1.Secret)
+		_ = secretIndexer.Add(obj)
+		return false, nil, nil
+	})
+
+	fakeClient.PrependReactor("update", "secrets", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		updateAction := action.(k8stesting.UpdateAction)
+		obj := updateAction.GetObject().(*corev1.Secret)
+		_ = secretIndexer.Update(obj)
+		return false, nil, nil
+	})
+
+	fakeClient.PrependReactor("create", "configmaps", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		createAction := action.(k8stesting.CreateAction)
+		obj := createAction.GetObject().(*corev1.ConfigMap)
+		_ = configMapIndexer.Add(obj)
+		return false, nil, nil
+	})
+
+	fakeClient.PrependReactor("update", "configmaps", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		updateAction := action.(k8stesting.UpdateAction)
+		obj := updateAction.GetObject().(*corev1.ConfigMap)
+		_ = configMapIndexer.Update(obj)
+		return false, nil, nil
+	})
+
+	return &noInformerStartCertManager{
+		certManager: cm,
+	}
 }
 
 func toSerializedCertConfig(l, r time.Duration) string {
@@ -46,7 +106,10 @@ func getCertConfigAnno(client kubernetes.Interface, namespace, name string) stri
 	s, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	Expect(err).ToNot(HaveOccurred())
 	val, ok := s.Annotations[annCertConfig]
-	Expect(ok).To(BeTrue())
+	Expect(ok).To(BeTrue(), func() string {
+		secretJSON, _ := json.MarshalIndent(s, "", "    ")
+		return string(secretJSON)
+	})
 	return val
 }
 
@@ -89,7 +152,7 @@ var _ = Describe("Cert rotation tests", func() {
 			cm := newCertManagerForTest(client, namespace)
 
 			ctx, cancel := context.WithCancel(context.Background())
-			Expect(cm.(*certManager).Start(ctx)).To(Succeed())
+			Expect(cm.(*noInformerStartCertManager).Start(ctx)).To(Succeed())
 
 			checkCerts(client, namespace, false)
 
@@ -114,7 +177,7 @@ var _ = Describe("Cert rotation tests", func() {
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			Expect(cm.(*certManager).Start(ctx)).To(Succeed())
+			Expect(cm.(*noInformerStartCertManager).Start(ctx)).To(Succeed())
 
 			certs := cert.CreateCertificateDefinitions(&cert.FactoryArgs{Namespace: namespace})
 			err := cm.Sync(certs)

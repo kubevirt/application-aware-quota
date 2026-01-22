@@ -19,123 +19,34 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	gentype "k8s.io/client-go/gentype"
+	corev1alpha1 "kubevirt.io/application-aware-quota/pkg/generated/aaq/clientset/versioned/typed/core/v1alpha1"
 	v1alpha1 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 )
 
-// FakeAAQJobQueueConfigs implements AAQJobQueueConfigInterface
-type FakeAAQJobQueueConfigs struct {
+// fakeAAQJobQueueConfigs implements AAQJobQueueConfigInterface
+type fakeAAQJobQueueConfigs struct {
+	*gentype.FakeClientWithList[*v1alpha1.AAQJobQueueConfig, *v1alpha1.AAQJobQueueConfigList]
 	Fake *FakeAaqV1alpha1
-	ns   string
 }
 
-var aaqjobqueueconfigsResource = v1alpha1.SchemeGroupVersion.WithResource("aaqjobqueueconfigs")
-
-var aaqjobqueueconfigsKind = v1alpha1.SchemeGroupVersion.WithKind("AAQJobQueueConfig")
-
-// Get takes name of the aAQJobQueueConfig, and returns the corresponding aAQJobQueueConfig object, and an error if there is any.
-func (c *FakeAAQJobQueueConfigs) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.AAQJobQueueConfig, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(aaqjobqueueconfigsResource, c.ns, name), &v1alpha1.AAQJobQueueConfig{})
-
-	if obj == nil {
-		return nil, err
+func newFakeAAQJobQueueConfigs(fake *FakeAaqV1alpha1, namespace string) corev1alpha1.AAQJobQueueConfigInterface {
+	return &fakeAAQJobQueueConfigs{
+		gentype.NewFakeClientWithList[*v1alpha1.AAQJobQueueConfig, *v1alpha1.AAQJobQueueConfigList](
+			fake.Fake,
+			namespace,
+			v1alpha1.SchemeGroupVersion.WithResource("aaqjobqueueconfigs"),
+			v1alpha1.SchemeGroupVersion.WithKind("AAQJobQueueConfig"),
+			func() *v1alpha1.AAQJobQueueConfig { return &v1alpha1.AAQJobQueueConfig{} },
+			func() *v1alpha1.AAQJobQueueConfigList { return &v1alpha1.AAQJobQueueConfigList{} },
+			func(dst, src *v1alpha1.AAQJobQueueConfigList) { dst.ListMeta = src.ListMeta },
+			func(list *v1alpha1.AAQJobQueueConfigList) []*v1alpha1.AAQJobQueueConfig {
+				return gentype.ToPointerSlice(list.Items)
+			},
+			func(list *v1alpha1.AAQJobQueueConfigList, items []*v1alpha1.AAQJobQueueConfig) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1alpha1.AAQJobQueueConfig), err
-}
-
-// List takes label and field selectors, and returns the list of AAQJobQueueConfigs that match those selectors.
-func (c *FakeAAQJobQueueConfigs) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.AAQJobQueueConfigList, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewListAction(aaqjobqueueconfigsResource, aaqjobqueueconfigsKind, c.ns, opts), &v1alpha1.AAQJobQueueConfigList{})
-
-	if obj == nil {
-		return nil, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1alpha1.AAQJobQueueConfigList{ListMeta: obj.(*v1alpha1.AAQJobQueueConfigList).ListMeta}
-	for _, item := range obj.(*v1alpha1.AAQJobQueueConfigList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested aAQJobQueueConfigs.
-func (c *FakeAAQJobQueueConfigs) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(aaqjobqueueconfigsResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a aAQJobQueueConfig and creates it.  Returns the server's representation of the aAQJobQueueConfig, and an error, if there is any.
-func (c *FakeAAQJobQueueConfigs) Create(ctx context.Context, aAQJobQueueConfig *v1alpha1.AAQJobQueueConfig, opts v1.CreateOptions) (result *v1alpha1.AAQJobQueueConfig, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(aaqjobqueueconfigsResource, c.ns, aAQJobQueueConfig), &v1alpha1.AAQJobQueueConfig{})
-
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*v1alpha1.AAQJobQueueConfig), err
-}
-
-// Update takes the representation of a aAQJobQueueConfig and updates it. Returns the server's representation of the aAQJobQueueConfig, and an error, if there is any.
-func (c *FakeAAQJobQueueConfigs) Update(ctx context.Context, aAQJobQueueConfig *v1alpha1.AAQJobQueueConfig, opts v1.UpdateOptions) (result *v1alpha1.AAQJobQueueConfig, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(aaqjobqueueconfigsResource, c.ns, aAQJobQueueConfig), &v1alpha1.AAQJobQueueConfig{})
-
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*v1alpha1.AAQJobQueueConfig), err
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeAAQJobQueueConfigs) UpdateStatus(ctx context.Context, aAQJobQueueConfig *v1alpha1.AAQJobQueueConfig, opts v1.UpdateOptions) (*v1alpha1.AAQJobQueueConfig, error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(aaqjobqueueconfigsResource, "status", c.ns, aAQJobQueueConfig), &v1alpha1.AAQJobQueueConfig{})
-
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*v1alpha1.AAQJobQueueConfig), err
-}
-
-// Delete takes name of the aAQJobQueueConfig and deletes it. Returns an error if one occurs.
-func (c *FakeAAQJobQueueConfigs) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(aaqjobqueueconfigsResource, c.ns, name, opts), &v1alpha1.AAQJobQueueConfig{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeAAQJobQueueConfigs) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(aaqjobqueueconfigsResource, c.ns, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1alpha1.AAQJobQueueConfigList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched aAQJobQueueConfig.
-func (c *FakeAAQJobQueueConfigs) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.AAQJobQueueConfig, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(aaqjobqueueconfigsResource, c.ns, name, pt, data, subresources...), &v1alpha1.AAQJobQueueConfig{})
-
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*v1alpha1.AAQJobQueueConfig), err
 }

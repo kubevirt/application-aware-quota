@@ -35,6 +35,7 @@ import (
 	v1alpha12 "k8s.io/client-go/kubernetes/typed/certificates/v1alpha1"
 	v1beta14 "k8s.io/client-go/kubernetes/typed/certificates/v1beta1"
 	v17 "k8s.io/client-go/kubernetes/typed/coordination/v1"
+	v1alpha2 "k8s.io/client-go/kubernetes/typed/coordination/v1alpha2"
 	v1beta15 "k8s.io/client-go/kubernetes/typed/coordination/v1beta1"
 	v18 "k8s.io/client-go/kubernetes/typed/core/v1"
 	v19 "k8s.io/client-go/kubernetes/typed/discovery/v1"
@@ -47,29 +48,31 @@ import (
 	v1beta20 "k8s.io/client-go/kubernetes/typed/flowcontrol/v1beta2"
 	v1beta3 "k8s.io/client-go/kubernetes/typed/flowcontrol/v1beta3"
 	v112 "k8s.io/client-go/kubernetes/typed/networking/v1"
-	v1alpha13 "k8s.io/client-go/kubernetes/typed/networking/v1alpha1"
 	v1beta110 "k8s.io/client-go/kubernetes/typed/networking/v1beta1"
 	v113 "k8s.io/client-go/kubernetes/typed/node/v1"
-	v1alpha14 "k8s.io/client-go/kubernetes/typed/node/v1alpha1"
+	v1alpha13 "k8s.io/client-go/kubernetes/typed/node/v1alpha1"
 	v1beta111 "k8s.io/client-go/kubernetes/typed/node/v1beta1"
 	v114 "k8s.io/client-go/kubernetes/typed/policy/v1"
 	v1beta112 "k8s.io/client-go/kubernetes/typed/policy/v1beta1"
 	v115 "k8s.io/client-go/kubernetes/typed/rbac/v1"
-	v1alpha15 "k8s.io/client-go/kubernetes/typed/rbac/v1alpha1"
+	v1alpha14 "k8s.io/client-go/kubernetes/typed/rbac/v1alpha1"
 	v1beta113 "k8s.io/client-go/kubernetes/typed/rbac/v1beta1"
-	v1alpha2 "k8s.io/client-go/kubernetes/typed/resource/v1alpha2"
-	v116 "k8s.io/client-go/kubernetes/typed/scheduling/v1"
-	v1alpha16 "k8s.io/client-go/kubernetes/typed/scheduling/v1alpha1"
-	v1beta114 "k8s.io/client-go/kubernetes/typed/scheduling/v1beta1"
-	v117 "k8s.io/client-go/kubernetes/typed/storage/v1"
-	v1alpha17 "k8s.io/client-go/kubernetes/typed/storage/v1alpha1"
-	v1beta115 "k8s.io/client-go/kubernetes/typed/storage/v1beta1"
-	v1alpha18 "k8s.io/client-go/kubernetes/typed/storagemigration/v1alpha1"
+	v116 "k8s.io/client-go/kubernetes/typed/resource/v1"
+	v1alpha3 "k8s.io/client-go/kubernetes/typed/resource/v1alpha3"
+	v1beta114 "k8s.io/client-go/kubernetes/typed/resource/v1beta1"
+	v1beta21 "k8s.io/client-go/kubernetes/typed/resource/v1beta2"
+	v117 "k8s.io/client-go/kubernetes/typed/scheduling/v1"
+	v1alpha15 "k8s.io/client-go/kubernetes/typed/scheduling/v1alpha1"
+	v1beta115 "k8s.io/client-go/kubernetes/typed/scheduling/v1beta1"
+	v118 "k8s.io/client-go/kubernetes/typed/storage/v1"
+	v1alpha16 "k8s.io/client-go/kubernetes/typed/storage/v1alpha1"
+	v1beta116 "k8s.io/client-go/kubernetes/typed/storage/v1beta1"
+	v1alpha17 "k8s.io/client-go/kubernetes/typed/storagemigration/v1alpha1"
 	rest "k8s.io/client-go/rest"
 	versioned "kubevirt.io/application-aware-quota/pkg/generated/aaq/clientset/versioned"
 	versioned0 "kubevirt.io/application-aware-quota/pkg/generated/cluster-resource-quota/clientset/versioned"
 	versioned1 "kubevirt.io/application-aware-quota/pkg/generated/kubevirt/clientset/versioned"
-	v1alpha19 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
+	v1alpha18 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 )
 
 // MockAAQClient is a mock of AAQClient interface.
@@ -487,6 +490,20 @@ func (mr *MockAAQClientMockRecorder) CoordinationV1() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CoordinationV1", reflect.TypeOf((*MockAAQClient)(nil).CoordinationV1))
 }
 
+// CoordinationV1alpha2 mocks base method.
+func (m *MockAAQClient) CoordinationV1alpha2() v1alpha2.CoordinationV1alpha2Interface {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CoordinationV1alpha2")
+	ret0, _ := ret[0].(v1alpha2.CoordinationV1alpha2Interface)
+	return ret0
+}
+
+// CoordinationV1alpha2 indicates an expected call of CoordinationV1alpha2.
+func (mr *MockAAQClientMockRecorder) CoordinationV1alpha2() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CoordinationV1alpha2", reflect.TypeOf((*MockAAQClient)(nil).CoordinationV1alpha2))
+}
+
 // CoordinationV1beta1 mocks base method.
 func (m *MockAAQClient) CoordinationV1beta1() v1beta15.CoordinationV1beta1Interface {
 	m.ctrl.T.Helper()
@@ -725,20 +742,6 @@ func (mr *MockAAQClientMockRecorder) NetworkingV1() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NetworkingV1", reflect.TypeOf((*MockAAQClient)(nil).NetworkingV1))
 }
 
-// NetworkingV1alpha1 mocks base method.
-func (m *MockAAQClient) NetworkingV1alpha1() v1alpha13.NetworkingV1alpha1Interface {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NetworkingV1alpha1")
-	ret0, _ := ret[0].(v1alpha13.NetworkingV1alpha1Interface)
-	return ret0
-}
-
-// NetworkingV1alpha1 indicates an expected call of NetworkingV1alpha1.
-func (mr *MockAAQClientMockRecorder) NetworkingV1alpha1() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NetworkingV1alpha1", reflect.TypeOf((*MockAAQClient)(nil).NetworkingV1alpha1))
-}
-
 // NetworkingV1beta1 mocks base method.
 func (m *MockAAQClient) NetworkingV1beta1() v1beta110.NetworkingV1beta1Interface {
 	m.ctrl.T.Helper()
@@ -768,10 +771,10 @@ func (mr *MockAAQClientMockRecorder) NodeV1() *gomock.Call {
 }
 
 // NodeV1alpha1 mocks base method.
-func (m *MockAAQClient) NodeV1alpha1() v1alpha14.NodeV1alpha1Interface {
+func (m *MockAAQClient) NodeV1alpha1() v1alpha13.NodeV1alpha1Interface {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "NodeV1alpha1")
-	ret0, _ := ret[0].(v1alpha14.NodeV1alpha1Interface)
+	ret0, _ := ret[0].(v1alpha13.NodeV1alpha1Interface)
 	return ret0
 }
 
@@ -838,10 +841,10 @@ func (mr *MockAAQClientMockRecorder) RbacV1() *gomock.Call {
 }
 
 // RbacV1alpha1 mocks base method.
-func (m *MockAAQClient) RbacV1alpha1() v1alpha15.RbacV1alpha1Interface {
+func (m *MockAAQClient) RbacV1alpha1() v1alpha14.RbacV1alpha1Interface {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RbacV1alpha1")
-	ret0, _ := ret[0].(v1alpha15.RbacV1alpha1Interface)
+	ret0, _ := ret[0].(v1alpha14.RbacV1alpha1Interface)
 	return ret0
 }
 
@@ -865,18 +868,60 @@ func (mr *MockAAQClientMockRecorder) RbacV1beta1() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RbacV1beta1", reflect.TypeOf((*MockAAQClient)(nil).RbacV1beta1))
 }
 
-// ResourceV1alpha2 mocks base method.
-func (m *MockAAQClient) ResourceV1alpha2() v1alpha2.ResourceV1alpha2Interface {
+// ResourceV1 mocks base method.
+func (m *MockAAQClient) ResourceV1() v116.ResourceV1Interface {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ResourceV1alpha2")
-	ret0, _ := ret[0].(v1alpha2.ResourceV1alpha2Interface)
+	ret := m.ctrl.Call(m, "ResourceV1")
+	ret0, _ := ret[0].(v116.ResourceV1Interface)
 	return ret0
 }
 
-// ResourceV1alpha2 indicates an expected call of ResourceV1alpha2.
-func (mr *MockAAQClientMockRecorder) ResourceV1alpha2() *gomock.Call {
+// ResourceV1 indicates an expected call of ResourceV1.
+func (mr *MockAAQClientMockRecorder) ResourceV1() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResourceV1alpha2", reflect.TypeOf((*MockAAQClient)(nil).ResourceV1alpha2))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResourceV1", reflect.TypeOf((*MockAAQClient)(nil).ResourceV1))
+}
+
+// ResourceV1alpha3 mocks base method.
+func (m *MockAAQClient) ResourceV1alpha3() v1alpha3.ResourceV1alpha3Interface {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResourceV1alpha3")
+	ret0, _ := ret[0].(v1alpha3.ResourceV1alpha3Interface)
+	return ret0
+}
+
+// ResourceV1alpha3 indicates an expected call of ResourceV1alpha3.
+func (mr *MockAAQClientMockRecorder) ResourceV1alpha3() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResourceV1alpha3", reflect.TypeOf((*MockAAQClient)(nil).ResourceV1alpha3))
+}
+
+// ResourceV1beta1 mocks base method.
+func (m *MockAAQClient) ResourceV1beta1() v1beta114.ResourceV1beta1Interface {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResourceV1beta1")
+	ret0, _ := ret[0].(v1beta114.ResourceV1beta1Interface)
+	return ret0
+}
+
+// ResourceV1beta1 indicates an expected call of ResourceV1beta1.
+func (mr *MockAAQClientMockRecorder) ResourceV1beta1() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResourceV1beta1", reflect.TypeOf((*MockAAQClient)(nil).ResourceV1beta1))
+}
+
+// ResourceV1beta2 mocks base method.
+func (m *MockAAQClient) ResourceV1beta2() v1beta21.ResourceV1beta2Interface {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResourceV1beta2")
+	ret0, _ := ret[0].(v1beta21.ResourceV1beta2Interface)
+	return ret0
+}
+
+// ResourceV1beta2 indicates an expected call of ResourceV1beta2.
+func (mr *MockAAQClientMockRecorder) ResourceV1beta2() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResourceV1beta2", reflect.TypeOf((*MockAAQClient)(nil).ResourceV1beta2))
 }
 
 // RestClient mocks base method.
@@ -894,10 +939,10 @@ func (mr *MockAAQClientMockRecorder) RestClient() *gomock.Call {
 }
 
 // SchedulingV1 mocks base method.
-func (m *MockAAQClient) SchedulingV1() v116.SchedulingV1Interface {
+func (m *MockAAQClient) SchedulingV1() v117.SchedulingV1Interface {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SchedulingV1")
-	ret0, _ := ret[0].(v116.SchedulingV1Interface)
+	ret0, _ := ret[0].(v117.SchedulingV1Interface)
 	return ret0
 }
 
@@ -908,10 +953,10 @@ func (mr *MockAAQClientMockRecorder) SchedulingV1() *gomock.Call {
 }
 
 // SchedulingV1alpha1 mocks base method.
-func (m *MockAAQClient) SchedulingV1alpha1() v1alpha16.SchedulingV1alpha1Interface {
+func (m *MockAAQClient) SchedulingV1alpha1() v1alpha15.SchedulingV1alpha1Interface {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SchedulingV1alpha1")
-	ret0, _ := ret[0].(v1alpha16.SchedulingV1alpha1Interface)
+	ret0, _ := ret[0].(v1alpha15.SchedulingV1alpha1Interface)
 	return ret0
 }
 
@@ -922,10 +967,10 @@ func (mr *MockAAQClientMockRecorder) SchedulingV1alpha1() *gomock.Call {
 }
 
 // SchedulingV1beta1 mocks base method.
-func (m *MockAAQClient) SchedulingV1beta1() v1beta114.SchedulingV1beta1Interface {
+func (m *MockAAQClient) SchedulingV1beta1() v1beta115.SchedulingV1beta1Interface {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SchedulingV1beta1")
-	ret0, _ := ret[0].(v1beta114.SchedulingV1beta1Interface)
+	ret0, _ := ret[0].(v1beta115.SchedulingV1beta1Interface)
 	return ret0
 }
 
@@ -936,10 +981,10 @@ func (mr *MockAAQClientMockRecorder) SchedulingV1beta1() *gomock.Call {
 }
 
 // StorageV1 mocks base method.
-func (m *MockAAQClient) StorageV1() v117.StorageV1Interface {
+func (m *MockAAQClient) StorageV1() v118.StorageV1Interface {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StorageV1")
-	ret0, _ := ret[0].(v117.StorageV1Interface)
+	ret0, _ := ret[0].(v118.StorageV1Interface)
 	return ret0
 }
 
@@ -950,10 +995,10 @@ func (mr *MockAAQClientMockRecorder) StorageV1() *gomock.Call {
 }
 
 // StorageV1alpha1 mocks base method.
-func (m *MockAAQClient) StorageV1alpha1() v1alpha17.StorageV1alpha1Interface {
+func (m *MockAAQClient) StorageV1alpha1() v1alpha16.StorageV1alpha1Interface {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StorageV1alpha1")
-	ret0, _ := ret[0].(v1alpha17.StorageV1alpha1Interface)
+	ret0, _ := ret[0].(v1alpha16.StorageV1alpha1Interface)
 	return ret0
 }
 
@@ -964,10 +1009,10 @@ func (mr *MockAAQClientMockRecorder) StorageV1alpha1() *gomock.Call {
 }
 
 // StorageV1beta1 mocks base method.
-func (m *MockAAQClient) StorageV1beta1() v1beta115.StorageV1beta1Interface {
+func (m *MockAAQClient) StorageV1beta1() v1beta116.StorageV1beta1Interface {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StorageV1beta1")
-	ret0, _ := ret[0].(v1beta115.StorageV1beta1Interface)
+	ret0, _ := ret[0].(v1beta116.StorageV1beta1Interface)
 	return ret0
 }
 
@@ -978,10 +1023,10 @@ func (mr *MockAAQClientMockRecorder) StorageV1beta1() *gomock.Call {
 }
 
 // StoragemigrationV1alpha1 mocks base method.
-func (m *MockAAQClient) StoragemigrationV1alpha1() v1alpha18.StoragemigrationV1alpha1Interface {
+func (m *MockAAQClient) StoragemigrationV1alpha1() v1alpha17.StoragemigrationV1alpha1Interface {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StoragemigrationV1alpha1")
-	ret0, _ := ret[0].(v1alpha18.StoragemigrationV1alpha1Interface)
+	ret0, _ := ret[0].(v1alpha17.StoragemigrationV1alpha1Interface)
 	return ret0
 }
 
@@ -1015,10 +1060,10 @@ func (m *MockApplicationAwareResourceQuotaInterface) EXPECT() *MockApplicationAw
 }
 
 // Create mocks base method.
-func (m *MockApplicationAwareResourceQuotaInterface) Create(ctx context.Context, applicationAwareResourceQuota *v1alpha19.ApplicationAwareResourceQuota, opts v1.CreateOptions) (*v1alpha19.ApplicationAwareResourceQuota, error) {
+func (m *MockApplicationAwareResourceQuotaInterface) Create(ctx context.Context, applicationAwareResourceQuota *v1alpha18.ApplicationAwareResourceQuota, opts v1.CreateOptions) (*v1alpha18.ApplicationAwareResourceQuota, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", ctx, applicationAwareResourceQuota, opts)
-	ret0, _ := ret[0].(*v1alpha19.ApplicationAwareResourceQuota)
+	ret0, _ := ret[0].(*v1alpha18.ApplicationAwareResourceQuota)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1058,10 +1103,10 @@ func (mr *MockApplicationAwareResourceQuotaInterfaceMockRecorder) DeleteCollecti
 }
 
 // Get mocks base method.
-func (m *MockApplicationAwareResourceQuotaInterface) Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha19.ApplicationAwareResourceQuota, error) {
+func (m *MockApplicationAwareResourceQuotaInterface) Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha18.ApplicationAwareResourceQuota, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", ctx, name, opts)
-	ret0, _ := ret[0].(*v1alpha19.ApplicationAwareResourceQuota)
+	ret0, _ := ret[0].(*v1alpha18.ApplicationAwareResourceQuota)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1073,10 +1118,10 @@ func (mr *MockApplicationAwareResourceQuotaInterfaceMockRecorder) Get(ctx, name,
 }
 
 // List mocks base method.
-func (m *MockApplicationAwareResourceQuotaInterface) List(ctx context.Context, opts v1.ListOptions) (*v1alpha19.ApplicationAwareResourceQuotaList, error) {
+func (m *MockApplicationAwareResourceQuotaInterface) List(ctx context.Context, opts v1.ListOptions) (*v1alpha18.ApplicationAwareResourceQuotaList, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "List", ctx, opts)
-	ret0, _ := ret[0].(*v1alpha19.ApplicationAwareResourceQuotaList)
+	ret0, _ := ret[0].(*v1alpha18.ApplicationAwareResourceQuotaList)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1088,14 +1133,14 @@ func (mr *MockApplicationAwareResourceQuotaInterfaceMockRecorder) List(ctx, opts
 }
 
 // Patch mocks base method.
-func (m *MockApplicationAwareResourceQuotaInterface) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (*v1alpha19.ApplicationAwareResourceQuota, error) {
+func (m *MockApplicationAwareResourceQuotaInterface) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (*v1alpha18.ApplicationAwareResourceQuota, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, name, pt, data, opts}
 	for _, a := range subresources {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "Patch", varargs...)
-	ret0, _ := ret[0].(*v1alpha19.ApplicationAwareResourceQuota)
+	ret0, _ := ret[0].(*v1alpha18.ApplicationAwareResourceQuota)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1108,10 +1153,10 @@ func (mr *MockApplicationAwareResourceQuotaInterfaceMockRecorder) Patch(ctx, nam
 }
 
 // Update mocks base method.
-func (m *MockApplicationAwareResourceQuotaInterface) Update(ctx context.Context, applicationAwareResourceQuota *v1alpha19.ApplicationAwareResourceQuota, opts v1.UpdateOptions) (*v1alpha19.ApplicationAwareResourceQuota, error) {
+func (m *MockApplicationAwareResourceQuotaInterface) Update(ctx context.Context, applicationAwareResourceQuota *v1alpha18.ApplicationAwareResourceQuota, opts v1.UpdateOptions) (*v1alpha18.ApplicationAwareResourceQuota, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Update", ctx, applicationAwareResourceQuota, opts)
-	ret0, _ := ret[0].(*v1alpha19.ApplicationAwareResourceQuota)
+	ret0, _ := ret[0].(*v1alpha18.ApplicationAwareResourceQuota)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1123,10 +1168,10 @@ func (mr *MockApplicationAwareResourceQuotaInterfaceMockRecorder) Update(ctx, ap
 }
 
 // UpdateStatus mocks base method.
-func (m *MockApplicationAwareResourceQuotaInterface) UpdateStatus(ctx context.Context, applicationAwareResourceQuota *v1alpha19.ApplicationAwareResourceQuota, opts v1.UpdateOptions) (*v1alpha19.ApplicationAwareResourceQuota, error) {
+func (m *MockApplicationAwareResourceQuotaInterface) UpdateStatus(ctx context.Context, applicationAwareResourceQuota *v1alpha18.ApplicationAwareResourceQuota, opts v1.UpdateOptions) (*v1alpha18.ApplicationAwareResourceQuota, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateStatus", ctx, applicationAwareResourceQuota, opts)
-	ret0, _ := ret[0].(*v1alpha19.ApplicationAwareResourceQuota)
+	ret0, _ := ret[0].(*v1alpha18.ApplicationAwareResourceQuota)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1176,10 +1221,10 @@ func (m *MockApplicationAwareClusterResourceQuotaInterface) EXPECT() *MockApplic
 }
 
 // Create mocks base method.
-func (m *MockApplicationAwareClusterResourceQuotaInterface) Create(ctx context.Context, applicationAwareResourceQuota *v1alpha19.ApplicationAwareClusterResourceQuota, opts v1.CreateOptions) (*v1alpha19.ApplicationAwareClusterResourceQuota, error) {
+func (m *MockApplicationAwareClusterResourceQuotaInterface) Create(ctx context.Context, applicationAwareResourceQuota *v1alpha18.ApplicationAwareClusterResourceQuota, opts v1.CreateOptions) (*v1alpha18.ApplicationAwareClusterResourceQuota, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", ctx, applicationAwareResourceQuota, opts)
-	ret0, _ := ret[0].(*v1alpha19.ApplicationAwareClusterResourceQuota)
+	ret0, _ := ret[0].(*v1alpha18.ApplicationAwareClusterResourceQuota)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1219,10 +1264,10 @@ func (mr *MockApplicationAwareClusterResourceQuotaInterfaceMockRecorder) DeleteC
 }
 
 // Get mocks base method.
-func (m *MockApplicationAwareClusterResourceQuotaInterface) Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha19.ApplicationAwareClusterResourceQuota, error) {
+func (m *MockApplicationAwareClusterResourceQuotaInterface) Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha18.ApplicationAwareClusterResourceQuota, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", ctx, name, opts)
-	ret0, _ := ret[0].(*v1alpha19.ApplicationAwareClusterResourceQuota)
+	ret0, _ := ret[0].(*v1alpha18.ApplicationAwareClusterResourceQuota)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1234,10 +1279,10 @@ func (mr *MockApplicationAwareClusterResourceQuotaInterfaceMockRecorder) Get(ctx
 }
 
 // List mocks base method.
-func (m *MockApplicationAwareClusterResourceQuotaInterface) List(ctx context.Context, opts v1.ListOptions) (*v1alpha19.ApplicationAwareClusterResourceQuotaList, error) {
+func (m *MockApplicationAwareClusterResourceQuotaInterface) List(ctx context.Context, opts v1.ListOptions) (*v1alpha18.ApplicationAwareClusterResourceQuotaList, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "List", ctx, opts)
-	ret0, _ := ret[0].(*v1alpha19.ApplicationAwareClusterResourceQuotaList)
+	ret0, _ := ret[0].(*v1alpha18.ApplicationAwareClusterResourceQuotaList)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1249,14 +1294,14 @@ func (mr *MockApplicationAwareClusterResourceQuotaInterfaceMockRecorder) List(ct
 }
 
 // Patch mocks base method.
-func (m *MockApplicationAwareClusterResourceQuotaInterface) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (*v1alpha19.ApplicationAwareClusterResourceQuota, error) {
+func (m *MockApplicationAwareClusterResourceQuotaInterface) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (*v1alpha18.ApplicationAwareClusterResourceQuota, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, name, pt, data, opts}
 	for _, a := range subresources {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "Patch", varargs...)
-	ret0, _ := ret[0].(*v1alpha19.ApplicationAwareClusterResourceQuota)
+	ret0, _ := ret[0].(*v1alpha18.ApplicationAwareClusterResourceQuota)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1269,10 +1314,10 @@ func (mr *MockApplicationAwareClusterResourceQuotaInterfaceMockRecorder) Patch(c
 }
 
 // Update mocks base method.
-func (m *MockApplicationAwareClusterResourceQuotaInterface) Update(ctx context.Context, applicationAwareResourceQuota *v1alpha19.ApplicationAwareClusterResourceQuota, opts v1.UpdateOptions) (*v1alpha19.ApplicationAwareClusterResourceQuota, error) {
+func (m *MockApplicationAwareClusterResourceQuotaInterface) Update(ctx context.Context, applicationAwareResourceQuota *v1alpha18.ApplicationAwareClusterResourceQuota, opts v1.UpdateOptions) (*v1alpha18.ApplicationAwareClusterResourceQuota, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Update", ctx, applicationAwareResourceQuota, opts)
-	ret0, _ := ret[0].(*v1alpha19.ApplicationAwareClusterResourceQuota)
+	ret0, _ := ret[0].(*v1alpha18.ApplicationAwareClusterResourceQuota)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1284,10 +1329,10 @@ func (mr *MockApplicationAwareClusterResourceQuotaInterfaceMockRecorder) Update(
 }
 
 // UpdateStatus mocks base method.
-func (m *MockApplicationAwareClusterResourceQuotaInterface) UpdateStatus(ctx context.Context, applicationAwareResourceQuota *v1alpha19.ApplicationAwareClusterResourceQuota, opts v1.UpdateOptions) (*v1alpha19.ApplicationAwareClusterResourceQuota, error) {
+func (m *MockApplicationAwareClusterResourceQuotaInterface) UpdateStatus(ctx context.Context, applicationAwareResourceQuota *v1alpha18.ApplicationAwareClusterResourceQuota, opts v1.UpdateOptions) (*v1alpha18.ApplicationAwareClusterResourceQuota, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateStatus", ctx, applicationAwareResourceQuota, opts)
-	ret0, _ := ret[0].(*v1alpha19.ApplicationAwareClusterResourceQuota)
+	ret0, _ := ret[0].(*v1alpha18.ApplicationAwareClusterResourceQuota)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1337,10 +1382,10 @@ func (m *MockApplicationAwareAppliedClusterResourceQuotaInterface) EXPECT() *Moc
 }
 
 // Create mocks base method.
-func (m *MockApplicationAwareAppliedClusterResourceQuotaInterface) Create(ctx context.Context, ApplicationAwareAppliedClusterResourceQuota *v1alpha19.ApplicationAwareAppliedClusterResourceQuota, opts v1.CreateOptions) (*v1alpha19.ApplicationAwareAppliedClusterResourceQuota, error) {
+func (m *MockApplicationAwareAppliedClusterResourceQuotaInterface) Create(ctx context.Context, ApplicationAwareAppliedClusterResourceQuota *v1alpha18.ApplicationAwareAppliedClusterResourceQuota, opts v1.CreateOptions) (*v1alpha18.ApplicationAwareAppliedClusterResourceQuota, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", ctx, ApplicationAwareAppliedClusterResourceQuota, opts)
-	ret0, _ := ret[0].(*v1alpha19.ApplicationAwareAppliedClusterResourceQuota)
+	ret0, _ := ret[0].(*v1alpha18.ApplicationAwareAppliedClusterResourceQuota)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1380,10 +1425,10 @@ func (mr *MockApplicationAwareAppliedClusterResourceQuotaInterfaceMockRecorder) 
 }
 
 // Get mocks base method.
-func (m *MockApplicationAwareAppliedClusterResourceQuotaInterface) Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha19.ApplicationAwareAppliedClusterResourceQuota, error) {
+func (m *MockApplicationAwareAppliedClusterResourceQuotaInterface) Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha18.ApplicationAwareAppliedClusterResourceQuota, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", ctx, name, opts)
-	ret0, _ := ret[0].(*v1alpha19.ApplicationAwareAppliedClusterResourceQuota)
+	ret0, _ := ret[0].(*v1alpha18.ApplicationAwareAppliedClusterResourceQuota)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1395,10 +1440,10 @@ func (mr *MockApplicationAwareAppliedClusterResourceQuotaInterfaceMockRecorder) 
 }
 
 // List mocks base method.
-func (m *MockApplicationAwareAppliedClusterResourceQuotaInterface) List(ctx context.Context, opts v1.ListOptions) (*v1alpha19.ApplicationAwareAppliedClusterResourceQuotaList, error) {
+func (m *MockApplicationAwareAppliedClusterResourceQuotaInterface) List(ctx context.Context, opts v1.ListOptions) (*v1alpha18.ApplicationAwareAppliedClusterResourceQuotaList, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "List", ctx, opts)
-	ret0, _ := ret[0].(*v1alpha19.ApplicationAwareAppliedClusterResourceQuotaList)
+	ret0, _ := ret[0].(*v1alpha18.ApplicationAwareAppliedClusterResourceQuotaList)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1410,14 +1455,14 @@ func (mr *MockApplicationAwareAppliedClusterResourceQuotaInterfaceMockRecorder) 
 }
 
 // Patch mocks base method.
-func (m *MockApplicationAwareAppliedClusterResourceQuotaInterface) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (*v1alpha19.ApplicationAwareAppliedClusterResourceQuota, error) {
+func (m *MockApplicationAwareAppliedClusterResourceQuotaInterface) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (*v1alpha18.ApplicationAwareAppliedClusterResourceQuota, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, name, pt, data, opts}
 	for _, a := range subresources {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "Patch", varargs...)
-	ret0, _ := ret[0].(*v1alpha19.ApplicationAwareAppliedClusterResourceQuota)
+	ret0, _ := ret[0].(*v1alpha18.ApplicationAwareAppliedClusterResourceQuota)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1430,10 +1475,10 @@ func (mr *MockApplicationAwareAppliedClusterResourceQuotaInterfaceMockRecorder) 
 }
 
 // Update mocks base method.
-func (m *MockApplicationAwareAppliedClusterResourceQuotaInterface) Update(ctx context.Context, ApplicationAwareAppliedClusterResourceQuota *v1alpha19.ApplicationAwareAppliedClusterResourceQuota, opts v1.UpdateOptions) (*v1alpha19.ApplicationAwareAppliedClusterResourceQuota, error) {
+func (m *MockApplicationAwareAppliedClusterResourceQuotaInterface) Update(ctx context.Context, ApplicationAwareAppliedClusterResourceQuota *v1alpha18.ApplicationAwareAppliedClusterResourceQuota, opts v1.UpdateOptions) (*v1alpha18.ApplicationAwareAppliedClusterResourceQuota, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Update", ctx, ApplicationAwareAppliedClusterResourceQuota, opts)
-	ret0, _ := ret[0].(*v1alpha19.ApplicationAwareAppliedClusterResourceQuota)
+	ret0, _ := ret[0].(*v1alpha18.ApplicationAwareAppliedClusterResourceQuota)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1445,10 +1490,10 @@ func (mr *MockApplicationAwareAppliedClusterResourceQuotaInterfaceMockRecorder) 
 }
 
 // UpdateStatus mocks base method.
-func (m *MockApplicationAwareAppliedClusterResourceQuotaInterface) UpdateStatus(ctx context.Context, ApplicationAwareAppliedClusterResourceQuota *v1alpha19.ApplicationAwareAppliedClusterResourceQuota, opts v1.UpdateOptions) (*v1alpha19.ApplicationAwareAppliedClusterResourceQuota, error) {
+func (m *MockApplicationAwareAppliedClusterResourceQuotaInterface) UpdateStatus(ctx context.Context, ApplicationAwareAppliedClusterResourceQuota *v1alpha18.ApplicationAwareAppliedClusterResourceQuota, opts v1.UpdateOptions) (*v1alpha18.ApplicationAwareAppliedClusterResourceQuota, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateStatus", ctx, ApplicationAwareAppliedClusterResourceQuota, opts)
-	ret0, _ := ret[0].(*v1alpha19.ApplicationAwareAppliedClusterResourceQuota)
+	ret0, _ := ret[0].(*v1alpha18.ApplicationAwareAppliedClusterResourceQuota)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1498,10 +1543,10 @@ func (m *MockAAQJobQueueConfigInterface) EXPECT() *MockAAQJobQueueConfigInterfac
 }
 
 // Create mocks base method.
-func (m *MockAAQJobQueueConfigInterface) Create(ctx context.Context, aAQJobQueueConfig *v1alpha19.AAQJobQueueConfig, opts v1.CreateOptions) (*v1alpha19.AAQJobQueueConfig, error) {
+func (m *MockAAQJobQueueConfigInterface) Create(ctx context.Context, aAQJobQueueConfig *v1alpha18.AAQJobQueueConfig, opts v1.CreateOptions) (*v1alpha18.AAQJobQueueConfig, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", ctx, aAQJobQueueConfig, opts)
-	ret0, _ := ret[0].(*v1alpha19.AAQJobQueueConfig)
+	ret0, _ := ret[0].(*v1alpha18.AAQJobQueueConfig)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1541,10 +1586,10 @@ func (mr *MockAAQJobQueueConfigInterfaceMockRecorder) DeleteCollection(ctx, opts
 }
 
 // Get mocks base method.
-func (m *MockAAQJobQueueConfigInterface) Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha19.AAQJobQueueConfig, error) {
+func (m *MockAAQJobQueueConfigInterface) Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha18.AAQJobQueueConfig, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", ctx, name, opts)
-	ret0, _ := ret[0].(*v1alpha19.AAQJobQueueConfig)
+	ret0, _ := ret[0].(*v1alpha18.AAQJobQueueConfig)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1556,10 +1601,10 @@ func (mr *MockAAQJobQueueConfigInterfaceMockRecorder) Get(ctx, name, opts interf
 }
 
 // List mocks base method.
-func (m *MockAAQJobQueueConfigInterface) List(ctx context.Context, opts v1.ListOptions) (*v1alpha19.AAQJobQueueConfigList, error) {
+func (m *MockAAQJobQueueConfigInterface) List(ctx context.Context, opts v1.ListOptions) (*v1alpha18.AAQJobQueueConfigList, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "List", ctx, opts)
-	ret0, _ := ret[0].(*v1alpha19.AAQJobQueueConfigList)
+	ret0, _ := ret[0].(*v1alpha18.AAQJobQueueConfigList)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1571,14 +1616,14 @@ func (mr *MockAAQJobQueueConfigInterfaceMockRecorder) List(ctx, opts interface{}
 }
 
 // Patch mocks base method.
-func (m *MockAAQJobQueueConfigInterface) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (*v1alpha19.AAQJobQueueConfig, error) {
+func (m *MockAAQJobQueueConfigInterface) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (*v1alpha18.AAQJobQueueConfig, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, name, pt, data, opts}
 	for _, a := range subresources {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "Patch", varargs...)
-	ret0, _ := ret[0].(*v1alpha19.AAQJobQueueConfig)
+	ret0, _ := ret[0].(*v1alpha18.AAQJobQueueConfig)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1591,10 +1636,10 @@ func (mr *MockAAQJobQueueConfigInterfaceMockRecorder) Patch(ctx, name, pt, data,
 }
 
 // Update mocks base method.
-func (m *MockAAQJobQueueConfigInterface) Update(ctx context.Context, aAQJobQueueConfig *v1alpha19.AAQJobQueueConfig, opts v1.UpdateOptions) (*v1alpha19.AAQJobQueueConfig, error) {
+func (m *MockAAQJobQueueConfigInterface) Update(ctx context.Context, aAQJobQueueConfig *v1alpha18.AAQJobQueueConfig, opts v1.UpdateOptions) (*v1alpha18.AAQJobQueueConfig, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Update", ctx, aAQJobQueueConfig, opts)
-	ret0, _ := ret[0].(*v1alpha19.AAQJobQueueConfig)
+	ret0, _ := ret[0].(*v1alpha18.AAQJobQueueConfig)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1606,10 +1651,10 @@ func (mr *MockAAQJobQueueConfigInterfaceMockRecorder) Update(ctx, aAQJobQueueCon
 }
 
 // UpdateStatus mocks base method.
-func (m *MockAAQJobQueueConfigInterface) UpdateStatus(ctx context.Context, aAQJobQueueConfig *v1alpha19.AAQJobQueueConfig, opts v1.UpdateOptions) (*v1alpha19.AAQJobQueueConfig, error) {
+func (m *MockAAQJobQueueConfigInterface) UpdateStatus(ctx context.Context, aAQJobQueueConfig *v1alpha18.AAQJobQueueConfig, opts v1.UpdateOptions) (*v1alpha18.AAQJobQueueConfig, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateStatus", ctx, aAQJobQueueConfig, opts)
-	ret0, _ := ret[0].(*v1alpha19.AAQJobQueueConfig)
+	ret0, _ := ret[0].(*v1alpha18.AAQJobQueueConfig)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1659,10 +1704,10 @@ func (m *MockAAQInterface) EXPECT() *MockAAQInterfaceMockRecorder {
 }
 
 // Create mocks base method.
-func (m *MockAAQInterface) Create(ctx context.Context, aAQ *v1alpha19.AAQ, opts v1.CreateOptions) (*v1alpha19.AAQ, error) {
+func (m *MockAAQInterface) Create(ctx context.Context, aAQ *v1alpha18.AAQ, opts v1.CreateOptions) (*v1alpha18.AAQ, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", ctx, aAQ, opts)
-	ret0, _ := ret[0].(*v1alpha19.AAQ)
+	ret0, _ := ret[0].(*v1alpha18.AAQ)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1702,10 +1747,10 @@ func (mr *MockAAQInterfaceMockRecorder) DeleteCollection(ctx, opts, listOpts int
 }
 
 // Get mocks base method.
-func (m *MockAAQInterface) Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha19.AAQ, error) {
+func (m *MockAAQInterface) Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha18.AAQ, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", ctx, name, opts)
-	ret0, _ := ret[0].(*v1alpha19.AAQ)
+	ret0, _ := ret[0].(*v1alpha18.AAQ)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1717,10 +1762,10 @@ func (mr *MockAAQInterfaceMockRecorder) Get(ctx, name, opts interface{}) *gomock
 }
 
 // List mocks base method.
-func (m *MockAAQInterface) List(ctx context.Context, opts v1.ListOptions) (*v1alpha19.AAQList, error) {
+func (m *MockAAQInterface) List(ctx context.Context, opts v1.ListOptions) (*v1alpha18.AAQList, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "List", ctx, opts)
-	ret0, _ := ret[0].(*v1alpha19.AAQList)
+	ret0, _ := ret[0].(*v1alpha18.AAQList)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1732,14 +1777,14 @@ func (mr *MockAAQInterfaceMockRecorder) List(ctx, opts interface{}) *gomock.Call
 }
 
 // Patch mocks base method.
-func (m *MockAAQInterface) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (*v1alpha19.AAQ, error) {
+func (m *MockAAQInterface) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (*v1alpha18.AAQ, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{ctx, name, pt, data, opts}
 	for _, a := range subresources {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "Patch", varargs...)
-	ret0, _ := ret[0].(*v1alpha19.AAQ)
+	ret0, _ := ret[0].(*v1alpha18.AAQ)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1752,10 +1797,10 @@ func (mr *MockAAQInterfaceMockRecorder) Patch(ctx, name, pt, data, opts interfac
 }
 
 // Update mocks base method.
-func (m *MockAAQInterface) Update(ctx context.Context, aAQ *v1alpha19.AAQ, opts v1.UpdateOptions) (*v1alpha19.AAQ, error) {
+func (m *MockAAQInterface) Update(ctx context.Context, aAQ *v1alpha18.AAQ, opts v1.UpdateOptions) (*v1alpha18.AAQ, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Update", ctx, aAQ, opts)
-	ret0, _ := ret[0].(*v1alpha19.AAQ)
+	ret0, _ := ret[0].(*v1alpha18.AAQ)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1767,10 +1812,10 @@ func (mr *MockAAQInterfaceMockRecorder) Update(ctx, aAQ, opts interface{}) *gomo
 }
 
 // UpdateStatus mocks base method.
-func (m *MockAAQInterface) UpdateStatus(ctx context.Context, aAQ *v1alpha19.AAQ, opts v1.UpdateOptions) (*v1alpha19.AAQ, error) {
+func (m *MockAAQInterface) UpdateStatus(ctx context.Context, aAQ *v1alpha18.AAQ, opts v1.UpdateOptions) (*v1alpha18.AAQ, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateStatus", ctx, aAQ, opts)
-	ret0, _ := ret[0].(*v1alpha19.AAQ)
+	ret0, _ := ret[0].(*v1alpha18.AAQ)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

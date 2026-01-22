@@ -19,10 +19,10 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/tools/cache"
-	v1alpha1 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
+	corev1alpha1 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 )
 
 // AAQJobQueueConfigLister helps list AAQJobQueueConfigs.
@@ -30,7 +30,7 @@ import (
 type AAQJobQueueConfigLister interface {
 	// List lists all AAQJobQueueConfigs in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.AAQJobQueueConfig, err error)
+	List(selector labels.Selector) (ret []*corev1alpha1.AAQJobQueueConfig, err error)
 	// AAQJobQueueConfigs returns an object that can list and get AAQJobQueueConfigs.
 	AAQJobQueueConfigs(namespace string) AAQJobQueueConfigNamespaceLister
 	AAQJobQueueConfigListerExpansion
@@ -38,25 +38,17 @@ type AAQJobQueueConfigLister interface {
 
 // aAQJobQueueConfigLister implements the AAQJobQueueConfigLister interface.
 type aAQJobQueueConfigLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*corev1alpha1.AAQJobQueueConfig]
 }
 
 // NewAAQJobQueueConfigLister returns a new AAQJobQueueConfigLister.
 func NewAAQJobQueueConfigLister(indexer cache.Indexer) AAQJobQueueConfigLister {
-	return &aAQJobQueueConfigLister{indexer: indexer}
-}
-
-// List lists all AAQJobQueueConfigs in the indexer.
-func (s *aAQJobQueueConfigLister) List(selector labels.Selector) (ret []*v1alpha1.AAQJobQueueConfig, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.AAQJobQueueConfig))
-	})
-	return ret, err
+	return &aAQJobQueueConfigLister{listers.New[*corev1alpha1.AAQJobQueueConfig](indexer, corev1alpha1.Resource("aaqjobqueueconfig"))}
 }
 
 // AAQJobQueueConfigs returns an object that can list and get AAQJobQueueConfigs.
 func (s *aAQJobQueueConfigLister) AAQJobQueueConfigs(namespace string) AAQJobQueueConfigNamespaceLister {
-	return aAQJobQueueConfigNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return aAQJobQueueConfigNamespaceLister{listers.NewNamespaced[*corev1alpha1.AAQJobQueueConfig](s.ResourceIndexer, namespace)}
 }
 
 // AAQJobQueueConfigNamespaceLister helps list and get AAQJobQueueConfigs.
@@ -64,36 +56,15 @@ func (s *aAQJobQueueConfigLister) AAQJobQueueConfigs(namespace string) AAQJobQue
 type AAQJobQueueConfigNamespaceLister interface {
 	// List lists all AAQJobQueueConfigs in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.AAQJobQueueConfig, err error)
+	List(selector labels.Selector) (ret []*corev1alpha1.AAQJobQueueConfig, err error)
 	// Get retrieves the AAQJobQueueConfig from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.AAQJobQueueConfig, error)
+	Get(name string) (*corev1alpha1.AAQJobQueueConfig, error)
 	AAQJobQueueConfigNamespaceListerExpansion
 }
 
 // aAQJobQueueConfigNamespaceLister implements the AAQJobQueueConfigNamespaceLister
 // interface.
 type aAQJobQueueConfigNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all AAQJobQueueConfigs in the indexer for a given namespace.
-func (s aAQJobQueueConfigNamespaceLister) List(selector labels.Selector) (ret []*v1alpha1.AAQJobQueueConfig, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.AAQJobQueueConfig))
-	})
-	return ret, err
-}
-
-// Get retrieves the AAQJobQueueConfig from the indexer for a given namespace and name.
-func (s aAQJobQueueConfigNamespaceLister) Get(name string) (*v1alpha1.AAQJobQueueConfig, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1alpha1.Resource("aaqjobqueueconfig"), name)
-	}
-	return obj.(*v1alpha1.AAQJobQueueConfig), nil
+	listers.ResourceIndexer[*corev1alpha1.AAQJobQueueConfig]
 }
