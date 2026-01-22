@@ -522,7 +522,7 @@ var _ = Describe("ALL Operator tests", Serial, func() {
 			if !utils.IsOpenshift(f.K8sClient) {
 				Eventually(func() error {
 					if !errors.IsNotFound(f.K8sClient.SchedulingV1().PriorityClasses().Delete(context.TODO(), osUserCrit.Name, metav1.DeleteOptions{})) {
-						return fmt.Errorf("Priority class " + osUserCrit.Name + " should not exsist ")
+						return fmt.Errorf("Priority class %s should not exsist", osUserCrit.Name)
 					}
 					return nil
 				}, 2*time.Minute, 1*time.Second).ShouldNot(HaveOccurred())
@@ -545,7 +545,7 @@ var _ = Describe("ALL Operator tests", Serial, func() {
 						return err
 					}
 					if pod.Status.Phase != corev1.PodRunning {
-						return fmt.Errorf(pod.Name + " is not running")
+						return fmt.Errorf("%s is not running", pod.Name)
 					}
 					return nil
 				}, 3*time.Minute, 1*time.Second).Should(BeNil())
@@ -727,7 +727,7 @@ func removeAAQ(f *framework.Framework, cr *aaqv1.AAQ) {
 		for _, deploymentName := range []string{"aaq-server", "aaq-controller"} {
 			_, err := f.K8sClient.AppsV1().Deployments(f.AAQInstallNs).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 			if !errors.IsNotFound(err) {
-				return fmt.Errorf(deploymentName + " should be deleted")
+				return fmt.Errorf("%s should be deleted", deploymentName)
 			}
 		}
 		_, err := f.AaqClient.AaqV1alpha1().AAQs().Get(context.TODO(), cr.Name, metav1.GetOptions{})
