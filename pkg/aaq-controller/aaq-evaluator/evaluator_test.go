@@ -710,8 +710,10 @@ var _ = Describe("AaqEvaluator", func() {
 			Status: corev1.PodStatus{
 				ContainerStatuses: []corev1.ContainerStatus{
 					{
-						AllocatedResources: corev1.ResourceList{
-							corev1.ResourceCPU: resource.MustParse("150m"),
+						Resources: &corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU: resource.MustParse("150m"),
+							},
 						},
 					},
 				},
@@ -751,9 +753,11 @@ var _ = Describe("AaqEvaluator", func() {
 			Status: corev1.PodStatus{
 				ContainerStatuses: []corev1.ContainerStatus{
 					{
-						AllocatedResources: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("150m"),
-							corev1.ResourceMemory: resource.MustParse("250Mi"),
+						Resources: &corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("150m"),
+								corev1.ResourceMemory: resource.MustParse("250Mi"),
+							},
 						},
 					},
 				},
