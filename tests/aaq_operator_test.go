@@ -760,6 +760,8 @@ func updateOrCreateAAQComponentsAndEnsureReady(f *framework.Framework, updatedAa
 	if err == nil {
 		if aaq.DeletionTimestamp == nil {
 			By("AAQ CR exists")
+			aaq.Labels = updatedAaq.Labels
+			aaq.Annotations = updatedAaq.Annotations
 			aaq.Spec = updatedAaq.Spec
 			_, err = f.AaqClient.AaqV1alpha1().AAQs().Update(context.TODO(), aaq, metav1.UpdateOptions{})
 			ExpectWithOffset(1, err).ToNot(HaveOccurred())
@@ -781,7 +783,9 @@ func updateOrCreateAAQComponentsAndEnsureReady(f *framework.Framework, updatedAa
 
 	aaq = &aaqv1.AAQ{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: updatedAaq.Name,
+			Name:        updatedAaq.Name,
+			Labels:      updatedAaq.Labels,
+			Annotations: updatedAaq.Annotations,
 		},
 		Spec: updatedAaq.Spec,
 	}
