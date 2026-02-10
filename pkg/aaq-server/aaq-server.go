@@ -8,7 +8,7 @@ import (
 	"k8s.io/client-go/util/certificate"
 	"k8s.io/klog/v2"
 	"kubevirt.io/application-aware-quota/pkg/client"
-	"kubevirt.io/application-aware-quota/pkg/util"
+	tlscryptowatch "kubevirt.io/application-aware-quota/pkg/tls-crypto-watch"
 	"net/http"
 )
 
@@ -79,7 +79,7 @@ func (app *AAQServer) Start() error {
 func (app *AAQServer) startTLS() error {
 	var serveFunc func() error
 	bindAddr := fmt.Sprintf("%s:%d", app.bindAddress, app.bindPort)
-	tlsConfig := util.SetupTLS(app.secretCertManager)
+	tlsConfig := tlscryptowatch.SetupTLS(app.secretCertManager)
 	server := &http.Server{
 		Addr:      bindAddr,
 		Handler:   app.handler,
