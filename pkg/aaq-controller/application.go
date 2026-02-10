@@ -332,7 +332,12 @@ func (mca *AaqControllerApp) Run(stop <-chan struct{}) {
 	secretCertManager.Start()
 	defer secretCertManager.Stop()
 
-	tlsConfig := tlscryptowatch.SetupTLS(secretCertManager)
+	tlsWatcher, err := tlscryptowatch.NewAaqConfigTLSWatcher(mca.ctx, mca.aaqCli)
+	if err != nil {
+		golog.Fatalf("Failed to create TLS watcher: %v", err)
+	}
+
+	tlsConfig := tlscryptowatch.SetupTLS(secretCertManager, tlsWatcher)
 
 	go func() {
 		http.Handle("/metrics", promhttp.Handler())
