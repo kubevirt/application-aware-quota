@@ -30,6 +30,7 @@ type AAQServer struct {
 	handler           http.Handler
 	aaqNS             string
 	isOnOpenshift     bool
+	tlsWatcher        tlscryptowatch.AaqConfigTLSWatcher
 }
 
 // AaqServer returns an initialized uploadProxyApp
@@ -39,6 +40,7 @@ func AaqServer(aaqNS string,
 	secretCertManager certificate.Manager,
 	aaqCli client.AAQClient,
 	isOnOpenshift bool,
+	tlsWatcher tlscryptowatch.AaqConfigTLSWatcher,
 ) (Server, error) {
 	app := &AAQServer{
 		secretCertManager: secretCertManager,
@@ -46,6 +48,7 @@ func AaqServer(aaqNS string,
 		bindPort:          bindPort,
 		aaqNS:             aaqNS,
 		isOnOpenshift:     isOnOpenshift,
+		tlsWatcher:        tlsWatcher,
 	}
 	app.initHandler(aaqCli)
 
@@ -79,7 +82,7 @@ func (app *AAQServer) Start() error {
 func (app *AAQServer) startTLS() error {
 	var serveFunc func() error
 	bindAddr := fmt.Sprintf("%s:%d", app.bindAddress, app.bindPort)
-	tlsConfig := tlscryptowatch.SetupTLS(app.secretCertManager)
+	tlsConfig := tlscryptowatch.SetupTLS(app.secretCertManager, app.tlsWatcher)
 	server := &http.Server{
 		Addr:      bindAddr,
 		Handler:   app.handler,

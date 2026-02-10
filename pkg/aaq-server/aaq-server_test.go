@@ -37,6 +37,7 @@ var _ = Describe("Test aaq serve functions", func() {
 			secretCertManager,
 			cli,
 			false,
+			nil,
 		)
 		req, err := http.NewRequest("GET", healthzPath, nil)
 		Expect(err).ToNot(HaveOccurred())
@@ -67,6 +68,7 @@ var _ = Describe("Test aaq serve functions", func() {
 			secretCertManager,
 			cli,
 			false,
+			nil,
 		)
 
 		// Create a new ApplicationAwareResourceQuota create request
