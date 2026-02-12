@@ -60,6 +60,18 @@ func getAaqServerClusterPolicyRules() []rbacv1.PolicyRule {
 				"create",
 			},
 		},
+		{
+			APIGroups: []string{
+				"aaq.kubevirt.io",
+			},
+			Resources: []string{
+				"aaqs",
+			},
+			Verbs: []string{
+				"list",
+				"watch",
+			},
+		},
 	}
 }
 

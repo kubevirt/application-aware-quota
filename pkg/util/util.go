@@ -2,7 +2,6 @@ package util
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	secv1 "github.com/openshift/api/security/v1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -12,12 +11,10 @@ import (
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/util/certificate"
 	"k8s.io/klog/v2"
 	api "k8s.io/kubernetes/pkg/apis/core"
 	k8s_api_v1 "k8s.io/kubernetes/pkg/apis/core/v1"
 	"k8s.io/utils/pointer"
-	v1 "kubevirt.io/api/core/v1"
 	client2 "kubevirt.io/application-aware-quota/pkg/client"
 	aaqv1alpha1 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 	sdkapi "kubevirt.io/controller-lifecycle-operator-sdk/api"
@@ -29,13 +26,7 @@ import (
 	"time"
 )
 
-var (
-	cipherSuites         = tls.CipherSuites()
-	insecureCipherSuites = tls.InsecureCipherSuites()
-)
-
 const (
-	noSrvCertMessage = "No server certificate, server is not yet ready to receive traffic"
 	// Default port that api listens on.
 	DefaultPort = 8443
 	// Default address api listens on.
@@ -263,81 +254,6 @@ func getNamespace(path string) string {
 // GetNamespace returns the namespace the pod is executing in
 func GetNamespace() string {
 	return getNamespace("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
-}
-
-// TLSVersion converts from human-readable TLS version (for example "1.1")
-// to the values accepted by tls.Config (for example 0x301).
-func TLSVersion(version v1.TLSProtocolVersion) uint16 {
-	switch version {
-	case v1.VersionTLS10:
-		return tls.VersionTLS10
-	case v1.VersionTLS11:
-		return tls.VersionTLS11
-	case v1.VersionTLS12:
-		return tls.VersionTLS12
-	case v1.VersionTLS13:
-		return tls.VersionTLS13
-	default:
-		return tls.VersionTLS12
-	}
-}
-
-func CipherSuiteNameMap() map[string]uint16 {
-	var idByName = map[string]uint16{}
-	for _, cipherSuite := range cipherSuites {
-		idByName[cipherSuite.Name] = cipherSuite.ID
-	}
-	for _, cipherSuite := range insecureCipherSuites {
-		idByName[cipherSuite.Name] = cipherSuite.ID
-	}
-	return idByName
-}
-
-func CipherSuiteIds(names []string) []uint16 {
-	var idByName = CipherSuiteNameMap()
-	var ids []uint16
-	for _, name := range names {
-		if id, ok := idByName[name]; ok {
-			ids = append(ids, id)
-		}
-	}
-	return ids
-}
-
-func SetupTLS(certManager certificate.Manager) *tls.Config {
-	tlsConfig := &tls.Config{
-		GetCertificate: func(info *tls.ClientHelloInfo) (certificate *tls.Certificate, err error) {
-			cert := certManager.Current()
-			if cert == nil {
-				return nil, fmt.Errorf(noSrvCertMessage)
-			}
-			return cert, nil
-		},
-		GetConfigForClient: func(hi *tls.ClientHelloInfo) (*tls.Config, error) {
-			crt := certManager.Current()
-			if crt == nil {
-				klog.Error(noSrvCertMessage)
-				return nil, fmt.Errorf(noSrvCertMessage)
-			}
-			tlsConfig := &v1.TLSConfiguration{ //maybe we will want to add config in AAQ CR in the future
-				MinTLSVersion: v1.VersionTLS12,
-				Ciphers:       nil,
-			}
-			ciphers := CipherSuiteIds(tlsConfig.Ciphers)
-			minTLSVersion := TLSVersion(tlsConfig.MinTLSVersion)
-			config := &tls.Config{
-				CipherSuites: ciphers,
-				MinVersion:   minTLSVersion,
-				Certificates: []tls.Certificate{*crt},
-				ClientAuth:   tls.VerifyClientCertIfGiven,
-			}
-
-			config.BuildNameToCertificate()
-			return config, nil
-		},
-	}
-	tlsConfig.BuildNameToCertificate()
-	return tlsConfig
 }
 
 // todo: ask kubernetes to make this funcs global and remove all this code:

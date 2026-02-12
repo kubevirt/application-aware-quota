@@ -1,14 +1,18 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"flag"
 	"fmt"
+
 	secv1 "github.com/openshift/api/security/v1"
 	promv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"go.uber.org/zap/zapcore"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	controller "kubevirt.io/application-aware-quota/pkg/aaq-operator"
+	"kubevirt.io/application-aware-quota/pkg/client"
+	tlscryptowatch "kubevirt.io/application-aware-quota/pkg/tls-crypto-watch"
 	"kubevirt.io/application-aware-quota/pkg/util"
 	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 	"net/http"
@@ -71,6 +75,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	aaqClient, err := client.GetAAQClientFromRESTConfig(cfg)
+	if err != nil {
+		log.Error(err, "Failed to create AAQ client")
+		os.Exit(1)
+	}
+
+	tlsWatcher, err := tlscryptowatch.NewAaqConfigTLSWatcher(context.Background(), aaqClient)
+	if err != nil {
+		log.Error(err, "Failed to create TLS watcher")
+		os.Exit(1)
+	}
+
 	managerOpts := manager.Options{
 		Cache:                      cache.Options{DefaultNamespaces: getCacheConfig([]string{namespace})},
 		LeaderElection:             true,
@@ -81,10 +97,18 @@ func main() {
 		Metrics: metricsserver.Options{
 			BindAddress:   ":8443",
 			SecureServing: true,
-			// Disable HTTP/2 to prevent rapid reset vulnerability
-			// See CVE-2023-44487, CVE-2023-39325
 			TLSOpts: []func(*tls.Config){func(c *tls.Config) {
+				// Disable HTTP/2 to prevent rapid reset vulnerability
+				// See CVE-2023-44487, CVE-2023-39325
 				c.NextProtos = []string{"http/1.1"}
+
+				c.GetConfigForClient = func(hi *tls.ClientHelloInfo) (*tls.Config, error) {
+					config := c.Clone()
+					cryptoConfig := tlsWatcher.GetTLSConfig()
+					config.MinVersion = cryptoConfig.MinVersion
+					config.CipherSuites = cryptoConfig.CipherSuites
+					return config, nil
+				}
 			}},
 		},
 	}

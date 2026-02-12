@@ -51,6 +51,7 @@ import (
 	"kubevirt.io/application-aware-quota/pkg/generated/aaq/listers/core/v1alpha1"
 	"kubevirt.io/application-aware-quota/pkg/informers"
 	metrics "kubevirt.io/application-aware-quota/pkg/monitoring/metrics/aaq-controller"
+	tlscryptowatch "kubevirt.io/application-aware-quota/pkg/tls-crypto-watch"
 	"kubevirt.io/application-aware-quota/pkg/util"
 	v1alpha12 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 	golog "log"
@@ -331,7 +332,12 @@ func (mca *AaqControllerApp) Run(stop <-chan struct{}) {
 	secretCertManager.Start()
 	defer secretCertManager.Stop()
 
-	tlsConfig := util.SetupTLS(secretCertManager)
+	tlsWatcher, err := tlscryptowatch.NewAaqConfigTLSWatcher(mca.ctx, mca.aaqCli)
+	if err != nil {
+		golog.Fatalf("Failed to create TLS watcher: %v", err)
+	}
+
+	tlsConfig := tlscryptowatch.SetupTLS(secretCertManager, tlsWatcher)
 
 	go func() {
 		http.Handle("/metrics", promhttp.Handler())

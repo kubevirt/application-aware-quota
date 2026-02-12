@@ -11,6 +11,7 @@ import (
 	"kubevirt.io/application-aware-quota/pkg/certificates/bootstrap"
 	"kubevirt.io/application-aware-quota/pkg/client"
 	"kubevirt.io/application-aware-quota/pkg/informers"
+	tlscryptowatch "kubevirt.io/application-aware-quota/pkg/tls-crypto-watch"
 	"kubevirt.io/application-aware-quota/pkg/util"
 	"os"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
@@ -50,12 +51,18 @@ func main() {
 	secretCertManager.Start()
 	defer secretCertManager.Stop()
 
+	tlsWatcher, err := tlscryptowatch.NewAaqConfigTLSWatcher(ctx, aaqCli)
+	if err != nil {
+		klog.Fatalf("Failed to create TLS watcher: %v\n", errors.WithStack(err))
+	}
+
 	aaqServer, err := aaq_server.AaqServer(aaqNS,
 		util.DefaultHost,
 		util.DefaultPort,
 		secretCertManager,
 		aaqCli,
 		*isOnOpenshift,
+		tlsWatcher,
 	)
 	if err != nil {
 		klog.Fatalf("UploadProxy failed to initialize: %v\n", errors.WithStack(err))
