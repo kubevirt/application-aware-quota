@@ -2,6 +2,8 @@ package aaq_operator
 
 import (
 	"fmt"
+	"reflect"
+
 	"github.com/go-logr/logr"
 	promv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"golang.org/x/net/context"
@@ -10,9 +12,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"kubevirt.io/application-aware-quota/pkg/aaq-operator/resources/namespaced"
+	aaqrules "kubevirt.io/application-aware-quota/pkg/monitoring/rules"
 	"kubevirt.io/application-aware-quota/pkg/util"
 	"kubevirt.io/controller-lifecycle-operator-sdk/pkg/sdk"
-	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -38,6 +40,14 @@ func ensurePrometheusResourcesExist(ctx context.Context, c client.Client, scheme
 		namespaced.NewPrometheusRole(namespace),
 		namespaced.NewPrometheusRoleBinding(namespace),
 		namespaced.NewPrometheusService(namespace),
+	}
+
+	// Build PrometheusRule from registered rules (recording rules and alerts).
+	// If building rules fails (e.g., none registered), we proceed with the other resources.
+	if err := aaqrules.SetupRules(); err == nil {
+		if ruleObj, buildErr := aaqrules.BuildPrometheusRule(namespace); buildErr == nil {
+			prometheusResources = append(prometheusResources, ruleObj)
+		}
 	}
 
 	for _, desired := range prometheusResources {

@@ -20,12 +20,13 @@
 package aaq_controller
 
 import (
-	"github.com/machadovilaca/operator-observability/pkg/operatormetrics"
+	"strings"
+
+	"github.com/rhobs/operator-observability-toolkit/pkg/operatormetrics"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"kubevirt.io/application-aware-quota/pkg/log"
 	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
-	"strings"
 )
 
 var (
@@ -36,7 +37,7 @@ var (
 
 	arqCreatedInfo = operatormetrics.NewGaugeVec(
 		operatormetrics.MetricOpts{
-			Name: "kube_application_aware_resourcequota_creation_timestamp",
+			Name: "kube_application_aware_resourcequota_creation_timestamp_seconds",
 			Help: "Unix creation timestamp",
 		},
 		[]string{
