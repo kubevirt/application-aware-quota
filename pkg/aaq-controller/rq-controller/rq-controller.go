@@ -2,7 +2,6 @@ package rq_controller
 
 import (
 	"context"
-	"fmt"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	kapierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -151,7 +150,7 @@ func (ctrl *RQController) Execute() bool {
 
 	err, enqueueState := ctrl.execute(key.(string))
 	if err != nil {
-		log.Log.Infof(fmt.Sprintf("RQController: Error with key: %v err: %v", key, err))
+		log.Log.Infof("RQController: Error with key: %v err: %v", key, err)
 	}
 	switch enqueueState {
 	case BackOff:

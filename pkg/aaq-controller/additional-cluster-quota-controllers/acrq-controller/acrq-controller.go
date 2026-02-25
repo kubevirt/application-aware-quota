@@ -490,7 +490,7 @@ func (ctrl *AcrqController) Execute() bool {
 	err, enqueueState := ctrl.execute(ns.(string))
 
 	if err != nil {
-		log.Log.Infof(fmt.Sprintf("ArqController: Error with key: %v err: %v", ns, err))
+		log.Log.Infof("ArqController: Error with key: %v err: %v", ns, err)
 	}
 	switch enqueueState {
 	case BackOff:
