@@ -2183,7 +2183,7 @@ func waitForApplicationAwareResourceQuota(ctx context.Context, c *aaqclientset.C
 		// verify that the quota shows the expected used resource values
 		for k, v := range used {
 			if actualValue, found := ApplicationAwareResourceQuota.Status.Used[k]; !found || (actualValue.Cmp(v) != 0) {
-				fmt.Printf(fmt.Sprintf("resource %s, expected %s, actual %s\n", k, v.String(), actualValue.String()))
+				fmt.Printf("resource %s, expected %s, actual %s\n", k, v.String(), actualValue.String())
 				return false, nil
 			}
 		}

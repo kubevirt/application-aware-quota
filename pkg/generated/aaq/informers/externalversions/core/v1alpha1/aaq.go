@@ -19,7 +19,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,15 +28,15 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 	versioned "kubevirt.io/application-aware-quota/pkg/generated/aaq/clientset/versioned"
 	internalinterfaces "kubevirt.io/application-aware-quota/pkg/generated/aaq/informers/externalversions/internalinterfaces"
-	v1alpha1 "kubevirt.io/application-aware-quota/pkg/generated/aaq/listers/core/v1alpha1"
-	corev1alpha1 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
+	corev1alpha1 "kubevirt.io/application-aware-quota/pkg/generated/aaq/listers/core/v1alpha1"
+	apiscorev1alpha1 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 )
 
 // AAQInformer provides access to a shared informer and lister for
 // AAQs.
 type AAQInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.AAQLister
+	Lister() corev1alpha1.AAQLister
 }
 
 type aAQInformer struct {
@@ -61,16 +61,28 @@ func NewFilteredAAQInformer(client versioned.Interface, resyncPeriod time.Durati
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.AaqV1alpha1().AAQs().List(context.TODO(), options)
+				return client.AaqV1alpha1().AAQs().List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.AaqV1alpha1().AAQs().Watch(context.TODO(), options)
+				return client.AaqV1alpha1().AAQs().Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.AaqV1alpha1().AAQs().List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.AaqV1alpha1().AAQs().Watch(ctx, options)
 			},
 		},
-		&corev1alpha1.AAQ{},
+		&apiscorev1alpha1.AAQ{},
 		resyncPeriod,
 		indexers,
 	)
@@ -81,9 +93,9 @@ func (f *aAQInformer) defaultInformer(client versioned.Interface, resyncPeriod t
 }
 
 func (f *aAQInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&corev1alpha1.AAQ{}, f.defaultInformer)
+	return f.factory.InformerFor(&apiscorev1alpha1.AAQ{}, f.defaultInformer)
 }
 
-func (f *aAQInformer) Lister() v1alpha1.AAQLister {
-	return v1alpha1.NewAAQLister(f.Informer().GetIndexer())
+func (f *aAQInformer) Lister() corev1alpha1.AAQLister {
+	return corev1alpha1.NewAAQLister(f.Informer().GetIndexer())
 }

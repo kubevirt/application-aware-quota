@@ -5,6 +5,8 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"time"
+
 	"github.com/openshift/library-go/pkg/crypto"
 	"github.com/openshift/library-go/pkg/operator/certrotation"
 	"github.com/openshift/library-go/pkg/operator/events"
@@ -16,10 +18,10 @@ import (
 	"k8s.io/client-go/kubernetes"
 	listerscorev1 "k8s.io/client-go/listers/core/v1"
 	toolscache "k8s.io/client-go/tools/cache"
+	"k8s.io/utils/clock"
 	aaqcerts "kubevirt.io/application-aware-quota/pkg/aaq-operator/resources/cert"
 
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"time"
 )
 
 const (
@@ -57,7 +59,7 @@ func NewCertManager(mgr manager.Manager, installNamespace string, additionalName
 		return nil, err
 	}
 
-	cm := newCertManager(k8sClient, installNamespace, additionalNamespaces...)
+	cm := newCertManager(k8sClient, installNamespace, clock.RealClock{}, additionalNamespaces...)
 
 	// so we can start caches
 	if err = mgr.Add(cm); err != nil {
@@ -67,7 +69,7 @@ func NewCertManager(mgr manager.Manager, installNamespace string, additionalName
 	return cm, nil
 }
 
-func newCertManager(client kubernetes.Interface, installNamespace string, additionalNamespaces ...string) *certManager {
+func newCertManager(client kubernetes.Interface, installNamespace string, clock clock.PassiveClock, additionalNamespaces ...string) *certManager {
 	namespaces := append(additionalNamespaces, installNamespace)
 	informers := v1helpers.NewKubeInformersForNamespaces(client, namespaces...)
 
@@ -76,7 +78,7 @@ func newCertManager(client kubernetes.Interface, installNamespace string, additi
 		log.Info("Unable to get controller reference, using namespace")
 	}
 
-	eventRecorder := events.NewRecorder(client.CoreV1().Events(installNamespace), installNamespace, controllerRef)
+	eventRecorder := events.NewRecorder(client.CoreV1().Events(installNamespace), installNamespace, controllerRef, clock)
 
 	return &certManager{
 		namespaces:    namespaces,
@@ -186,6 +188,7 @@ func (cm *certManager) createSecret(namespace, name string) (*corev1.Secret, err
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
+		Type: corev1.SecretTypeTLS,
 	}
 
 	return cm.k8sClient.CoreV1().Secrets(namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
@@ -242,7 +245,7 @@ func (cm *certManager) ensureCertBundle(cd aaqcerts.CertificateDefinition, ca *c
 		EventRecorder: cm.eventRecorder,
 	}
 
-	certs, err := br.EnsureConfigMapCABundle(context.TODO(), ca)
+	certs, err := br.EnsureConfigMapCABundle(context.TODO(), ca, fmt.Sprintf("%s/%s", cd.SignerSecret.Namespace, cd.SignerSecret.Name))
 	if err != nil {
 		return nil, err
 	}

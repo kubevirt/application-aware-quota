@@ -19,7 +19,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,15 +28,15 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 	versioned "kubevirt.io/application-aware-quota/pkg/generated/aaq/clientset/versioned"
 	internalinterfaces "kubevirt.io/application-aware-quota/pkg/generated/aaq/informers/externalversions/internalinterfaces"
-	v1alpha1 "kubevirt.io/application-aware-quota/pkg/generated/aaq/listers/core/v1alpha1"
-	corev1alpha1 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
+	corev1alpha1 "kubevirt.io/application-aware-quota/pkg/generated/aaq/listers/core/v1alpha1"
+	apiscorev1alpha1 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 )
 
 // ApplicationAwareClusterResourceQuotaInformer provides access to a shared informer and lister for
 // ApplicationAwareClusterResourceQuotas.
 type ApplicationAwareClusterResourceQuotaInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.ApplicationAwareClusterResourceQuotaLister
+	Lister() corev1alpha1.ApplicationAwareClusterResourceQuotaLister
 }
 
 type applicationAwareClusterResourceQuotaInformer struct {
@@ -61,16 +61,28 @@ func NewFilteredApplicationAwareClusterResourceQuotaInformer(client versioned.In
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.AaqV1alpha1().ApplicationAwareClusterResourceQuotas().List(context.TODO(), options)
+				return client.AaqV1alpha1().ApplicationAwareClusterResourceQuotas().List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.AaqV1alpha1().ApplicationAwareClusterResourceQuotas().Watch(context.TODO(), options)
+				return client.AaqV1alpha1().ApplicationAwareClusterResourceQuotas().Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.AaqV1alpha1().ApplicationAwareClusterResourceQuotas().List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.AaqV1alpha1().ApplicationAwareClusterResourceQuotas().Watch(ctx, options)
 			},
 		},
-		&corev1alpha1.ApplicationAwareClusterResourceQuota{},
+		&apiscorev1alpha1.ApplicationAwareClusterResourceQuota{},
 		resyncPeriod,
 		indexers,
 	)
@@ -81,9 +93,9 @@ func (f *applicationAwareClusterResourceQuotaInformer) defaultInformer(client ve
 }
 
 func (f *applicationAwareClusterResourceQuotaInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&corev1alpha1.ApplicationAwareClusterResourceQuota{}, f.defaultInformer)
+	return f.factory.InformerFor(&apiscorev1alpha1.ApplicationAwareClusterResourceQuota{}, f.defaultInformer)
 }
 
-func (f *applicationAwareClusterResourceQuotaInformer) Lister() v1alpha1.ApplicationAwareClusterResourceQuotaLister {
-	return v1alpha1.NewApplicationAwareClusterResourceQuotaLister(f.Informer().GetIndexer())
+func (f *applicationAwareClusterResourceQuotaInformer) Lister() corev1alpha1.ApplicationAwareClusterResourceQuotaLister {
+	return corev1alpha1.NewApplicationAwareClusterResourceQuotaLister(f.Informer().GetIndexer())
 }

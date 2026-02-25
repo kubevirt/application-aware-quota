@@ -102,13 +102,13 @@ func createCertificateDefinitions() []CertificateDefinition {
 	return []CertificateDefinition{
 		{
 			Configurable: true,
-			SignerSecret: createSecret("aaq-server"),
+			SignerSecret: createTLSSecret("aaq-server"),
 			SignerConfig: CertificateConfig{
 				Lifetime: 48 * time.Hour,
 				Refresh:  24 * time.Hour,
 			},
 			CertBundleConfigmap: createConfigMap("aaq-server-signer-bundle"),
-			TargetSecret:        createSecret(util.SecretResourceName),
+			TargetSecret:        createTLSSecret(util.SecretResourceName),
 			TargetConfig: CertificateConfig{
 				Lifetime: 24 * time.Hour,
 				Refresh:  12 * time.Hour,
@@ -118,11 +118,16 @@ func createCertificateDefinitions() []CertificateDefinition {
 	}
 }
 
-func createSecret(name string) *corev1.Secret {
+func createTLSSecret(name string) *corev1.Secret {
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   name,
 			Labels: util.ResourceBuilder.WithCommonLabels(nil),
+		},
+		Type: corev1.SecretTypeTLS,
+		Data: map[string][]byte{
+			"tls.key": []byte(""),
+			"tls.crt": []byte(""),
 		},
 	}
 }

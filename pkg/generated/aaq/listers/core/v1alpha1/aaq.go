@@ -19,10 +19,10 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/tools/cache"
-	v1alpha1 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
+	corev1alpha1 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 )
 
 // AAQLister helps list AAQs.
@@ -30,39 +30,19 @@ import (
 type AAQLister interface {
 	// List lists all AAQs in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.AAQ, err error)
+	List(selector labels.Selector) (ret []*corev1alpha1.AAQ, err error)
 	// Get retrieves the AAQ from the index for a given name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.AAQ, error)
+	Get(name string) (*corev1alpha1.AAQ, error)
 	AAQListerExpansion
 }
 
 // aAQLister implements the AAQLister interface.
 type aAQLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*corev1alpha1.AAQ]
 }
 
 // NewAAQLister returns a new AAQLister.
 func NewAAQLister(indexer cache.Indexer) AAQLister {
-	return &aAQLister{indexer: indexer}
-}
-
-// List lists all AAQs in the indexer.
-func (s *aAQLister) List(selector labels.Selector) (ret []*v1alpha1.AAQ, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha1.AAQ))
-	})
-	return ret, err
-}
-
-// Get retrieves the AAQ from the index for a given name.
-func (s *aAQLister) Get(name string) (*v1alpha1.AAQ, error) {
-	obj, exists, err := s.indexer.GetByKey(name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1alpha1.Resource("aaq"), name)
-	}
-	return obj.(*v1alpha1.AAQ), nil
+	return &aAQLister{listers.New[*corev1alpha1.AAQ](indexer, corev1alpha1.Resource("aaq"))}
 }
