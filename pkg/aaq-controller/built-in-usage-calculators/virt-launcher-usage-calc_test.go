@@ -371,6 +371,50 @@ var _ = Describe("Test virt-launcher calculator", func() {
 			},
 			true,
 			false),
+		Entry("GuestEffectiveResources should only count resources from compute container",
+			[]metav1.Object{vmiForTests},
+			[]metav1.Object{},
+			NewPodBuilder().
+				WithName("pod-with-compute").
+				WithNamespace(fakeNs).
+				WithOwnerReference(v12.VirtualMachineInstanceGroupVersionKind.Kind, fakeVmiName, fakeVmiUID).
+				WithLabel(v12.AppLabel, launcherLabel).
+				WithCreationTimestamp(parseTimeOrDie("2015-04-22T11:49:36Z")).
+				WithNode("node1").
+				WithContainer("compute",
+					v1.ResourceList{v1.ResourceMemory: resource.MustParse("2Gi"), v1.ResourceCPU: resource.MustParse("2")},
+					v1.ResourceList{v1.ResourceMemory: resource.MustParse("2Gi"), v1.ResourceCPU: resource.MustParse("2")}).
+				WithContainer("sidecar",
+					v1.ResourceList{v1.ResourceMemory: resource.MustParse("1Gi"), v1.ResourceCPU: resource.MustParse("1")},
+					v1.ResourceList{v1.ResourceMemory: resource.MustParse("1Gi"), v1.ResourceCPU: resource.MustParse("1")}).
+				Build(),
+			[]*v1.Pod{NewPodBuilder().
+				WithName("pod-with-compute").
+				WithNamespace(fakeNs).
+				WithOwnerReference(v12.VirtualMachineInstanceGroupVersionKind.Kind, fakeVmiName, fakeVmiUID).
+				WithLabel(v12.AppLabel, launcherLabel).
+				WithCreationTimestamp(parseTimeOrDie("2015-04-22T11:49:36Z")).
+				WithNode("node1").
+				WithContainer("compute",
+					v1.ResourceList{v1.ResourceMemory: resource.MustParse("2Gi"), v1.ResourceCPU: resource.MustParse("2")},
+					v1.ResourceList{v1.ResourceMemory: resource.MustParse("2Gi"), v1.ResourceCPU: resource.MustParse("2")}).
+				WithContainer("sidecar",
+					v1.ResourceList{v1.ResourceMemory: resource.MustParse("1Gi"), v1.ResourceCPU: resource.MustParse("1")},
+					v1.ResourceList{v1.ResourceMemory: resource.MustParse("1Gi"), v1.ResourceCPU: resource.MustParse("1")}).
+				Build()},
+			v1alpha1.GuestEffectiveResources,
+			v1.ResourceList{
+				v1.ResourcePods:           *(resource.NewQuantity(1, resource.DecimalSI)),
+				"count/pods":              *(resource.NewQuantity(1, resource.DecimalSI)),
+				v1.ResourceMemory:         resource.MustParse("2Gi"),
+				v1.ResourceCPU:            resource.MustParse("2"),
+				v1.ResourceRequestsMemory: resource.MustParse("2Gi"),
+				v1.ResourceRequestsCPU:    resource.MustParse("2"),
+				v1.ResourceLimitsMemory:   resource.MustParse("2Gi"),
+				v1.ResourceLimitsCPU:      resource.MustParse("2"),
+			},
+			true,
+			false),
 	)
 })
 
@@ -420,6 +464,18 @@ func (b *PodBuilder) WithAnnotations(key, value string) *PodBuilder {
 		b.pod.Annotations = map[string]string{}
 	}
 	b.pod.Annotations[key] = value
+	return b
+}
+
+func (b *PodBuilder) WithContainer(name string, requests, limits v1.ResourceList) *PodBuilder {
+	container := v1.Container{
+		Name: name,
+		Resources: v1.ResourceRequirements{
+			Requests: requests,
+			Limits:   limits,
+		},
+	}
+	b.pod.Spec.Containers = append(b.pod.Spec.Containers, container)
 	return b
 }
 
