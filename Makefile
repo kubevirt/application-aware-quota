@@ -25,7 +25,10 @@ GOARCH ?= $(shell go env GOARCH)
 		goveralls \
 		release-description \
 		fossa \
-		bump-kubevirtci
+		bump-kubevirtci \
+		prom-rules-verify \
+		prom-rules-dumper \
+		doc-generator
 all: build
 
 build:  aaq_controller aaq_server aaq_operator
@@ -52,7 +55,7 @@ builder-build:
 builder-push:
 	./hack/build/builder/publish.sh
 
-generate:
+generate: doc-generator prom-rules-verify
 	${DO_BAZ} "./hack/update-codegen.sh"
 
 generate-verify: generate
@@ -123,5 +126,15 @@ run: build
 bump-kubevirtci:
 	./hack/bump-kubevirtci.sh
 
-build-metrics-docs:
-	${DO_BAZ} "./hack/build-metrics-docs.sh"
+# Generate metrics docs using the simplified doc-generator tool
+doc-generator:
+	${DO_BAZ} "go build -o _out/doc-generator ./tools/doc-generator"
+	${DO_BAZ} "_out/doc-generator > docs/metrics.md"
+
+# Build the Prometheus rules spec dumper used by promtool tests
+prom-rules-dumper:
+	${DO_BAZ} "go build -o _out/rule-spec-dumper ./hack/prom-rule-ci/rule-spec-dumper.go"
+
+# Lint and unit test Prometheus rules using promtool in a container
+prom-rules-verify: prom-rules-dumper
+	bash ./hack/prom-rule-ci/verify-rules.sh _out/rule-spec-dumper ./hack/prom-rule-ci/prom-rules-tests.yaml

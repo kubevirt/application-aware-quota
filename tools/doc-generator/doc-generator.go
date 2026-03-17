@@ -2,13 +2,17 @@ package main
 
 import (
 	"fmt"
-	"github.com/machadovilaca/operator-observability/pkg/docs"
-	"github.com/machadovilaca/operator-observability/pkg/operatormetrics"
-	"github.com/machadovilaca/operator-observability/pkg/operatorrules"
-	"kubevirt.io/application-aware-quota/pkg/monitoring/metrics/aaq-controller"
+
+	"github.com/rhobs/operator-observability-toolkit/pkg/operatormetrics"
+
+	aaq_controller "kubevirt.io/application-aware-quota/pkg/monitoring/metrics/aaq-controller"
+	"kubevirt.io/application-aware-quota/pkg/monitoring/rules"
+
+	"github.com/rhobs/operator-observability-toolkit/pkg/docs"
 )
 
 const tpl = `# Application Aware Quota metrics
+
 {{- range . }}
 
 {{ $deprecatedVersion := "" -}}
@@ -22,7 +26,7 @@ const tpl = `# Application Aware Quota metrics
 {{- end -}}
 
 ### {{ .Name }}
-{{ print $stabilityLevel }}{{ .Help }}. Type: {{ .Type -}}.
+{{ print $stabilityLevel }}{{ .Help }} Type: {{ .Type -}}.
 
 {{- end }}
 
@@ -34,13 +38,12 @@ this document.
 `
 
 func main() {
-	err := aaq_controller.SetupMetrics(nil)
-	if err != nil {
-		panic(err)
-	}
+	// Register metrics and recording rules so they are included in the docs
+	_ = aaq_controller.SetupMetrics(nil)
+	_ = rules.SetupRules()
 
 	metricsList := operatormetrics.ListMetrics()
-	rulesList := operatorrules.ListRecordingRules()
+	rulesList := rules.ListRecordingRules()
 
 	docsString := docs.BuildMetricsDocsWithCustomTemplate(metricsList, rulesList, tpl)
 	fmt.Print(docsString)

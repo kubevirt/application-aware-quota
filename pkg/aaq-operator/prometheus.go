@@ -2,6 +2,8 @@ package aaq_operator
 
 import (
 	"fmt"
+	"reflect"
+
 	"github.com/go-logr/logr"
 	promv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"golang.org/x/net/context"
@@ -10,9 +12,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"kubevirt.io/application-aware-quota/pkg/aaq-operator/resources/namespaced"
+	aaqrules "kubevirt.io/application-aware-quota/pkg/monitoring/rules"
 	"kubevirt.io/application-aware-quota/pkg/util"
 	"kubevirt.io/controller-lifecycle-operator-sdk/pkg/sdk"
-	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -39,6 +41,20 @@ func ensurePrometheusResourcesExist(ctx context.Context, c client.Client, scheme
 		namespaced.NewPrometheusRoleBinding(namespace),
 		namespaced.NewPrometheusService(namespace),
 	}
+
+	err = aaqrules.SetupRules()
+	if err != nil {
+		return err
+	}
+	var ruleObj *promv1.PrometheusRule
+	ruleObj, err = aaqrules.BuildPrometheusRule(namespace)
+	if err != nil {
+		return err
+	}
+	// controller-runtime's Get does not populate TypeMeta on returned objects, which
+	// causes the three-way merge precondition (RequireKeyUnchanged) to fail on updates.
+	ruleObj.TypeMeta = metav1.TypeMeta{}
+	prometheusResources = append(prometheusResources, ruleObj)
 
 	for _, desired := range prometheusResources {
 		if err := sdk.SetLastAppliedConfiguration(desired, LastAppliedConfigAnnotation); err != nil {
