@@ -25,7 +25,7 @@ CR_NAME=${CR_NAME:-aaq}
 BUILD_ARCHES=${BUILD_ARCHES:-amd64 arm64 s390x}
 
 # update this whenever new builder tag is created
-BUILDER_IMAGE=${BUILDER_IMAGE:-quay.io/kubevirt/kubevirt-aaq-bazel-builder:2601181236-218a6f5a}
+BUILDER_IMAGE=${BUILDER_IMAGE:-quay.io/kubevirt/kubevirt-aaq-bazel-builder:2603120913-7cc730d2}
 
 function parseTestOpts() {
     pkgs=""
