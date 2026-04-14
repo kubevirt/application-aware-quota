@@ -83,7 +83,7 @@ func (s *Server) PodUsageFunc(_ context.Context, request *aaqsidecarevaluate.Pod
 		existingPods = append(existingPods, currPod)
 	}
 
-	rl, match, err := s.sidecarCalculator.PodUsageFunc(podToEvaluate, existingPods)
+	rl, match, calcErr := s.sidecarCalculator.PodUsageFunc(podToEvaluate, existingPods)
 
 	rlData, err := json.Marshal(rl)
 	if err != nil {
@@ -94,9 +94,9 @@ func (s *Server) PodUsageFunc(_ context.Context, request *aaqsidecarevaluate.Pod
 		Match:        match,
 		ResourceList: &aaqsidecarevaluate.ResourceList{ResourceListJson: rlData},
 	}
-	if err != nil {
+	if calcErr != nil {
 		podUsageResponse.Error.Error = true
-		podUsageResponse.Error.ErrorMessage = err.Error()
+		podUsageResponse.Error.ErrorMessage = calcErr.Error()
 	}
 
 	return podUsageResponse, nil
