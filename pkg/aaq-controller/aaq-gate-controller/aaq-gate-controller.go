@@ -312,6 +312,11 @@ func (ctrl *AaqGateController) execute(ns string) (error, enqueueState) {
 	}
 
 	if len(aaqjqc.Status.PodsInJobQueue) > 0 {
+		err = ctrl.releasePods(aaqjqc.Status.PodsInJobQueue, ns)
+		if err != nil {
+			return err, BackOff
+		}
+
 		aaqjqc.Status.ControllerLock = map[string]bool{}
 		for _, lockName := range locksNames {
 			if lockName == ApplicationAwareClusterResourceQuotaLockName && !ctrl.clusterQuotaEnabled {
@@ -323,11 +328,6 @@ func (ctrl *AaqGateController) execute(ns string) (error, enqueueState) {
 		if err != nil {
 			return err, Immediate
 		}
-	}
-
-	err = ctrl.releasePods(aaqjqc.Status.PodsInJobQueue, ns)
-	if err != nil {
-		return err, Immediate
 	}
 	return nil, Forget
 }
