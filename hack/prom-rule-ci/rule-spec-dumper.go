@@ -10,9 +10,8 @@ import (
 )
 
 func verifyArgs(args []string) error {
-	numOfArgs := len(os.Args[1:])
-	if numOfArgs != 1 {
-		return fmt.Errorf("expected exactly 1 argument, got: %d", numOfArgs)
+	if len(args) != 2 {
+		return fmt.Errorf("expected exactly 1 argument, got: %d", len(args)-1)
 	}
 	return nil
 }

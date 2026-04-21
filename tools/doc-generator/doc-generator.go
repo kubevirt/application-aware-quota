@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/rhobs/operator-observability-toolkit/pkg/operatormetrics"
 
@@ -38,9 +39,14 @@ this document.
 `
 
 func main() {
-	// Register metrics and recording rules so they are included in the docs
-	_ = aaq_controller.SetupMetrics(nil)
-	_ = rules.SetupRules()
+	if err := aaq_controller.SetupMetrics(nil); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to register metrics: %v\n", err)
+		os.Exit(1)
+	}
+	if err := rules.SetupRules(); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to register rules: %v\n", err)
+		os.Exit(1)
+	}
 
 	metricsList := operatormetrics.ListMetrics()
 	rulesList := rules.ListRecordingRules()

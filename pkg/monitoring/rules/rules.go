@@ -1,6 +1,8 @@
 package rules
 
 import (
+	"sync"
+
 	promv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/rhobs/operator-observability-toolkit/pkg/operatorrules"
 
@@ -11,9 +13,16 @@ const (
 	aaqPrometheusRuleName = "prometheus-aaq-rules"
 )
 
-// SetupRules registers AAQ recording rules.
+var setupOnce sync.Once
+
+// SetupRules registers AAQ recording rules. Safe to call multiple
+// times; the actual registration runs only once.
 func SetupRules() error {
-	return recordingrules.Register()
+	var setupErr error
+	setupOnce.Do(func() {
+		setupErr = recordingrules.Register()
+	})
+	return setupErr
 }
 
 // BuildPrometheusRule builds the PrometheusRule object containing the registered

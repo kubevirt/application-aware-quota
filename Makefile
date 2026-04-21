@@ -28,6 +28,7 @@ GOARCH ?= $(shell go env GOARCH)
 		bump-kubevirtci \
 		prom-rules-verify \
 		prom-rules-dumper \
+		lint-metrics \
 		doc-generator
 all: build
 
@@ -55,7 +56,7 @@ builder-build:
 builder-push:
 	./hack/build/builder/publish.sh
 
-generate: doc-generator prom-rules-verify
+generate: doc-generator
 	${DO_BAZ} "./hack/update-codegen.sh"
 
 generate-verify: generate
@@ -79,7 +80,7 @@ cluster-sync: cluster-clean-aaq
 	./cluster-sync/sync.sh AAQ_AVAILABLE_TIMEOUT=${AAQ_AVAILABLE_TIMEOUT} DOCKER_PREFIX=${DOCKER_PREFIX} DOCKER_TAG=${DOCKER_TAG} PULL_POLICY=${PULL_POLICY} AAQ_NAMESPACE=${AAQ_NAMESPACE}
 
 test: WHAT = ./pkg/... ./cmd/...
-test: bootstrap-ginkgo
+test: bootstrap-ginkgo lint-metrics prom-rules-verify
 	${DO_BAZ} "ACK_GINKGO_DEPRECATIONS=${ACK_GINKGO_DEPRECATIONS} ./hack/build/run-unit-tests.sh ${WHAT}"
 
 build-functest:
@@ -138,3 +139,12 @@ prom-rules-dumper:
 # Lint and unit test Prometheus rules using promtool in a container
 prom-rules-verify: prom-rules-dumper
 	bash ./hack/prom-rule-ci/verify-rules.sh _out/rule-spec-dumper ./hack/prom-rule-ci/prom-rules-tests.yaml
+
+# Lint metric names using prom-metric-linter container
+lint-metrics:
+	mkdir -p _out
+	${DO_BAZ} "bash ./hack/prom-metric-linter/metrics_collector.sh > _out/metrics.json"
+	bash ./hack/prom-metric-linter/metric_name_linter.sh \
+		--operator-name=kube_application_aware \
+		--sub-operator-name=resourcequota \
+		--metrics-file=_out/metrics.json
