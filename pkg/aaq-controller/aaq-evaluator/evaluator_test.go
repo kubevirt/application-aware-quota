@@ -19,6 +19,7 @@ import (
 	"k8s.io/kubernetes/pkg/util/node"
 	testingclock "k8s.io/utils/clock/testing"
 	fakeinformers "kubevirt.io/application-aware-quota/pkg/tests-utils"
+	"os"
 	"time"
 )
 
@@ -828,6 +829,22 @@ var _ = Describe("AaqEvaluator", func() {
 			},
 		),
 		)
+	})
+
+	Context("test collectSidecarSockets timeout", func() {
+		It("should time out when the socket directory is empty", func() {
+			tmpDir, err := os.MkdirTemp("", "empty-sockets")
+			Expect(err).ToNot(HaveOccurred())
+			defer os.RemoveAll(tmpDir)
+
+			registry := newAaqEvaluatorsRegistry(1, tmpDir)
+			start := time.Now()
+			err = registry.Collect(1, 500*time.Millisecond)
+			elapsed := time.Since(start)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("failed to collect all expected evaluators sidecars sockets within given timeout"))
+			Expect(elapsed).To(BeNumerically("<", 2*time.Second))
+		})
 	})
 
 	Context("test calculators-registery ", func() {

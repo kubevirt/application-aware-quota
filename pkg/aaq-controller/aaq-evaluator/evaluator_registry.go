@@ -74,6 +74,12 @@ func (aaqe *AaqEvaluatorRegistry) collectSidecarSockets(numberOfRequestedEvaluat
 	timeoutCh := time.After(timeout)
 
 	for uint(len(processedSockets)) < numberOfRequestedEvaluatorsSidecars {
+		select {
+		case <-timeoutCh:
+			return nil, fmt.Errorf("failed to collect all expected evaluators sidecars sockets within given timeout")
+		default:
+		}
+
 		sockets, err := os.ReadDir(aaqe.socketSharedDirectory)
 		if err != nil {
 			return nil, err
@@ -81,23 +87,24 @@ func (aaqe *AaqEvaluatorRegistry) collectSidecarSockets(numberOfRequestedEvaluat
 		for _, socket := range sockets {
 			select {
 			case <-timeoutCh:
-				return nil, fmt.Errorf("Failed to collect all expected evaluators sidecars sockets within given timeout")
+				return nil, fmt.Errorf("failed to collect all expected evaluators sidecars sockets within given timeout")
 			default:
-				if _, processed := processedSockets[socket.Name()]; processed {
-					continue
-				}
-
-				callBackClient, notReady, err := processSideCarSocket(filepath.Join(aaqe.socketSharedDirectory, socket.Name()))
-				if notReady {
-					log.Log.Info("Sidecar server might not be ready yet, retrying in the next iteration")
-					continue
-				} else if err != nil {
-					log.Log.Reason(err).Infof("Failed to process sidecar socket: %s", socket.Name())
-					return nil, err
-				}
-				sidecarSockets = append(sidecarSockets, callBackClient)
-				processedSockets[socket.Name()] = true
 			}
+
+			if _, processed := processedSockets[socket.Name()]; processed {
+				continue
+			}
+
+			callBackClient, notReady, err := processSideCarSocket(filepath.Join(aaqe.socketSharedDirectory, socket.Name()))
+			if notReady {
+				log.Log.Info("Sidecar server might not be ready yet, retrying in the next iteration")
+				continue
+			} else if err != nil {
+				log.Log.Reason(err).Infof("Failed to process sidecar socket: %s", socket.Name())
+				return nil, err
+			}
+			sidecarSockets = append(sidecarSockets, callBackClient)
+			processedSockets[socket.Name()] = true
 		}
 		time.Sleep(time.Second)
 	}
