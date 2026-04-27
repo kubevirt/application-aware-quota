@@ -779,6 +779,7 @@ func updateOrCreateAAQComponentsAndEnsureReady(f *framework.Framework, updatedAa
 		ExpectWithOffset(1, errors.IsNotFound(err)).To(BeTrue())
 	}
 
+	By("Create AAQ CR")
 	aaq = &aaqv1.AAQ{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        updatedAaq.Name,
@@ -787,10 +788,10 @@ func updateOrCreateAAQComponentsAndEnsureReady(f *framework.Framework, updatedAa
 		},
 		Spec: updatedAaq.Spec,
 	}
-
-	By("Create AAQ CR")
-	_, err = f.AaqClient.AaqV1alpha1().AAQs().Create(context.TODO(), aaq, metav1.CreateOptions{})
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	EventuallyWithOffset(1, func() error {
+		_, err = f.AaqClient.AaqV1alpha1().AAQs().Create(context.TODO(), aaq, metav1.CreateOptions{})
+		return err
+	}, CompletionTimeout, assertionPollInterval).ShouldNot(HaveOccurred())
 
 	waitForAAQToBeReady(f, updatedAaq, aaqPods)
 }
