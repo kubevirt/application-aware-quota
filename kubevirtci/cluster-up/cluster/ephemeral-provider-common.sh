@@ -258,12 +258,24 @@ function _add_common_params() {
         params=" --swap-behavior=$KUBEVIRT_SWAP_BEHAVIOR $params"
     fi
 
+    if [ -n "$KUBEVIRT_VSOCK_CHILD_NS_MODE" ]; then
+        params=" --vsock-child-ns-mode=$KUBEVIRT_VSOCK_CHILD_NS_MODE $params"
+    fi
+
     if [ -n "$KUBEVIRTCI_PROXY" ]; then
         params=" --docker-proxy=$KUBEVIRTCI_PROXY $params"
     fi
 
     if [ "$KUBEVIRT_DEPLOY_NETWORK_RESOURCES_INJECTOR" == "true" ]; then
         params=" --deploy-network-resources-injector $params"
+    fi
+
+    if [ -n "$KUBEVIRT_TOPOLOGY_MANAGER_POLICY" ]; then
+        params=" --topology-manager-policy=$KUBEVIRT_TOPOLOGY_MANAGER_POLICY $params"
+    fi
+
+    if [ -n "$KUBEVIRT_RESERVED_SYSTEM_CPUS" ]; then
+        params=" --reserved-system-cpus=$KUBEVIRT_RESERVED_SYSTEM_CPUS $params"
     fi
 
     echo $params
