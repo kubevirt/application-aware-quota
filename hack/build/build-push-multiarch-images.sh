@@ -70,8 +70,10 @@ function create_push_multi_arch_manifest() {
     ${AAQ_CRI} manifest push ${insecure_param} "${manifest_name}"
 }
 
-# allow running binary within image with one architecture, running on machine with another architecture
-${AAQ_CRI} run --rm --privileged docker.io/multiarch/qemu-user-static --reset -p yes
+# allow running binaries for mixed-arch builds, but skip s390x-only runs
+if [[ "${BUILD_ARCHES}" != "s390x" ]]; then
+    ${AAQ_CRI} run --rm --privileged docker.io/multiarch/qemu-user-static --reset -p yes
+fi
 
 PUSH_TARGETS=(${PUSH_TARGETS:-$CONTROLLER_IMAGE_NAME $AAQ_SERVER_IMAGE_NAME $OPERATOR_IMAGE_NAME})
 
