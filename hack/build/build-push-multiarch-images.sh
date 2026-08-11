@@ -70,8 +70,8 @@ function create_push_multi_arch_manifest() {
     ${AAQ_CRI} manifest push ${insecure_param} "${manifest_name}"
 }
 
-# allow running binaries for mixed-arch builds, but skip s390x-only runs
-if [[ "${BUILD_ARCHES}" != "s390x" ]]; then
+# allow running binaries for cross-arch builds, but skip qemu registration on s390x hosts
+if [[ "${HOST_ARCHITECTURE}" != "s390x" ]]; then
     ${AAQ_CRI} run --rm --privileged docker.io/multiarch/qemu-user-static --reset -p yes
 fi
 
