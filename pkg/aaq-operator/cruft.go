@@ -19,6 +19,10 @@ func (r *ReconcileAAQ) watchAAQCRD() error {
 			}
 			cr, err := util.GetActiveAAQ(r.client)
 			if err != nil {
+				log.Error(err, "Failed to get active AAQ CR")
+				return nil
+			}
+			if cr == nil {
 				return nil
 			}
 			return []reconcile.Request{
