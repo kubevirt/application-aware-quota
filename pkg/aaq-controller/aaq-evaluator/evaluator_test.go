@@ -2,6 +2,8 @@ package aaq_evaluator
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/google/go-cmp/cmp"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -9,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	quota "k8s.io/apiserver/pkg/quota/v1"
 	"k8s.io/apiserver/pkg/quota/v1/generic"
 	"k8s.io/apiserver/pkg/util/feature"
@@ -18,8 +21,10 @@ import (
 	"k8s.io/kubernetes/pkg/quota/v1/evaluator/core"
 	"k8s.io/kubernetes/pkg/util/node"
 	testingclock "k8s.io/utils/clock/testing"
+	kvv1 "kubevirt.io/api/core/v1"
+	built_in_usage_calculators "kubevirt.io/application-aware-quota/pkg/aaq-controller/built-in-usage-calculators"
 	fakeinformers "kubevirt.io/application-aware-quota/pkg/tests-utils"
-	"time"
+	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 )
 
 var _ = Describe("AaqEvaluator", func() {
@@ -830,6 +835,118 @@ var _ = Describe("AaqEvaluator", func() {
 		)
 	})
 
+	Context("Test VMI scopes", func() {
+		cpu1 := corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1")}
+		fakeNs := "test-ns"
+		fakeVmiName := "test-vmi"
+		fakeVmiUID := "vmi-uid-123"
+
+		makeRegistryWithVirtLauncher := func(vmiInformer, migrationInformer fakeinformers.FakeSharedIndexInformer) *AaqEvaluatorRegistry {
+			registry := newAaqEvaluatorsRegistry(1, "/fakeSocketSharedDirectory")
+			registry.Add(built_in_usage_calculators.NewVirtLauncherCalculator(nil, vmiInformer, migrationInformer, v1alpha1.VmiPodUsage))
+			return registry
+		}
+
+		DescribeTable("Test VmiStarting scope", func(vmiPhase kvv1.VirtualMachineInstancePhase, expectMatch bool) {
+			vmi := &kvv1.VirtualMachineInstance{
+				ObjectMeta: metav1.ObjectMeta{Name: fakeVmiName, Namespace: fakeNs, UID: types.UID(fakeVmiUID)},
+				Status:     kvv1.VirtualMachineInstanceStatus{Phase: vmiPhase},
+			}
+			pod := makeVmiPod("launcher", fakeVmiName, fakeVmiUID, fakeNs, cpu1, corev1.PodRunning)
+
+			vmiInformer := fakeinformers.NewFakeSharedIndexInformer([]metav1.Object{vmi})
+			migrationInformer := fakeinformers.NewFakeSharedIndexInformer([]metav1.Object{})
+			podInformer := fakeinformers.NewFakeSharedIndexInformer([]metav1.Object{pod})
+			fakeClock := testingclock.NewFakeClock(time.Now())
+			eval := NewAaqEvaluator(v1.NewPodLister(podInformer.GetIndexer()), makeRegistryWithVirtLauncher(vmiInformer, migrationInformer), fakeClock)
+
+			matched, err := eval.MatchingScopes(pod, []corev1.ScopedResourceSelectorRequirement{
+				{ScopeName: v1alpha1.VmiStarting, Operator: corev1.ScopeSelectorOpExists},
+			})
+			Expect(err).ToNot(HaveOccurred())
+			if expectMatch {
+				Expect(matched).To(HaveLen(1))
+			} else {
+				Expect(matched).To(BeEmpty())
+			}
+		},
+			Entry("VMI in Pending phase should match", kvv1.Pending, true),
+			Entry("VMI in Scheduling phase should match", kvv1.Scheduling, true),
+			Entry("VMI in Scheduled phase should match", kvv1.Scheduled, true),
+			Entry("VMI in Running phase should not match", kvv1.Running, false),
+			Entry("VMI in Succeeded phase should not match", kvv1.Succeeded, false),
+			Entry("VMI in Failed phase should not match", kvv1.Failed, false),
+		)
+
+		It("VmiStarting should not match non-VMI pod", func() {
+			pod := makePod("regular-pod", "", cpu1, corev1.PodRunning)
+			podInformer := fakeinformers.NewFakeSharedIndexInformer([]metav1.Object{pod})
+			fakeClock := testingclock.NewFakeClock(time.Now())
+			eval := NewAaqEvaluator(v1.NewPodLister(podInformer.GetIndexer()), newAaqEvaluatorsRegistry(1, "/fakeSocketSharedDirectory"), fakeClock)
+
+			matched, err := eval.MatchingScopes(pod, []corev1.ScopedResourceSelectorRequirement{
+				{ScopeName: v1alpha1.VmiStarting, Operator: corev1.ScopeSelectorOpExists},
+			})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(matched).To(BeEmpty())
+		})
+
+		DescribeTable("Test VmiMigrating scope", func(vmimPhase kvv1.VirtualMachineInstanceMigrationPhase, expectMatch bool) {
+			vmi := &kvv1.VirtualMachineInstance{
+				ObjectMeta: metav1.ObjectMeta{Name: fakeVmiName, Namespace: fakeNs, UID: types.UID(fakeVmiUID)},
+				Status:     kvv1.VirtualMachineInstanceStatus{Phase: kvv1.Running},
+			}
+			vmim := &kvv1.VirtualMachineInstanceMigration{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-migration", Namespace: fakeNs, UID: "vmim-uid-456"},
+				Spec:       kvv1.VirtualMachineInstanceMigrationSpec{VMIName: fakeVmiName},
+				Status:     kvv1.VirtualMachineInstanceMigrationStatus{Phase: vmimPhase},
+			}
+			pod := makeVmiPod("launcher", fakeVmiName, fakeVmiUID, fakeNs, cpu1, corev1.PodRunning)
+
+			vmiInformer := fakeinformers.NewFakeSharedIndexInformer([]metav1.Object{vmi})
+			migrationInformer := fakeinformers.NewFakeSharedIndexInformer([]metav1.Object{vmim})
+			podInformer := fakeinformers.NewFakeSharedIndexInformer([]metav1.Object{pod})
+			fakeClock := testingclock.NewFakeClock(time.Now())
+			eval := NewAaqEvaluator(v1.NewPodLister(podInformer.GetIndexer()), makeRegistryWithVirtLauncher(vmiInformer, migrationInformer), fakeClock)
+
+			matched, err := eval.MatchingScopes(pod, []corev1.ScopedResourceSelectorRequirement{
+				{ScopeName: v1alpha1.VmiMigrating, Operator: corev1.ScopeSelectorOpExists},
+			})
+			Expect(err).ToNot(HaveOccurred())
+			if expectMatch {
+				Expect(matched).To(HaveLen(1))
+			} else {
+				Expect(matched).To(BeEmpty())
+			}
+		},
+			Entry("active migration (Running) should match", kvv1.MigrationRunning, true),
+			Entry("migration Scheduling should match", kvv1.MigrationScheduling, true),
+			Entry("migration PreparingTarget should match", kvv1.MigrationPreparingTarget, true),
+			Entry("migration Succeeded should not match", kvv1.MigrationSucceeded, false),
+			Entry("migration Failed should not match", kvv1.MigrationFailed, false),
+		)
+
+		It("VmiMigrating should not match when no migration exists", func() {
+			vmi := &kvv1.VirtualMachineInstance{
+				ObjectMeta: metav1.ObjectMeta{Name: fakeVmiName, Namespace: fakeNs, UID: types.UID(fakeVmiUID)},
+				Status:     kvv1.VirtualMachineInstanceStatus{Phase: kvv1.Running},
+			}
+			pod := makeVmiPod("launcher", fakeVmiName, fakeVmiUID, fakeNs, cpu1, corev1.PodRunning)
+
+			vmiInformer := fakeinformers.NewFakeSharedIndexInformer([]metav1.Object{vmi})
+			migrationInformer := fakeinformers.NewFakeSharedIndexInformer([]metav1.Object{})
+			podInformer := fakeinformers.NewFakeSharedIndexInformer([]metav1.Object{pod})
+			fakeClock := testingclock.NewFakeClock(time.Now())
+			eval := NewAaqEvaluator(v1.NewPodLister(podInformer.GetIndexer()), makeRegistryWithVirtLauncher(vmiInformer, migrationInformer), fakeClock)
+
+			matched, err := eval.MatchingScopes(pod, []corev1.ScopedResourceSelectorRequirement{
+				{ScopeName: v1alpha1.VmiMigrating, Operator: corev1.ScopeSelectorOpExists},
+			})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(matched).To(BeEmpty())
+		})
+	})
+
 	Context("test calculators-registery ", func() {
 		var registry Registry
 		var fakeClock *testingclock.FakeClock
@@ -926,6 +1043,23 @@ func (m *FakeUsageCalculator) SetConfiguration(_ string) {}
 
 func (m *FakeUsageCalculator) PodUsageFunc(pod *corev1.Pod, podsState []*corev1.Pod) (corev1.ResourceList, error, bool) {
 	return m.usageFunc(pod, podsState)
+}
+
+func (m *FakeUsageCalculator) MatchesScope(_ *corev1.Pod, _ corev1.ResourceQuotaScope) (bool, bool) {
+	return false, false
+}
+
+func (m *FakeUsageCalculator) SourceUsage(pod *corev1.Pod, podsState []*corev1.Pod) (corev1.ResourceList, error, bool) {
+	return m.PodUsageFunc(pod, podsState)
+}
+
+func makeVmiPod(name, vmiName, vmiUID, ns string, resList corev1.ResourceList, phase corev1.PodPhase) *corev1.Pod {
+	pod := makePod(name, "", resList, phase)
+	pod.Namespace = ns
+	pod.OwnerReferences = []metav1.OwnerReference{
+		{Kind: "VirtualMachineInstance", Name: vmiName, UID: types.UID(vmiUID)},
+	}
+	return pod
 }
 
 func makePod(name, pcName string, resList corev1.ResourceList, phase corev1.PodPhase) *corev1.Pod {
