@@ -2,7 +2,6 @@ package aacrq_controller
 
 import (
 	"context"
-	"fmt"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -60,6 +59,7 @@ func NewAacrqController(aaqCli client.AAQClient,
 		AddFunc:    ctrl.addAcrq,
 	})
 	if err != nil {
+		panic("failed to register ApplicationAwareClusterResourceQuota event handler")
 	}
 
 	return &ctrl
@@ -167,7 +167,7 @@ func (ctrl *AacrqController) Execute() bool {
 
 	err, enqueueState := ctrl.execute(key.(string))
 	if err != nil {
-		log.Log.Infof(fmt.Sprintf("AacrqController: Error with key: %v err: %v", key, err))
+		log.Log.Infof("AacrqController: Error with key: %v err: %v", key, err)
 	}
 	switch enqueueState {
 	case BackOff:

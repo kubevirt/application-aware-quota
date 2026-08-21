@@ -2,7 +2,6 @@ package crq_controller
 
 import (
 	"context"
-	"fmt"
 	v12 "github.com/openshift/api/quota/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -67,6 +66,7 @@ func NewCRQController(aaqCli client.AAQClient,
 		AddFunc:    ctrl.addAcrq,
 	})
 	if err != nil {
+		panic("failed to register ApplicationAwareClusterResourceQuota event handler")
 	}
 
 	return &ctrl
@@ -154,7 +154,7 @@ func (ctrl *CRQController) Execute() bool {
 
 	err, enqueueState := ctrl.execute(key.(string))
 	if err != nil {
-		log.Log.Infof(fmt.Sprintf("CRQController: Error with key: %v err: %v", key, err))
+		log.Log.Infof("CRQController: Error with key: %v err: %v", key, err)
 	}
 	switch enqueueState {
 	case BackOff:
