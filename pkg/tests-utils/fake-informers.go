@@ -13,6 +13,7 @@ import (
 type FakeSharedIndexInformer struct {
 	indexer            cache.Indexer
 	InternalGetIndexer func(cache.Indexer) cache.Indexer
+	AddEventHandlerErr error
 }
 
 func (i FakeSharedIndexInformer) AddEventHandlerWithOptions(handler cache.ResourceEventHandler, options cache.HandlerOptions) (cache.ResourceEventHandlerRegistration, error) {
@@ -53,10 +54,10 @@ func (i FakeSharedIndexInformer) GetIndexer() cache.Indexer {
 
 }
 func (i FakeSharedIndexInformer) AddEventHandler(handler cache.ResourceEventHandler) (cache.ResourceEventHandlerRegistration, error) {
-	return nil, nil
+	return nil, i.AddEventHandlerErr
 }
 func (i FakeSharedIndexInformer) AddEventHandlerWithResyncPeriod(handler cache.ResourceEventHandler, resyncPeriod time.Duration) (cache.ResourceEventHandlerRegistration, error) {
-	return nil, nil
+	return nil, i.AddEventHandlerErr
 }
 func (i FakeSharedIndexInformer) GetStore() cache.Store           { return nil }
 func (i FakeSharedIndexInformer) GetController() cache.Controller { return nil }
