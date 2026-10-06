@@ -28,7 +28,7 @@ RUN 	dnf -y install dnf-plugins-core && \
 
 
 
-ENV GIMME_GO_VERSION=1.24.0 GOPATH="/go" GO111MODULE="on" GOLANGCI_LINT_VERSION=v1.60.1
+ENV GIMME_GO_VERSION=1.26.8 GOPATH="/go" GO111MODULE="on" GOLANGCI_LINT_VERSION=v1.60.1
 
 # reference to master is for an external repo and can't yet be changed
 RUN mkdir -p /gimme && curl -sL \
