@@ -279,6 +279,8 @@ func (ctrl *AaqGateController) execute(ns string) (error, enqueueState) {
 	if err != nil {
 		return err, Immediate
 	}
+	scopedRqs, nonScopedRqs := splitVmiScopedRqs(rqs)
+
 	podObjs, err := ctrl.podInformer.GetIndexer().ByIndex(cache.NamespaceIndex, ns)
 	if err != nil {
 		return err, Immediate
@@ -291,6 +293,11 @@ func (ctrl *AaqGateController) execute(ns string) (error, enqueueState) {
 			podCopy := pod.DeepCopy()
 			podCopy.Spec.SchedulingGates = []v1.PodSchedulingGate{}
 
+			if !ctrl.passesScopedQuotaCheck(podCopy, scopedRqs) {
+				ctrl.recorder.Event(pod, v1.EventTypeWarning, v1.EventTypeWarning, "exceeded scoped quota")
+				continue
+			}
+
 			podToCreateAttr := k8sadmission.NewAttributesRecord(podCopy, nil,
 				apiextensions.Kind("Pod").WithVersion("version"), podCopy.Namespace, podCopy.Name,
 				v1alpha12.Resource("pods").WithVersion("version"), "", k8sadmission.Create,
@@ -301,9 +308,9 @@ func (ctrl *AaqGateController) execute(ns string) (error, enqueueState) {
 				return nil, Immediate
 			}
 
-			newRq, err := resourcequota2.CheckRequest(rqs, podToCreateAttr, ctrl.aaqEvaluator, []resourcequota.LimitedResource{currPodLimitedResource})
+			newRq, err := resourcequota2.CheckRequest(nonScopedRqs, podToCreateAttr, ctrl.aaqEvaluator, []resourcequota.LimitedResource{currPodLimitedResource})
 			if err == nil {
-				rqs = newRq
+				nonScopedRqs = newRq
 				aaqjqc.Status.PodsInJobQueue = append(aaqjqc.Status.PodsInJobQueue, pod.Name)
 			} else {
 				ctrl.recorder.Event(pod, v1.EventTypeWarning, v1.EventTypeWarning, util.IgnoreRqErr(err.Error()))
@@ -383,7 +390,11 @@ func (ctrl *AaqGateController) getArtificialRqsForGateController(ns string) ([]v
 	for _, arqObj := range arqsObjs {
 		arq := arqObj.(*v1alpha12.ApplicationAwareResourceQuota)
 		rq := v1.ResourceQuota{ObjectMeta: metav1.ObjectMeta{Name: arq.Name, Namespace: ns},
-			Spec:   v1.ResourceQuotaSpec{Hard: arq.Spec.Hard},
+			Spec: v1.ResourceQuotaSpec{
+				Hard:          arq.Spec.Hard,
+				Scopes:        arq.Spec.Scopes,
+				ScopeSelector: arq.Spec.ScopeSelector,
+			},
 			Status: v1.ResourceQuotaStatus{Hard: arq.Status.Hard, Used: arq.Status.Used},
 		}
 		rqs = append(rqs, rq)
@@ -489,4 +500,80 @@ func (ctrl *AaqGateController) AddMapping(_, namespaceName string) {
 
 func (ctrl *AaqGateController) RemoveMapping(_, namespaceName string) {
 	ctrl.nsQueue.Add(namespaceName)
+}
+
+var vmiScopes = map[v1.ResourceQuotaScope]bool{
+	v1alpha12.VmiStarting:  true,
+	v1alpha12.VmiMigrating: true,
+}
+
+func splitVmiScopedRqs(rqs []v1.ResourceQuota) (scoped []v1.ResourceQuota, nonScoped []v1.ResourceQuota) {
+	for _, rq := range rqs {
+		if hasVmiScope(&rq) {
+			scoped = append(scoped, rq)
+		} else {
+			nonScoped = append(nonScoped, rq)
+		}
+	}
+	return
+}
+
+func hasVmiScope(rq *v1.ResourceQuota) bool {
+	for _, scope := range rq.Spec.Scopes {
+		if vmiScopes[scope] {
+			return true
+		}
+	}
+	if rq.Spec.ScopeSelector != nil {
+		for _, expr := range rq.Spec.ScopeSelector.MatchExpressions {
+			if vmiScopes[expr.ScopeName] && expr.Operator == v1.ScopeSelectorOpExists {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (ctrl *AaqGateController) passesScopedQuotaCheck(pod *v1.Pod, scopedRqs []v1.ResourceQuota) bool {
+	if len(scopedRqs) == 0 {
+		return true
+	}
+	existingPods, err := ctrl.podInformer.GetIndexer().ByIndex(cache.NamespaceIndex, pod.Namespace)
+	if err != nil {
+		return true
+	}
+	var podsState []*v1.Pod
+	for _, obj := range existingPods {
+		podsState = append(podsState, obj.(*v1.Pod))
+	}
+	usage, err := ctrl.aaqEvaluator.SourceCalculatorUsage(pod, podsState)
+	if err != nil {
+		return true
+	}
+	for i := range scopedRqs {
+		rq := &scopedRqs[i]
+		matched, matchErr := ctrl.aaqEvaluator.Matches(rq, pod)
+		if matchErr != nil || !matched {
+			continue
+		}
+		for resourceName, hardVal := range rq.Status.Hard {
+			usedVal := rq.Status.Used[resourceName]
+			podUsage, exists := usage[resourceName]
+			if !exists {
+				continue
+			}
+			newUsed := usedVal.DeepCopy()
+			newUsed.Add(podUsage)
+			if newUsed.Cmp(hardVal) > 0 {
+				return false
+			}
+		}
+		for resourceName, podUsage := range usage {
+			if current, exists := rq.Status.Used[resourceName]; exists {
+				current.Add(podUsage)
+				rq.Status.Used[resourceName] = current
+			}
+		}
+	}
+	return true
 }

@@ -80,6 +80,19 @@ func (launchercalc *VirtLauncherCalculator) PodUsageFunc(pod *corev1.Pod, existi
 	return corev1.ResourceList{}, nil, true
 }
 
+func (launchercalc *VirtLauncherCalculator) SourceUsage(pod *corev1.Pod, _ []*corev1.Pod) (corev1.ResourceList, error, bool) {
+	if len(pod.OwnerReferences) == 0 || pod.OwnerReferences[0].Kind != v15.VirtualMachineInstanceGroupVersionKind.Kind {
+		return corev1.ResourceList{}, nil, false
+	}
+	vmiObj, vmiExists, err := launchercalc.vmiInformer.GetIndexer().GetByKey(fmt.Sprintf("%s/%s", pod.Namespace, pod.OwnerReferences[0].Name))
+	if err != nil || !vmiExists {
+		return corev1.ResourceList{}, nil, false
+	}
+	vmi := vmiObj.(*v15.VirtualMachineInstance)
+	rl, err := launchercalc.calculateSourceUsageByConfig(pod, vmi)
+	return rl, err, true
+}
+
 func (launchercalc *VirtLauncherCalculator) calculateSourceUsageByConfig(pod *corev1.Pod, vmi *v15.VirtualMachineInstance) (corev1.ResourceList, error) {
 	return launchercalc.CalculateUsageByConfig(pod, vmi, true)
 }
@@ -341,6 +354,54 @@ func getSourcePod(pods []*corev1.Pod, vmi *v15.VirtualMachineInstance) *corev1.P
 	}
 
 	return curPod
+}
+
+func (launchercalc *VirtLauncherCalculator) getVmiForPod(pod *corev1.Pod) *v15.VirtualMachineInstance {
+	if len(pod.OwnerReferences) == 0 || pod.OwnerReferences[0].Kind != v15.VirtualMachineInstanceGroupVersionKind.Kind {
+		return nil
+	}
+	vmiObj, exists, err := launchercalc.vmiInformer.GetIndexer().GetByKey(fmt.Sprintf("%s/%s", pod.Namespace, pod.OwnerReferences[0].Name))
+	if err != nil || !exists {
+		return nil
+	}
+	return vmiObj.(*v15.VirtualMachineInstance)
+}
+
+// MatchesScope implements ScopeEvaluator for VMI-specific scopes.
+// Returns (matched, handled). handled=false means this calculator doesn't know about the scope.
+func (launchercalc *VirtLauncherCalculator) MatchesScope(pod *corev1.Pod, scope corev1.ResourceQuotaScope) (bool, bool) {
+	switch scope {
+	case v1alpha1.VmiStarting:
+		return launchercalc.isVmiStarting(pod), true
+	case v1alpha1.VmiMigrating:
+		return launchercalc.isVmiMigrationTarget(pod), true
+	}
+	return false, false
+}
+
+func (launchercalc *VirtLauncherCalculator) isVmiStarting(pod *corev1.Pod) bool {
+	vmi := launchercalc.getVmiForPod(pod)
+	if vmi == nil {
+		return false
+	}
+	switch vmi.Status.Phase {
+	case v15.Running, v15.Succeeded, v15.Failed, v15.Unknown:
+		return false
+	default:
+		return true
+	}
+}
+
+func (launchercalc *VirtLauncherCalculator) isVmiMigrationTarget(pod *corev1.Pod) bool {
+	vmi := launchercalc.getVmiForPod(pod)
+	if vmi == nil {
+		return false
+	}
+	vmim, err := getLatestVmimIfExist(vmi, pod.Namespace, launchercalc.migrationInformer)
+	if err != nil || vmim == nil || vmim.IsFinal() {
+		return false
+	}
+	return getTargetPod([]*corev1.Pod{pod}, vmim) != nil
 }
 
 const computeContainerName = "compute"

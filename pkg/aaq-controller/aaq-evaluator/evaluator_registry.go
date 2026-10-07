@@ -22,12 +22,20 @@ var once sync.Once
 
 type AaqCalculator interface {
 	PodUsageFunc(pod *corev1.Pod, podsState []*corev1.Pod) (corev1.ResourceList, error, bool)
+	// MatchesScope returns (matched, handled). If the calculator does not recognize
+	// the scope it should return (false, false).
+	MatchesScope(pod *corev1.Pod, scope corev1.ResourceQuotaScope) (bool, bool)
+	// SourceUsage returns the full source-equivalent resources for a pod.
+	// For migration targets this returns the same as the source pod (not the delta).
+	SourceUsage(pod *corev1.Pod, podsState []*corev1.Pod) (corev1.ResourceList, error, bool)
 }
 
 type Registry interface {
 	Add(aaqCalculator AaqCalculator)
 	Collect(numberOfRequestedEvaluatorsSidecars uint, timeout time.Duration) error
 	Usage(*corev1.Pod, []*corev1.Pod) (corev1.ResourceList, error)
+	SourceUsage(*corev1.Pod, []*corev1.Pod) (corev1.ResourceList, error)
+	MatchesScope(pod *corev1.Pod, scope corev1.ResourceQuotaScope) (bool, bool)
 }
 
 type AaqEvaluatorRegistry struct {
@@ -124,6 +132,37 @@ func processSideCarSocket(socketPath string) (string, bool, error) {
 		return "", false, err
 	}
 	return socketPath, false, nil
+}
+
+func (aaqe *AaqEvaluatorRegistry) MatchesScope(pod *corev1.Pod, scope corev1.ResourceQuotaScope) (bool, bool) {
+	for _, calculator := range aaqe.aaqCalculators {
+		if matched, handled := calculator.MatchesScope(pod, scope); handled {
+			return matched, true
+		}
+	}
+	return false, false
+}
+
+func (aaqe *AaqEvaluatorRegistry) SourceUsage(pod *corev1.Pod, podsState []*corev1.Pod) (rlToRet corev1.ResourceList, acceptedErr error) {
+	accepted := false
+	for _, calculator := range aaqe.aaqCalculators {
+		for retries := 0; retries < aaqe.retriesOnMatchFailure; retries++ {
+			rl, err, match := calculator.SourceUsage(pod, podsState)
+			if !match && err == nil {
+				break
+			} else if err == nil {
+				accepted = true
+				rlToRet = quota.Add(rlToRet, rl)
+				break
+			} else {
+				log.Log.Infof("Retries: %v Error: %v ", retries, err)
+			}
+		}
+	}
+	if !accepted {
+		acceptedErr = fmt.Errorf("pod didn't match any usageFunc")
+	}
+	return rlToRet, acceptedErr
 }
 
 func (aaqe *AaqEvaluatorRegistry) Usage(pod *corev1.Pod, podsState []*corev1.Pod) (rlToRet corev1.ResourceList, acceptedErr error) {
