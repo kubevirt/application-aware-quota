@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"time"
+
 	schedulev1 "k8s.io/api/scheduling/v1"
 	"kubevirt.io/application-aware-quota/pkg/aaq-operator/resources/cluster"
 	resourcesutils "kubevirt.io/application-aware-quota/pkg/util"
 	"kubevirt.io/application-aware-quota/tests/utils"
-	"reflect"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -687,6 +688,26 @@ var _ = Describe("ALL Operator tests", Serial, func() {
 				return nil
 			}).WithTimeout(90*time.Second).WithPolling(5*time.Second).ShouldNot(HaveOccurred(), "default namespace selector is not as expected")
 		})
+	})
+})
+
+var _ = Describe("AAQ Security", func() {
+	f := framework.NewFramework("security-test")
+
+	It("All AAQ deployments should have readOnlyRootFilesystem set to true", func() {
+		for _, deploymentName := range []string{"aaq-operator", "aaq-server", "aaq-controller"} {
+			deployment, err := f.K8sClient.AppsV1().Deployments(f.AAQInstallNs).Get(context.TODO(), deploymentName, metav1.GetOptions{})
+			Expect(err).ToNot(HaveOccurred(), "failed to get deployment %s", deploymentName)
+
+			for _, container := range deployment.Spec.Template.Spec.Containers {
+				Expect(container.SecurityContext).ToNot(BeNil(),
+					"container %s in deployment %s has no SecurityContext", container.Name, deploymentName)
+				Expect(container.SecurityContext.ReadOnlyRootFilesystem).ToNot(BeNil(),
+					"container %s in deployment %s has no ReadOnlyRootFilesystem", container.Name, deploymentName)
+				Expect(*container.SecurityContext.ReadOnlyRootFilesystem).To(BeTrue(),
+					"container %s in deployment %s should have ReadOnlyRootFilesystem=true", container.Name, deploymentName)
+			}
+		}
 	})
 })
 
