@@ -116,12 +116,15 @@ func (v Handler) validateApplicationAwareResourceQuota() (*admissionv1.Admission
 	if err := json.Unmarshal(v.request.Object.Raw, &arq); err != nil {
 		return nil, err
 	}
+	if err := validateAaqScopeSelectors(arq.Spec.ScopeSelector); err != nil {
+		return reviewResponse(v.request.UID, false, http.StatusForbidden, err.Error()), nil
+	}
 	rq := &v1.ResourceQuota{}
 	rq.Namespace = arq.Namespace
 	rq.Name = createRQName()
 	rq.Spec.Hard = arq.Spec.Hard
-	rq.Spec.ScopeSelector = arq.Spec.ScopeSelector
-	rq.Spec.Scopes = arq.Spec.Scopes
+	rq.Spec.ScopeSelector = filterAaqScopeSelector(arq.Spec.ScopeSelector)
+	rq.Spec.Scopes = filterAaqScopes(arq.Spec.Scopes)
 	_, err := v.aaqCli.CoreV1().ResourceQuotas(arq.Namespace).Create(context.Background(), rq, metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}})
 	if err != nil {
 		return reviewResponse(v.request.UID, false, http.StatusForbidden, util.IgnoreRqErr(err.Error())), nil
@@ -135,11 +138,14 @@ func (v Handler) validateApplicationAwareClusterResourceQuota() (*admissionv1.Ad
 	if err := json.Unmarshal(v.request.Object.Raw, &acrq); err != nil {
 		return nil, err
 	}
+	if err := validateAaqScopeSelectors(acrq.Spec.Quota.ScopeSelector); err != nil {
+		return reviewResponse(v.request.UID, false, http.StatusForbidden, err.Error()), nil
+	}
 	rq := &v1.ResourceQuota{}
 	rq.Name = createRQName()
 	rq.Spec.Hard = acrq.Spec.Quota.Hard
-	rq.Spec.ScopeSelector = acrq.Spec.Quota.ScopeSelector
-	rq.Spec.Scopes = acrq.Spec.Quota.Scopes
+	rq.Spec.ScopeSelector = filterAaqScopeSelector(acrq.Spec.Quota.ScopeSelector)
+	rq.Spec.Scopes = filterAaqScopes(acrq.Spec.Quota.Scopes)
 	_, err := v.aaqCli.CoreV1().ResourceQuotas(v1.NamespaceDefault).Create(context.Background(), rq, metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}})
 	if err != nil {
 		return reviewResponse(v.request.UID, false, http.StatusForbidden, util.IgnoreRqErr(err.Error())), nil
@@ -208,4 +214,47 @@ func getResourcesNames(resourceList v1.ResourceList) []v1.ResourceName {
 		keys = append(keys, key)
 	}
 	return keys
+}
+
+func validateAaqScopeSelectors(selector *v1.ScopeSelector) error {
+	if selector == nil {
+		return nil
+	}
+	for _, expr := range selector.MatchExpressions {
+		if aaqCustomScopes[expr.ScopeName] && expr.Operator != v1.ScopeSelectorOpExists {
+			return fmt.Errorf("scope %q only supports the Exists operator", expr.ScopeName)
+		}
+	}
+	return nil
+}
+
+var aaqCustomScopes = map[v1.ResourceQuotaScope]bool{
+	v1alpha1.VmiStarting:  true,
+	v1alpha1.VmiMigrating: true,
+}
+
+func filterAaqScopes(scopes []v1.ResourceQuotaScope) []v1.ResourceQuotaScope {
+	var filtered []v1.ResourceQuotaScope
+	for _, scope := range scopes {
+		if !aaqCustomScopes[scope] {
+			filtered = append(filtered, scope)
+		}
+	}
+	return filtered
+}
+
+func filterAaqScopeSelector(selector *v1.ScopeSelector) *v1.ScopeSelector {
+	if selector == nil {
+		return nil
+	}
+	var filtered []v1.ScopedResourceSelectorRequirement
+	for _, expr := range selector.MatchExpressions {
+		if !aaqCustomScopes[expr.ScopeName] {
+			filtered = append(filtered, expr)
+		}
+	}
+	if len(filtered) == 0 {
+		return nil
+	}
+	return &v1.ScopeSelector{MatchExpressions: filtered}
 }

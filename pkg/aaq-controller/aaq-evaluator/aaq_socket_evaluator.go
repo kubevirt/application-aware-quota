@@ -15,6 +15,14 @@ type AaqSocketCalculator struct {
 	sidecarSocketPath string
 }
 
+func (aaqsc *AaqSocketCalculator) MatchesScope(_ *corev1.Pod, _ corev1.ResourceQuotaScope) (bool, bool) {
+	return false, false
+}
+
+func (aaqsc *AaqSocketCalculator) SourceUsage(pod *corev1.Pod, podsState []*corev1.Pod) (corev1.ResourceList, error, bool) {
+	return aaqsc.PodUsageFunc(pod, podsState)
+}
+
 func (aaqsc *AaqSocketCalculator) PodUsageFunc(pod *corev1.Pod, podsState []*corev1.Pod) (corev1.ResourceList, error, bool) {
 	conn, err := grpc.DialSocketWithTimeout(aaqsc.sidecarSocketPath, 1)
 	if err != nil {
