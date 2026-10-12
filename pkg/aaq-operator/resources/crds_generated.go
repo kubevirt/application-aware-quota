@@ -6,7 +6,7 @@ var AAQCRDs map[string]string = map[string]string{
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.3
+    controller-gen.kubebuilder.io/version: v0.20.0
   name: aaqs.aaq.kubevirt.io
 spec:
   group: aaq.kubevirt.io
@@ -3874,7 +3874,7 @@ status:
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.3
+    controller-gen.kubebuilder.io/version: v0.20.0
   name: aaqjobqueueconfigs.aaq.kubevirt.io
 spec:
   group: aaq.kubevirt.io
@@ -3947,7 +3947,7 @@ status:
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.3
+    controller-gen.kubebuilder.io/version: v0.20.0
   name: applicationawareappliedclusterresourcequotas.aaq.kubevirt.io
 spec:
   group: aaq.kubevirt.io
@@ -4215,7 +4215,7 @@ status:
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.3
+    controller-gen.kubebuilder.io/version: v0.20.0
   name: applicationawareclusterresourcequotas.aaq.kubevirt.io
 spec:
   group: aaq.kubevirt.io
@@ -4484,7 +4484,7 @@ status:
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.3
+    controller-gen.kubebuilder.io/version: v0.20.0
   name: applicationawareresourcequotas.aaq.kubevirt.io
 spec:
   group: aaq.kubevirt.io
