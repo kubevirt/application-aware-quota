@@ -3,6 +3,11 @@ package util
 import (
 	"context"
 	"fmt"
+	"os"
+	"runtime"
+	"strings"
+	"time"
+
 	secv1 "github.com/openshift/api/security/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -19,11 +24,7 @@ import (
 	aaqv1alpha1 "kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 	sdkapi "kubevirt.io/controller-lifecycle-operator-sdk/api"
 	utils "kubevirt.io/controller-lifecycle-operator-sdk/pkg/sdk/resources"
-	"os"
-	"runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"strings"
-	"time"
 )
 
 const (
@@ -118,6 +119,7 @@ func CreateContainer(name, image, verbosity, pullPolicy string) corev1.Container
 		},
 		AllowPrivilegeEscalation: pointer.Bool(false),
 		RunAsNonRoot:             pointer.Bool(true),
+		ReadOnlyRootFilesystem:   pointer.Bool(true),
 	}
 	return *container
 }
@@ -239,8 +241,8 @@ func SetRecommendedLabels(obj metav1.Object, installerLabels map[string]string, 
 }
 
 func PrintVersion() {
-	klog.Infof(fmt.Sprintf("Go Version: %s", runtime.Version()))
-	klog.Infof(fmt.Sprintf("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH))
+	klog.Infof("Go Version: %s", runtime.Version())
+	klog.Infof("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH)
 }
 func getNamespace(path string) string {
 	if data, err := os.ReadFile(path); err == nil {
