@@ -5,6 +5,10 @@ aaq="${aaq##*/}"
 
 echo aaq
 
+# Default to host architecture for local cluster-sync; multi-arch is for CI/releases.
+BUILD_ARCHES=${BUILD_ARCHES:-$(go env GOARCH)}
+export BUILD_ARCHES
+
 source ./hack/build/config.sh
 source ./hack/build/common.sh
 source ./kubevirtci/cluster-up/hack/common.sh
