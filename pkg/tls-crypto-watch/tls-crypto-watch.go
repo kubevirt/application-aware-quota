@@ -27,6 +27,7 @@ import (
 
 	ocpcrypto "github.com/openshift/library-go/pkg/crypto"
 
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/certificate"
 	"k8s.io/klog/v2"
@@ -40,8 +41,9 @@ const noSrvCertMessage = "No server certificate, server is not yet ready to rece
 
 // CryptoConfig contains TLS crypto configurables
 type CryptoConfig struct {
-	CipherSuites []uint16
-	MinVersion   uint16
+	CipherSuites     []uint16
+	MinVersion       uint16
+	CurvePreferences []tls.CurveID
 }
 
 // AaqConfigTLSWatcher is the interface of aaqConfigTLSWatcher
@@ -113,6 +115,7 @@ func (ctw *aaqConfigTLSWatcher) updateConfig(aaq *aaqv1alpha1.AAQ) {
 	ciphers := CipherSuitesIDs(cipherNames)
 	newConfig.CipherSuites = ciphers
 	newConfig.MinVersion = minTLSVersion
+	newConfig.CurvePreferences = CurvePreferenceIDs(SelectGroups(aaq.Spec.TLSSecurityProfile))
 
 	ctw.mutex.Lock()
 	defer ctw.mutex.Unlock()
@@ -186,6 +189,60 @@ func CipherSuitesIDs(names []string) []uint16 {
 	return ids
 }
 
+// SelectGroups returns the TLS groups from the given TLS profile.
+// Returns nil when the profile is nil or uses a predefined type (which have no groups).
+func SelectGroups(profile *aaqv1alpha1.TLSSecurityProfile) []string {
+	if profile != nil && profile.Custom != nil {
+		return profile.Custom.TLSProfileSpec.Groups
+	}
+	return nil
+}
+
+// CurvePreferenceIDs converts a list of IANA TLS Supported Groups registry
+// names (e.g. "X25519", "secp256r1", "X25519MLKEM768") to the corresponding
+// tls.CurveID values. Unrecognised names are silently skipped so that an older
+// component tolerates group names added in a newer release. Returns nil when
+// the input is empty, which leaves tls.Config.CurvePreferences unset and
+// preserves Go's default behaviour.
+func CurvePreferenceIDs(names []string) []tls.CurveID {
+	if len(names) == 0 {
+		return nil
+	}
+	// Go ignores the order of tls.Config.CurvePreferences, so a set suffices.
+	ids := sets.New[tls.CurveID]()
+	for _, name := range names {
+		if id, ok := curveIDByName(name); ok {
+			ids.Insert(id)
+		}
+	}
+	if ids.Len() == 0 {
+		return nil
+	}
+	return ids.UnsortedList()
+}
+
+func curveIDByName(name string) (tls.CurveID, bool) {
+	switch name {
+	// IANA registers this group as "x25519"; accept it alongside Go's "X25519".
+	case aaqv1alpha1.TLSGroupX25519, "x25519":
+		return tls.X25519, true
+	case aaqv1alpha1.TLSGroupSecp256r1:
+		return tls.CurveP256, true
+	case aaqv1alpha1.TLSGroupSecp384r1:
+		return tls.CurveP384, true
+	case aaqv1alpha1.TLSGroupSecp521r1:
+		return tls.CurveP521, true
+	case aaqv1alpha1.TLSGroupX25519MLKEM768:
+		return tls.X25519MLKEM768, true
+	case aaqv1alpha1.TLSGroupSecP256r1MLKEM768:
+		return tls.SecP256r1MLKEM768, true
+	case aaqv1alpha1.TLSGroupSecP384r1MLKEM1024:
+		return tls.SecP384r1MLKEM1024, true
+	default:
+		return 0, false
+	}
+}
+
 // SetupTLS configures TLS for a server with dynamic cipher suites and TLS version from the AAQ CR
 func SetupTLS(certManager certificate.Manager, tlsWatcher AaqConfigTLSWatcher) *tls.Config {
 	tlsConfig := &tls.Config{
@@ -206,19 +263,22 @@ func SetupTLS(certManager certificate.Manager, tlsWatcher AaqConfigTLSWatcher) *
 			// Get TLS config from watcher, use defaults if nil
 			var ciphers []uint16
 			var minTLSVersion uint16 = tls.VersionTLS12
+			var curvePreferences []tls.CurveID
 			if tlsWatcher != nil {
 				cryptoConfig := tlsWatcher.GetTLSConfig()
 				if cryptoConfig != nil {
 					ciphers = cryptoConfig.CipherSuites
 					minTLSVersion = cryptoConfig.MinVersion
+					curvePreferences = cryptoConfig.CurvePreferences
 				}
 			}
 
 			config := &tls.Config{
-				CipherSuites: ciphers,
-				MinVersion:   minTLSVersion,
-				Certificates: []tls.Certificate{*crt},
-				ClientAuth:   tls.VerifyClientCertIfGiven,
+				CipherSuites:     ciphers,
+				MinVersion:       minTLSVersion,
+				CurvePreferences: curvePreferences,
+				Certificates:     []tls.Certificate{*crt},
+				ClientAuth:       tls.VerifyClientCertIfGiven,
 			}
 
 			config.BuildNameToCertificate() //nolint:staticcheck
