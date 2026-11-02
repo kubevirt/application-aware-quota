@@ -1,5 +1,5 @@
 # Builder stage
-FROM --platform=${BUILDPLATFORM} docker.io/library/golang:1.24-alpine as builder
+FROM --platform=${BUILDPLATFORM} docker.io/library/golang:1.26-alpine as builder
 
 # Install make
 RUN apk update && apk add make

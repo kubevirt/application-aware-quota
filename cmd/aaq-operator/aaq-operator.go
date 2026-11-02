@@ -6,6 +6,11 @@ import (
 	"flag"
 	"fmt"
 
+	"net/http"
+	"os"
+	"runtime"
+	"strconv"
+
 	secv1 "github.com/openshift/api/security/v1"
 	promv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"go.uber.org/zap/zapcore"
@@ -15,9 +20,6 @@ import (
 	tlscryptowatch "kubevirt.io/application-aware-quota/pkg/tls-crypto-watch"
 	"kubevirt.io/application-aware-quota/pkg/util"
 	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
-	"net/http"
-	"os"
-	"runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -25,7 +27,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
-	"strconv"
 )
 
 var log = logf.Log.WithName("cmd")
@@ -107,6 +108,7 @@ func main() {
 					cryptoConfig := tlsWatcher.GetTLSConfig()
 					config.MinVersion = cryptoConfig.MinVersion
 					config.CipherSuites = cryptoConfig.CipherSuites
+					config.CurvePreferences = cryptoConfig.CurvePreferences
 					return config, nil
 				}
 			}},

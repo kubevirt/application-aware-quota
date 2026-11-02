@@ -2711,6 +2711,19 @@ spec:
                         items:
                           type: string
                         type: array
+                      groups:
+                        description: |-
+                          groups defines the set of allowed TLS supported groups (elliptic
+                          curves and hybrid post-quantum key exchange groups) on all TLS
+                          server endpoints. Group names follow the IANA TLS Supported
+                          Groups registry (e.g. X25519, secp256r1, X25519MLKEM768). Unrecognised
+                          names are silently ignored at TLS setup time, so an older component
+                          tolerates group names added in a newer release. When empty, Go's
+                          default curve preferences apply.
+                        items:
+                          type: string
+                        type: array
+                        x-kubernetes-list-type: atomic
                       minTLSVersion:
                         description: |-
                           minTLSVersion is used to specify the minimal version of the TLS protocol

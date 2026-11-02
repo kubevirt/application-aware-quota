@@ -1,6 +1,6 @@
 module kubevirt.io/application-aware-quota
 
-go 1.24.0
+go 1.26.0
 
 require (
 	k8s.io/apimachinery v0.34.3
@@ -30,7 +30,6 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
 	google.golang.org/grpc v1.79.3
 	kubevirt.io/containerized-data-importer-api v1.63.1 // indirect
-
 )
 
 require (
