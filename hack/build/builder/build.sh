@@ -36,7 +36,13 @@ if ! grep -q -E '^enabled$' /proc/sys/fs/binfmt_misc/qemu-aarch64 2>/dev/null; t
     ${AAQ_CRI} >&2 run --rm --privileged docker.io/multiarch/qemu-user-static --reset -p yes
 fi
 
+case "${HOST_ARCHITECTURE}" in
+    x86_64) HOST_ARCH=amd64 ;;
+    aarch64) HOST_ARCH=arm64 ;;
+    *) HOST_ARCH="${HOST_ARCHITECTURE}" ;;
+esac
+
 for ARCH in ${ARCHITECTURES}; do
     ${AAQ_CRI} >&2 pull --platform="linux/${ARCH}" quay.io/centos/centos:stream9
-    ${AAQ_CRI} >&2 build --platform="linux/${ARCH}" -t "${DOCKER_PREFIX}/${DOCKER_IMAGE}:${VERSION}-${ARCH}" -f "${script_dir}/Dockerfile" "${script_dir}"
+    ${AAQ_CRI} >&2 build --platform="linux/${ARCH}" --build-arg HOST_ARCH="${HOST_ARCH}" --build-arg ARCH="${ARCH}" -t "${DOCKER_PREFIX}/${DOCKER_IMAGE}:${VERSION}-${ARCH}" -f "${script_dir}/Dockerfile" "${script_dir}"
 done
