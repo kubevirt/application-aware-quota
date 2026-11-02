@@ -202,6 +202,12 @@ const (
 	ResourceRequestsVmiMemory corev1.ResourceName = "requests.memory/vmi"
 	// Short form of requested memory for the VMI, in bytes.
 	ResourceRequestsVmiMemoryShort corev1.ResourceName = "memory/vmi"
+
+	// VmiStarting matches pods associated with a VMI that is not yet Running
+	// (VMI phases: "", Pending, Scheduling, Scheduled, WaitingForSync)
+	VmiStarting corev1.ResourceQuotaScope = "VmiStarting"
+	// VmiMigrating matches target virt-launcher pods created for an active VMI migration
+	VmiMigrating corev1.ResourceQuotaScope = "VmiMigrating"
 )
 
 // AAQPriorityClass defines the priority class of the AAQ control plane.

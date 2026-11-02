@@ -2,6 +2,7 @@ package aaq_evaluator
 
 import (
 	"fmt"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
@@ -16,6 +17,7 @@ import (
 	"k8s.io/kubernetes/pkg/quota/v1/evaluator/core"
 	"k8s.io/utils/clock"
 	"kubevirt.io/application-aware-quota/pkg/util"
+	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
 )
 
 // NewAaqEvaluator returns an evaluator that can evaluate pods with apps consideration
@@ -31,8 +33,7 @@ func NewAaqEvaluator(podLister v1.PodLister, aaqEvalRegistery Registry, clock cl
 type AaqEvaluator struct {
 	podEvaluator     v12.Evaluator
 	aaqEvalRegistery Registry
-	// knows how to list pods
-	podLister v1.PodLister
+	podLister        v1.PodLister
 }
 
 func (aaqe *AaqEvaluator) Constraints(_ []corev1.ResourceName, _ runtime.Object) error {
@@ -49,11 +50,42 @@ func (aaqe *AaqEvaluator) Handles(operation admission.Attributes) bool {
 }
 
 func (aaqe *AaqEvaluator) Matches(resourceQuota *corev1.ResourceQuota, item runtime.Object) (bool, error) {
-	return aaqe.podEvaluator.Matches(resourceQuota, item)
+	matchResource := len(aaqe.MatchingResources(quota.ResourceNames(resourceQuota.Status.Hard))) > 0
+	matchScope := true
+	for _, scope := range getScopeSelectorsFromQuota(resourceQuota) {
+		innerMatch, err := aaqe.podMatchesScopeFunc(scope, item)
+		if err != nil {
+			return false, err
+		}
+		matchScope = matchScope && innerMatch
+	}
+	return matchResource && matchScope, nil
+}
+
+func getScopeSelectorsFromQuota(rq *corev1.ResourceQuota) []corev1.ScopedResourceSelectorRequirement {
+	var selectors []corev1.ScopedResourceSelectorRequirement
+	for _, scope := range rq.Spec.Scopes {
+		selectors = append(selectors, corev1.ScopedResourceSelectorRequirement{
+			ScopeName: scope, Operator: corev1.ScopeSelectorOpExists})
+	}
+	if rq.Spec.ScopeSelector != nil {
+		selectors = append(selectors, rq.Spec.ScopeSelector.MatchExpressions...)
+	}
+	return selectors
 }
 
 func (aaqe *AaqEvaluator) MatchingScopes(item runtime.Object, scopes []corev1.ScopedResourceSelectorRequirement) ([]corev1.ScopedResourceSelectorRequirement, error) {
-	return aaqe.podEvaluator.MatchingScopes(item, scopes)
+	var matched []corev1.ScopedResourceSelectorRequirement
+	for _, scope := range scopes {
+		innerMatch, err := aaqe.podMatchesScopeFunc(scope, item)
+		if err != nil {
+			return nil, err
+		}
+		if innerMatch {
+			matched = append(matched, scope)
+		}
+	}
+	return matched, nil
 }
 
 func (aaqe *AaqEvaluator) UncoveredQuotaScopes(limitedScopes []corev1.ScopedResourceSelectorRequirement, matchedQuotaScopes []corev1.ScopedResourceSelectorRequirement) ([]corev1.ScopedResourceSelectorRequirement, error) {
@@ -62,6 +94,17 @@ func (aaqe *AaqEvaluator) UncoveredQuotaScopes(limitedScopes []corev1.ScopedReso
 
 func (aaqe *AaqEvaluator) MatchingResources(input []corev1.ResourceName) []corev1.ResourceName {
 	return input
+}
+
+func (aaqe *AaqEvaluator) SourceCalculatorUsage(pod *corev1.Pod, existingPods []*corev1.Pod) (corev1.ResourceList, error) {
+	if len(pod.Spec.SchedulingGates) > 0 {
+		return corev1.ResourceList{}, nil
+	}
+	rl, err := aaqe.aaqEvalRegistery.SourceUsage(pod, existingPods)
+	if err != nil {
+		return aaqe.podEvaluator.Usage(pod)
+	}
+	return rl, err
 }
 
 func (aaqe *AaqEvaluator) Usage(item runtime.Object) (corev1.ResourceList, error) {
@@ -106,11 +149,12 @@ func (aaqe *AaqEvaluator) UsageStats(options v12.UsageStatsOptions) (v12.UsageSt
 		return result, fmt.Errorf("failed to list content: %v", err)
 	}
 
+	hasVmiScope := hasVmiScopes(options.Scopes, options.ScopeSelector)
+
 	for _, pod := range existingPods {
-		// need to verify that the item matches the set of scopes
 		matchesScopes := true
 		for _, scope := range options.Scopes {
-			innerMatch, err := podMatchesScopeFunc(corev1.ScopedResourceSelectorRequirement{ScopeName: scope, Operator: corev1.ScopeSelectorOpExists}, pod)
+			innerMatch, err := aaqe.podMatchesScopeFunc(corev1.ScopedResourceSelectorRequirement{ScopeName: scope, Operator: corev1.ScopeSelectorOpExists}, pod)
 			if err != nil {
 				return result, nil
 			}
@@ -120,18 +164,23 @@ func (aaqe *AaqEvaluator) UsageStats(options v12.UsageStatsOptions) (v12.UsageSt
 		}
 		if options.ScopeSelector != nil {
 			for _, selector := range options.ScopeSelector.MatchExpressions {
-				innerMatch, err := podMatchesScopeFunc(selector, pod)
+				innerMatch, err := aaqe.podMatchesScopeFunc(selector, pod)
 				if err != nil {
 					return result, nil
 				}
 				matchesScopes = matchesScopes && innerMatch
 			}
 		}
-		// only count usage if there was a match
 		if matchesScopes {
-			usage, err := aaqe.CalculatorUsage(pod, existingPods)
-			if err != nil {
-				return result, err
+			var usage corev1.ResourceList
+			var usageErr error
+			if hasVmiScope {
+				usage, usageErr = aaqe.SourceCalculatorUsage(pod, existingPods)
+			} else {
+				usage, usageErr = aaqe.CalculatorUsage(pod, existingPods)
+			}
+			if usageErr != nil {
+				return result, usageErr
 			}
 			result.Used = quota.Add(result.Used, usage)
 		}
@@ -139,9 +188,28 @@ func (aaqe *AaqEvaluator) UsageStats(options v12.UsageStatsOptions) (v12.UsageSt
 	return result, nil
 }
 
-// todo: ask kubernetes to make this funcs global and remove all this code
-// podMatchesScopeFunc is a function that knows how to evaluate if a pod matches a scope
-func podMatchesScopeFunc(selector corev1.ScopedResourceSelectorRequirement, object runtime.Object) (bool, error) {
+var aaqVmiScopes = map[corev1.ResourceQuotaScope]bool{
+	v1alpha1.VmiStarting:  true,
+	v1alpha1.VmiMigrating: true,
+}
+
+func hasVmiScopes(scopes []corev1.ResourceQuotaScope, scopeSelector *corev1.ScopeSelector) bool {
+	for _, scope := range scopes {
+		if aaqVmiScopes[scope] {
+			return true
+		}
+	}
+	if scopeSelector != nil {
+		for _, expr := range scopeSelector.MatchExpressions {
+			if aaqVmiScopes[expr.ScopeName] && expr.Operator == corev1.ScopeSelectorOpExists {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (aaqe *AaqEvaluator) podMatchesScopeFunc(selector corev1.ScopedResourceSelectorRequirement, object runtime.Object) (bool, error) {
 	pod, err := util.ToExternalPodOrError(object)
 	if err != nil {
 		return false, err
@@ -157,13 +225,15 @@ func podMatchesScopeFunc(selector corev1.ScopedResourceSelectorRequirement, obje
 		return !isBestEffort(pod), nil
 	case corev1.ResourceQuotaScopePriorityClass:
 		if selector.Operator == corev1.ScopeSelectorOpExists {
-			// This is just checking for existence of a priorityClass on the pod,
-			// no need to take the overhead of selector parsing/evaluation.
 			return len(pod.Spec.PriorityClassName) != 0, nil
 		}
 		return podMatchesSelector(pod, selector)
 	case corev1.ResourceQuotaScopeCrossNamespacePodAffinity:
 		return usesCrossNamespacePodAffinity(pod), nil
+	default:
+		if matched, handled := aaqe.aaqEvalRegistery.MatchesScope(pod, selector.ScopeName); handled {
+			return matched, nil
+		}
 	}
 	return false, nil
 }
