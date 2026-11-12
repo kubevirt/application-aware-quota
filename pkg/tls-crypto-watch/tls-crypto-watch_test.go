@@ -88,31 +88,231 @@ var _ = Describe("CurvePreferenceIDs", func() {
 	})
 })
 
-var _ = Describe("SelectGroups", func() {
-	It("should return nil for nil profile", func() {
-		Expect(SelectGroups(nil)).To(BeNil())
+var _ = Describe("CipherSuitesIDs", func() {
+	It("should return empty for nil input", func() {
+		Expect(CipherSuitesIDs(nil)).To(BeEmpty())
 	})
 
-	It("should return nil for non-custom profile type", func() {
+	It("should return empty for empty input", func() {
+		Expect(CipherSuitesIDs([]string{})).To(BeEmpty())
+	})
+
+	It("should map recognised cipher names, preserving order", func() {
+		ids := CipherSuitesIDs([]string{
+			"TLS_AES_128_GCM_SHA256",
+			"ECDHE-ECDSA-AES128-GCM-SHA256",
+			"AES128-SHA",
+		})
+		Expect(ids).To(Equal([]uint16{
+			tls.TLS_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_RSA_WITH_AES_128_CBC_SHA,
+		}))
+	})
+
+	It("should skip unrecognised cipher names", func() {
+		ids := CipherSuitesIDs([]string{
+			"TLS_AES_128_GCM_SHA256", "unknownCipher", "AES128-SHA",
+		})
+		Expect(ids).To(Equal([]uint16{
+			tls.TLS_AES_128_GCM_SHA256,
+			tls.TLS_RSA_WITH_AES_128_CBC_SHA,
+		}))
+	})
+
+	It("should return empty when all names are unrecognised", func() {
+		Expect(CipherSuitesIDs([]string{"foo", "bar"})).To(BeEmpty())
+	})
+})
+
+var _ = Describe("TLS MinVersion and Ciphers", func() {
+	It("should return the intermediate's MinVersion and ciphers for nil profile", func() {
+		cfg := getCryptoConfig(nil)
+		Expect(cfg.MinVersion).To(Equal(uint16(tls.VersionTLS12)))
+		Expect(cfg.CipherSuites).To(Equal([]uint16{
+			tls.TLS_AES_128_GCM_SHA256,
+			tls.TLS_AES_256_GCM_SHA384,
+			tls.TLS_CHACHA20_POLY1305_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+		}))
+	})
+
+	It("should return the modern's MinVersion and ciphers, for the Modern profile type", func() {
+		profile := &aaqv1alpha1.TLSSecurityProfile{
+			Type: aaqv1alpha1.TLSProfileModernType,
+		}
+
+		cfg := getCryptoConfig(profile)
+		Expect(cfg.MinVersion).To(Equal(uint16(tls.VersionTLS13)))
+		Expect(cfg.CipherSuites).To(Equal([]uint16{
+			tls.TLS_AES_128_GCM_SHA256,
+			tls.TLS_AES_256_GCM_SHA384,
+			tls.TLS_CHACHA20_POLY1305_SHA256,
+		}))
+	})
+
+	It("should return the intermediate's MinVersion and ciphers, for the Intermediate profile type", func() {
 		profile := &aaqv1alpha1.TLSSecurityProfile{
 			Type: aaqv1alpha1.TLSProfileIntermediateType,
 		}
-		Expect(SelectGroups(profile)).To(BeNil())
+
+		cfg := getCryptoConfig(profile)
+		Expect(cfg.MinVersion).To(Equal(uint16(tls.VersionTLS12)))
+		Expect(cfg.CipherSuites).To(Equal([]uint16{
+			tls.TLS_AES_128_GCM_SHA256,
+			tls.TLS_AES_256_GCM_SHA384,
+			tls.TLS_CHACHA20_POLY1305_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+		}))
+	})
+
+	It("should return the old's MinVersion and ciphers, for the Old profile type", func() {
+		profile := &aaqv1alpha1.TLSSecurityProfile{
+			Type: aaqv1alpha1.TLSProfileOldType,
+		}
+
+		cfg := getCryptoConfig(profile)
+		Expect(cfg.MinVersion).To(Equal(uint16(tls.VersionTLS10)))
+		Expect(cfg.CipherSuites).To(Equal(CipherSuitesIDs(aaqv1alpha1.TLSProfiles[aaqv1alpha1.TLSProfileOldType].Ciphers)))
+	})
+
+	It("should return MinVersion and ciphers from a custom profile", func() {
+		profile := &aaqv1alpha1.TLSSecurityProfile{
+			Type: aaqv1alpha1.TLSProfileCustomType,
+			Custom: &aaqv1alpha1.CustomTLSProfile{
+				TLSProfileSpec: aaqv1alpha1.TLSProfileSpec{
+					Ciphers:       []string{"ECDHE-ECDSA-AES128-GCM-SHA256", "AES128-SHA"},
+					MinTLSVersion: aaqv1alpha1.VersionTLS11,
+					Groups:        []string{aaqv1alpha1.TLSGroupX25519},
+				},
+			},
+		}
+
+		cfg := getCryptoConfig(profile)
+		Expect(cfg.MinVersion).To(Equal(uint16(tls.VersionTLS11)))
+		Expect(cfg.CipherSuites).To(Equal([]uint16{
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_RSA_WITH_AES_128_CBC_SHA,
+		}))
+	})
+
+	It("should return empty ciphers when custom profile has no ciphers", func() {
+		profile := &aaqv1alpha1.TLSSecurityProfile{
+			Type: aaqv1alpha1.TLSProfileCustomType,
+			Custom: &aaqv1alpha1.CustomTLSProfile{
+				TLSProfileSpec: aaqv1alpha1.TLSProfileSpec{
+					MinTLSVersion: aaqv1alpha1.VersionTLS12,
+					Groups:        []string{aaqv1alpha1.TLSGroupX25519},
+				},
+			},
+		}
+
+		cfg := getCryptoConfig(profile)
+		Expect(cfg.MinVersion).To(Equal(uint16(tls.VersionTLS12)))
+		Expect(cfg.CipherSuites).To(BeEmpty())
+	})
+
+	It("should fall back to intermediate's MinVersion and ciphers for an invalid profile type", func() {
+		profile := &aaqv1alpha1.TLSSecurityProfile{
+			Type: "NotARealProfileType",
+		}
+
+		cfg := getCryptoConfig(profile)
+		Expect(cfg.MinVersion).To(Equal(uint16(tls.VersionTLS12)))
+		Expect(cfg.CipherSuites).To(Equal([]uint16{
+			tls.TLS_AES_128_GCM_SHA256,
+			tls.TLS_AES_256_GCM_SHA384,
+			tls.TLS_CHACHA20_POLY1305_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+		}))
+	})
+})
+
+var _ = Describe("TLS Groups", func() {
+	It("should return the intermediate group list for nil profile", func() {
+		cfg := getCryptoConfig(nil)
+		Expect(cfg.CurvePreferences).To(ConsistOf(
+			tls.X25519,
+			tls.X25519MLKEM768,
+			tls.CurveP256,
+			tls.CurveP384,
+		))
+	})
+
+	It("should return the modern's list of groups, for the Modern profile type", func() {
+		profile := &aaqv1alpha1.TLSSecurityProfile{
+			Type: aaqv1alpha1.TLSProfileModernType,
+		}
+
+		cfg := getCryptoConfig(profile)
+		Expect(cfg.CurvePreferences).To(ConsistOf(
+			tls.X25519,
+			tls.X25519MLKEM768,
+			tls.CurveP256,
+			tls.CurveP384,
+		))
+	})
+
+	It("should return the intermediate's list of groups, for the Intermediate profile type", func() {
+		profile := &aaqv1alpha1.TLSSecurityProfile{
+			Type: aaqv1alpha1.TLSProfileIntermediateType,
+		}
+
+		cfg := getCryptoConfig(profile)
+		Expect(cfg.CurvePreferences).To(ConsistOf(
+			tls.X25519,
+			tls.X25519MLKEM768,
+			tls.CurveP256,
+			tls.CurveP384,
+		))
+	})
+
+	It("should return the old's list of groups, for the Old profile type", func() {
+		profile := &aaqv1alpha1.TLSSecurityProfile{
+			Type: aaqv1alpha1.TLSProfileOldType,
+		}
+
+		cfg := getCryptoConfig(profile)
+		Expect(cfg.CurvePreferences).To(ConsistOf(
+			tls.X25519,
+			tls.X25519MLKEM768,
+			tls.CurveP256,
+			tls.CurveP384,
+		))
 	})
 
 	It("should return groups from a custom profile", func() {
-		groups := []string{aaqv1alpha1.TLSGroupX25519, aaqv1alpha1.TLSGroupSecp384r1}
 		profile := &aaqv1alpha1.TLSSecurityProfile{
 			Type: aaqv1alpha1.TLSProfileCustomType,
 			Custom: &aaqv1alpha1.CustomTLSProfile{
 				TLSProfileSpec: aaqv1alpha1.TLSProfileSpec{
 					Ciphers:       []string{"ECDHE-ECDSA-AES128-GCM-SHA256"},
 					MinTLSVersion: aaqv1alpha1.VersionTLS12,
-					Groups:        groups,
+					Groups:        []string{aaqv1alpha1.TLSGroupX25519, aaqv1alpha1.TLSGroupSecp384r1},
 				},
 			},
 		}
-		Expect(SelectGroups(profile)).To(Equal(groups))
+
+		cfg := getCryptoConfig(profile)
+		Expect(cfg.CurvePreferences).To(ConsistOf(
+			tls.X25519,
+			tls.CurveP384,
+		))
 	})
 
 	It("should return nil when custom profile has no groups", func() {
@@ -125,6 +325,8 @@ var _ = Describe("SelectGroups", func() {
 				},
 			},
 		}
-		Expect(SelectGroups(profile)).To(BeNil())
+
+		cfg := getCryptoConfig(profile)
+		Expect(cfg.CurvePreferences).To(BeNil())
 	})
 })

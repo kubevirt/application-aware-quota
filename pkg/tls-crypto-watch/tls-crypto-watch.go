@@ -66,7 +66,7 @@ func NewAaqConfigTLSWatcher(ctx context.Context, aaqCli client.AAQClient) (AaqCo
 
 	ctw := &aaqConfigTLSWatcher{
 		informer: aaqInformer,
-		config:   DefaultCryptoConfig(),
+		config:   getCryptoConfig(nil),
 	}
 
 	_, err := aaqInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -108,49 +108,57 @@ func (ctw *aaqConfigTLSWatcher) GetInformer() cache.SharedIndexInformer {
 }
 
 func (ctw *aaqConfigTLSWatcher) updateConfig(aaq *aaqv1alpha1.AAQ) {
-	newConfig := &CryptoConfig{}
-
-	cipherNames, minTypedTLSVersion := SelectCipherSuitesAndMinTLSVersion(aaq.Spec.TLSSecurityProfile)
-	minTLSVersion, _ := ocpcrypto.TLSVersion(string(minTypedTLSVersion))
-	ciphers := CipherSuitesIDs(cipherNames)
-	newConfig.CipherSuites = ciphers
-	newConfig.MinVersion = minTLSVersion
-	newConfig.CurvePreferences = CurvePreferenceIDs(SelectGroups(aaq.Spec.TLSSecurityProfile))
+	newConfig := getCryptoConfig(aaq.Spec.TLSSecurityProfile)
 
 	ctw.mutex.Lock()
 	defer ctw.mutex.Unlock()
 	ctw.config = newConfig
 }
 
-// SelectCipherSuitesAndMinTLSVersion returns cipher names and minimal TLS version according to the input profile
-func SelectCipherSuitesAndMinTLSVersion(profile *aaqv1alpha1.TLSSecurityProfile) ([]string, aaqv1alpha1.TLSProtocolVersion) {
-	if profile != nil && profile.Custom != nil {
-		return profile.Custom.TLSProfileSpec.Ciphers, profile.Custom.TLSProfileSpec.MinTLSVersion
+// selectProfile returns cipher names and minimal TLS version according to the input profile
+func selectProfile(profile *aaqv1alpha1.TLSSecurityProfile) *aaqv1alpha1.TLSProfileSpec {
+	if profile == nil {
+		return aaqv1alpha1.TLSProfiles[aaqv1alpha1.DefaultTLSProfileType]
 	}
 
-	profileType := aaqv1alpha1.TLSProfileIntermediateType
-	if profile != nil && profile.Type != "" {
-		profileType = profile.Type
+	switch profile.Type {
+	case aaqv1alpha1.TLSProfileOldType, aaqv1alpha1.TLSProfileIntermediateType, aaqv1alpha1.TLSProfileModernType:
+		return aaqv1alpha1.TLSProfiles[profile.Type]
+
+	case aaqv1alpha1.TLSProfileCustomType:
+		if profile.Custom != nil {
+			return &profile.Custom.TLSProfileSpec
+		}
+
+		klog.V(1).Infof("invalid TLS security profile; the Custom field is missing, falling back to Intermediate")
+
+	default:
+		klog.V(1).Infof("invalid TLS security profile %q, falling back to Intermediate", profile.Type)
 	}
 
-	return aaqv1alpha1.TLSProfiles[profileType].Ciphers, aaqv1alpha1.TLSProfiles[profileType].MinTLSVersion
+	return aaqv1alpha1.TLSProfiles[aaqv1alpha1.DefaultTLSProfileType]
 }
 
-// DefaultCryptoConfig returns a crypto config with legitimate defaults to start with
-func DefaultCryptoConfig() *CryptoConfig {
-	cipherNames, minTypedTLSVersion := SelectCipherSuitesAndMinTLSVersion(nil)
-	minTLSVersion, _ := ocpcrypto.TLSVersion(string(minTypedTLSVersion))
+func getCryptoConfig(tlsProfile *aaqv1alpha1.TLSSecurityProfile) *CryptoConfig {
+	profile := selectProfile(tlsProfile)
+	minTLSVersion, _ := ocpcrypto.TLSVersion(string(profile.MinTLSVersion))
 
 	return &CryptoConfig{
-		CipherSuites: CipherSuitesIDs(cipherNames),
-		MinVersion:   minTLSVersion,
+		CipherSuites:     CipherSuitesIDs(profile.Ciphers),
+		MinVersion:       minTLSVersion,
+		CurvePreferences: CurvePreferenceIDs(profile.Groups),
 	}
 }
 
-// CipherSuitesIDs translates cipher names to IDs which can be straight to the tls.Config
-func CipherSuitesIDs(names []string) []uint16 {
-	// ref: https://www.iana.org/assignments/tls-parameters/tls-parameters.xml
-	var idByName = map[string]uint16{
+var idByName map[string]uint16
+
+func init() {
+	idByName = map[string]uint16{
+		// TLS 1.3
+		"TLS_AES_128_GCM_SHA256":       tls.TLS_AES_128_GCM_SHA256,
+		"TLS_AES_256_GCM_SHA384":       tls.TLS_AES_256_GCM_SHA384,
+		"TLS_CHACHA20_POLY1305_SHA256": tls.TLS_CHACHA20_POLY1305_SHA256,
+
 		// TLS 1.2
 		"ECDHE-ECDSA-AES128-GCM-SHA256": tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
 		"ECDHE-RSA-AES128-GCM-SHA256":   tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
@@ -171,15 +179,21 @@ func CipherSuitesIDs(names []string) []uint16 {
 		"ECDHE-RSA-AES256-SHA":   tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
 
 		// SSL 3
-		"AES128-SHA":   tls.TLS_RSA_WITH_AES_128_CBC_SHA,
-		"AES256-SHA":   tls.TLS_RSA_WITH_AES_256_CBC_SHA,
-		"DES-CBC3-SHA": tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
+		"AES128-SHA":             tls.TLS_RSA_WITH_AES_128_CBC_SHA,
+		"AES256-SHA":             tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+		"DES-CBC3-SHA":           tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
+		"ECDHE-RSA-DES-CBC3-SHA": tls.TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA,
 	}
+
 	for _, cipherSuite := range tls.CipherSuites() {
 		idByName[cipherSuite.Name] = cipherSuite.ID
 	}
+}
 
-	ids := []uint16{}
+// CipherSuitesIDs translates cipher names to IDs which can be straight to the tls.Config
+func CipherSuitesIDs(names []string) []uint16 {
+	ids := make([]uint16, 0, len(names))
+
 	for _, name := range names {
 		if id, ok := idByName[name]; ok {
 			ids = append(ids, id)
@@ -187,15 +201,6 @@ func CipherSuitesIDs(names []string) []uint16 {
 	}
 
 	return ids
-}
-
-// SelectGroups returns the TLS groups from the given TLS profile.
-// Returns nil when the profile is nil or uses a predefined type (which have no groups).
-func SelectGroups(profile *aaqv1alpha1.TLSSecurityProfile) []string {
-	if profile != nil && profile.Custom != nil {
-		return profile.Custom.TLSProfileSpec.Groups
-	}
-	return nil
 }
 
 // CurvePreferenceIDs converts a list of IANA TLS Supported Groups registry
