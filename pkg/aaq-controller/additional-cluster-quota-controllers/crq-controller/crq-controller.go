@@ -67,6 +67,7 @@ func NewCRQController(aaqCli client.AAQClient,
 		AddFunc:    ctrl.addAcrq,
 	})
 	if err != nil {
+		panic(fmt.Errorf("failed to register ApplicationAwareClusterResourceQuota event handler: %w", err))
 	}
 
 	return &ctrl
@@ -154,7 +155,7 @@ func (ctrl *CRQController) Execute() bool {
 
 	err, enqueueState := ctrl.execute(key.(string))
 	if err != nil {
-		log.Log.Infof(fmt.Sprintf("CRQController: Error with key: %v err: %v", key, err))
+		log.Log.Infof("CRQController: Error with key: %v err: %v", key, err)
 	}
 	switch enqueueState {
 	case BackOff:
