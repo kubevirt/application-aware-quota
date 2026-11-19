@@ -2,6 +2,7 @@ package built_in_usage_calculators
 
 import (
 	"fmt"
+	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -11,8 +12,6 @@ import (
 	"k8s.io/kubernetes/pkg/quota/v1/evaluator/core"
 	"k8s.io/utils/clock"
 	v15 "kubevirt.io/api/core/v1"
-	"kubevirt.io/application-aware-quota/pkg/aaq-controller/built-in-usage-calculators/cpu"
-	"kubevirt.io/application-aware-quota/pkg/aaq-controller/built-in-usage-calculators/overhead_calculator"
 	"kubevirt.io/application-aware-quota/pkg/log"
 	"kubevirt.io/application-aware-quota/pkg/util"
 	"kubevirt.io/application-aware-quota/staging/src/kubevirt.io/application-aware-quota-api/pkg/apis/core/v1alpha1"
@@ -22,9 +21,8 @@ const launcherLabel = "virt-launcher"
 
 var MyConfigs = []v1alpha1.VmiCalcConfigName{v1alpha1.VmiPodUsage, v1alpha1.VirtualResources, v1alpha1.DedicatedVirtualResources, v1alpha1.GuestEffectiveResources}
 
-func NewVirtLauncherCalculator(kvInformer cache.SharedIndexInformer, vmiInformer cache.SharedIndexInformer, migrationInformer cache.SharedIndexInformer, calcConfig v1alpha1.VmiCalcConfigName) *VirtLauncherCalculator {
+func NewVirtLauncherCalculator(vmiInformer cache.SharedIndexInformer, migrationInformer cache.SharedIndexInformer, calcConfig v1alpha1.VmiCalcConfigName) *VirtLauncherCalculator {
 	return &VirtLauncherCalculator{
-		kvInformer:        kvInformer,
 		vmiInformer:       vmiInformer,
 		migrationInformer: migrationInformer,
 		calcConfig:        calcConfig,
@@ -32,7 +30,6 @@ func NewVirtLauncherCalculator(kvInformer cache.SharedIndexInformer, vmiInformer
 }
 
 type VirtLauncherCalculator struct {
-	kvInformer        cache.SharedIndexInformer
 	vmiInformer       cache.SharedIndexInformer
 	migrationInformer cache.SharedIndexInformer
 	calcConfig        v1alpha1.VmiCalcConfigName
@@ -131,17 +128,10 @@ func (launchercalc *VirtLauncherCalculator) CalculateUsageByConfig(pod *corev1.P
 		}
 
 		overheadResources := corev1.ResourceList{}
-		if launchercalc.kvInformer != nil {
-			kvConfig := overhead_calculator.GetConfigFromKubeVirtCR(launchercalc.kvInformer)
-			if kvConfig != nil {
-				memoryOverhead := overhead_calculator.CalculateMemoryOverhead(kvConfig, overhead_calculator.MemoryCalculator{}, vmi)
-				if !memoryOverhead.IsZero() {
-					if _, hasMemoryRequests := usageWithOverhead[corev1.ResourceRequestsMemory]; hasMemoryRequests {
-						overheadResources[corev1.ResourceRequestsMemory] = memoryOverhead
-					}
-					if _, hasMemoryLimits := usageWithOverhead[corev1.ResourceLimitsMemory]; hasMemoryLimits {
-						overheadResources[corev1.ResourceLimitsMemory] = memoryOverhead
-					}
+		if memoryOverhead, ok := getMemoryOverheadFromPod(pod); ok && !memoryOverhead.IsZero() {
+			for _, name := range []corev1.ResourceName{corev1.ResourceMemory, corev1.ResourceRequestsMemory, corev1.ResourceLimitsMemory} {
+				if _, exists := usageWithOverhead[name]; exists {
+					overheadResources[name] = memoryOverhead
 				}
 			}
 		}
@@ -203,7 +193,7 @@ func CalculateResourceLauncherVMIUsagePodResources(vmi *v15.VirtualMachineInstan
 			Sockets: vmi.Spec.Domain.CPU.Sockets,
 			Threads: vmi.Spec.Domain.CPU.Threads,
 		}
-		vcpus := cpu.GetNumberOfVCPUs(cpuTopology)
+		vcpus := getNumberOfVCPUs(cpuTopology)
 		cpuGuest = *resource.NewQuantity(vcpus, resource.BinarySI)
 	}
 
@@ -226,7 +216,7 @@ func CalculateResourceLauncherVMIUsagePodResources(vmi *v15.VirtualMachineInstan
 
 	if isSourceOrSingleLauncher && vmi.Status.CurrentCPUTopology != nil {
 		cpuTopology = vmi.Status.CurrentCPUTopology
-		vcpus := cpu.GetNumberOfVCPUs(cpuTopology)
+		vcpus := getNumberOfVCPUs(cpuTopology)
 		cpuGuest = *resource.NewQuantity(vcpus, resource.BinarySI)
 	}
 
@@ -251,6 +241,25 @@ func CalculateResourceLauncherVMIUsagePodResources(vmi *v15.VirtualMachineInstan
 	result = v12.Add(result, requests)
 	result = v12.Add(result, limits)
 	return result
+}
+
+func getNumberOfVCPUs(cpuSpec *v15.CPUTopology) int64 {
+	vCPUs := cpuSpec.Cores
+	if cpuSpec.Sockets != 0 {
+		if vCPUs == 0 {
+			vCPUs = cpuSpec.Sockets
+		} else {
+			vCPUs *= cpuSpec.Sockets
+		}
+	}
+	if cpuSpec.Threads != 0 {
+		if vCPUs == 0 {
+			vCPUs = cpuSpec.Threads
+		} else {
+			vCPUs *= cpuSpec.Threads
+		}
+	}
+	return int64(vCPUs)
 }
 
 func UnfinishedVMIPods(pods []*corev1.Pod, vmi *v15.VirtualMachineInstance) (podsToReturn []*corev1.Pod) {
@@ -362,4 +371,19 @@ func createPodWithComputeContainerOnly(pod *corev1.Pod) *corev1.Pod {
 	}
 
 	return computeOnlyPod
+}
+
+// getMemoryOverheadFromPod reads the memory overhead that virt-controller recorded on the
+// virt-launcher pod. It returns false if the annotation is missing or invalid.
+func getMemoryOverheadFromPod(pod *corev1.Pod) (resource.Quantity, bool) {
+	value, exists := pod.Annotations[v15.MemoryOverheadAnnotationBytes]
+	if !exists {
+		return resource.Quantity{}, false
+	}
+	bytes, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || bytes < 0 {
+		log.Log.Errorf("invalid %s annotation value %q on pod %s/%s", v15.MemoryOverheadAnnotationBytes, value, pod.Namespace, pod.Name)
+		return resource.Quantity{}, false
+	}
+	return *resource.NewQuantity(bytes, resource.BinarySI), true
 }

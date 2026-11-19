@@ -415,6 +415,46 @@ var _ = Describe("Test virt-launcher calculator", func() {
 			},
 			true,
 			false),
+		Entry("GuestEffectiveResources should subtract memory overhead from the pod annotation",
+			[]metav1.Object{vmiForTests},
+			[]metav1.Object{},
+			NewPodBuilder().
+				WithName("pod-with-overhead").
+				WithNamespace(fakeNs).
+				WithOwnerReference(v12.VirtualMachineInstanceGroupVersionKind.Kind, fakeVmiName, fakeVmiUID).
+				WithLabel(v12.AppLabel, launcherLabel).
+				WithAnnotations(v12.MemoryOverheadAnnotationBytes, "1000").
+				WithCreationTimestamp(parseTimeOrDie("2015-04-22T11:49:36Z")).
+				WithNode("node1").
+				WithContainer("compute",
+					v1.ResourceList{v1.ResourceMemory: resource.MustParse("3000"), v1.ResourceCPU: resource.MustParse("2")},
+					v1.ResourceList{v1.ResourceMemory: resource.MustParse("3000"), v1.ResourceCPU: resource.MustParse("2")}).
+				Build(),
+			[]*v1.Pod{NewPodBuilder().
+				WithName("pod-with-overhead").
+				WithNamespace(fakeNs).
+				WithOwnerReference(v12.VirtualMachineInstanceGroupVersionKind.Kind, fakeVmiName, fakeVmiUID).
+				WithLabel(v12.AppLabel, launcherLabel).
+				WithAnnotations(v12.MemoryOverheadAnnotationBytes, "1000").
+				WithCreationTimestamp(parseTimeOrDie("2015-04-22T11:49:36Z")).
+				WithNode("node1").
+				WithContainer("compute",
+					v1.ResourceList{v1.ResourceMemory: resource.MustParse("3000"), v1.ResourceCPU: resource.MustParse("2")},
+					v1.ResourceList{v1.ResourceMemory: resource.MustParse("3000"), v1.ResourceCPU: resource.MustParse("2")}).
+				Build()},
+			v1alpha1.GuestEffectiveResources,
+			v1.ResourceList{
+				v1.ResourcePods:           *(resource.NewQuantity(1, resource.DecimalSI)),
+				"count/pods":              *(resource.NewQuantity(1, resource.DecimalSI)),
+				v1.ResourceMemory:         resource.MustParse("2000"),
+				v1.ResourceCPU:            resource.MustParse("2"),
+				v1.ResourceRequestsMemory: resource.MustParse("2000"),
+				v1.ResourceRequestsCPU:    resource.MustParse("2"),
+				v1.ResourceLimitsMemory:   resource.MustParse("2000"),
+				v1.ResourceLimitsCPU:      resource.MustParse("2"),
+			},
+			true,
+			false),
 	)
 })
 
