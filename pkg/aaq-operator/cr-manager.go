@@ -124,5 +124,14 @@ func (r *ReconcileAAQ) GetAllResources(crObject client.Object) ([]client.Object,
 		}
 	}
 
+	customizer, err := NewCustomizer(cr.Spec.CustomizeComponents)
+	if err == nil {
+		err = customizer.Apply(resources)
+	}
+	if err != nil {
+		sdk.MarkCrFailedHealing(cr, r.Status(cr), "CustomizeComponents", "Unable to apply spec.customizeComponents", r.recorder)
+		return nil, err
+	}
+
 	return resources, nil
 }

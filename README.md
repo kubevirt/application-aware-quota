@@ -240,6 +240,31 @@ which handles the heavy lifting.
   For an example of sidecar implementation using the libsidecar library,
   refer to [this link](https://github.com/kubevirt/application-aware-quota/tree/main/example_sidecars/label-sidecar).
 
+
+* `aaq.spec.customizeComponents.patches` - list of patches the operator applies to the resources it deploys
+  (`Deployment`, `Service`, `ValidatingWebhookConfiguration` and `MutatingWebhookConfiguration`), similar to the
+  `customizeComponents` field of KubeVirt and CDI. Each patch has a `resourceType` (kind) and a `resourceName`
+  (`*` matches any), a `type` (`json`, `merge` or `strategic`) and the `patch` content. Patches are applied in order
+  on every reconcile, so they survive the operator's reconciliation, and removing them restores the defaults.
+  For example, to set the resources of the `aaq-controller` and `aaq-server` containers:
+
+  ```yaml
+  spec:
+    customizeComponents:
+      patches:
+      - resourceType: Deployment
+        resourceName: aaq-controller
+        type: strategic
+        patch: '{"spec":{"template":{"spec":{"containers":[{"name":"aaq-controller","resources":{"requests":{"cpu":"100m","memory":"256Mi"},"limits":{"memory":"512Mi"}}}]}}}}'
+      - resourceType: Deployment
+        resourceName: aaq-server
+        type: strategic
+        patch: '{"spec":{"template":{"spec":{"containers":[{"name":"aaq-server","resources":{"requests":{"cpu":"20m","memory":"64Mi"}}}]}}}}'
+  ```
+
+  ***Warning***: patches are not validated beyond their syntax; an invalid patch makes the reconciliation fail,
+  and a patch that breaks a component is the responsibility of the user.
+
 ### Deploy it on your cluster
 
 Deploying the AAQ controller is straightforward.
