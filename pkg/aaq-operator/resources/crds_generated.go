@@ -1643,6 +1643,49 @@ spec:
                         type: string
                     type: object
                 type: object
+              customizeComponents:
+                description: |-
+                  CustomizeComponents defines patches applied to the components deployed by the AAQ operator
+                  (e.g. to set the resources of the aaq-controller and aaq-server containers).
+                properties:
+                  patches:
+                    description: Patches is a list of patches applied, in order, to
+                      the resources deployed by the AAQ operator.
+                    items:
+                      description: CustomizeComponentsPatch defines a patch for some
+                        resource.
+                      properties:
+                        patch:
+                          description: Patch is the patch content, its format depends
+                            on Type.
+                          type: string
+                        resourceName:
+                          description: ResourceName is the name of the resource to
+                            patch (e.g. aaq-controller), or "*" to match all names.
+                          minLength: 1
+                          type: string
+                        resourceType:
+                          description: |-
+                            ResourceType is the kind of the resource to patch (Deployment, Service, ValidatingWebhookConfiguration
+                            or MutatingWebhookConfiguration), or "*" to match all supported kinds.
+                          minLength: 1
+                          type: string
+                        type:
+                          description: 'Type is the patch type: json, merge or strategic.'
+                          enum:
+                          - json
+                          - merge
+                          - strategic
+                          type: string
+                      required:
+                      - patch
+                      - resourceName
+                      - resourceType
+                      - type
+                      type: object
+                    type: array
+                    x-kubernetes-list-type: atomic
+                type: object
               imagePullPolicy:
                 description: PullPolicy describes a policy for if/when to pull a container
                   image

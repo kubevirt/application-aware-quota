@@ -326,7 +326,50 @@ var _ = Describe("Controller", func() {
 		validateEvents(args.reconciler, createNotReadyEventValidationMap())
 	},
 		Entry("Pull override", &pullOverride{corev1.PullNever}),
+		Entry("Resources override through customizeComponents", &resourcesOverride{
+			requests: map[string]string{
+				utils.ControllerResourceName: "123m",
+				utils.AaqServerResourceName:  "45m",
+			},
+		}),
 	)
+
+	It("should revert customizeComponents patches once they are removed from the CR", func() {
+		args := createArgs()
+		override := &resourcesOverride{requests: map[string]string{utils.ControllerResourceName: "123m"}}
+		override.Set(args.aaq)
+		Expect(args.client.Update(context.TODO(), args.aaq)).To(Succeed())
+		doReconcile(args)
+
+		controller := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Namespace: aaqNamespace, Name: utils.ControllerResourceName}}
+		d, err := getDeployment(args.client, controller)
+		Expect(err).ToNot(HaveOccurred())
+		override.Check(d)
+		Expect(d.Annotations).To(HaveKey(utils.AnnCustomizeComponentHash))
+
+		args.aaq.Spec.CustomizeComponents = aaqv1.CustomizeComponents{}
+		Expect(args.client.Update(context.TODO(), args.aaq)).To(Succeed())
+		doReconcile(args)
+
+		d, err = getDeployment(args.client, controller)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(d.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().String()).To(Equal("50m"))
+		Expect(d.Annotations).ToNot(HaveKey(utils.AnnCustomizeComponentHash))
+	})
+
+	It("should fail the reconcile on an invalid customizeComponents patch", func() {
+		args := createArgs()
+		args.aaq.Spec.CustomizeComponents = aaqv1.CustomizeComponents{
+			Patches: []aaqv1.CustomizeComponentsPatch{{
+				ResourceName: utils.ControllerResourceName,
+				ResourceType: "Deployment",
+				Patch:        "not-json",
+				Type:         aaqv1.StrategicMergePatchType,
+			}},
+		}
+		Expect(args.client.Update(context.TODO(), args.aaq)).To(Succeed())
+		doReconcileError(args)
+	})
 
 	Describe("Upgrading AAQ", func() {
 
@@ -1078,6 +1121,40 @@ func (o *pullOverride) Set(cr *aaqv1.AAQ) {
 func (o *pullOverride) Check(d *appsv1.Deployment) {
 	pp := d.Spec.Template.Spec.Containers[0].ImagePullPolicy
 	Expect(pp).Should(Equal(o.value))
+}
+
+// resourcesOverride sets the CPU request of the given containers (by deployment name) through spec.customizeComponents
+type resourcesOverride struct {
+	requests map[string]string
+}
+
+func (o *resourcesOverride) Set(cr *aaqv1.AAQ) {
+	for name, cpu := range o.requests {
+		cr.Spec.CustomizeComponents.Patches = append(cr.Spec.CustomizeComponents.Patches, aaqv1.CustomizeComponentsPatch{
+			ResourceName: name,
+			ResourceType: "Deployment",
+			Patch:        fmt.Sprintf(`{"spec":{"template":{"spec":{"containers":[{"name":%q,"resources":{"requests":{"cpu":%q}}}]}}}}`, name, cpu),
+			Type:         aaqv1.StrategicMergePatchType,
+		})
+	}
+}
+
+func (o *resourcesOverride) Check(d *appsv1.Deployment) {
+	cpu, ok := o.requests[d.Name]
+	if !ok {
+		return
+	}
+	var c *corev1.Container
+	for i := range d.Spec.Template.Spec.Containers {
+		if d.Spec.Template.Spec.Containers[i].Name == d.Name {
+			c = &d.Spec.Template.Spec.Containers[i]
+		}
+	}
+	Expect(c).ToNot(BeNil())
+	Expect(c.Resources.Requests.Cpu().String()).To(Equal(cpu))
+	// the operator defaults that were not patched are kept
+	Expect(c.Resources.Requests.Memory().IsZero()).To(BeFalse())
+	Expect(c.Image).ToNot(BeEmpty())
 }
 
 func getAAQ(client client.Client, aaq *aaqv1.AAQ) (*aaqv1.AAQ, error) {

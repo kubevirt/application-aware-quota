@@ -151,7 +151,45 @@ type AAQSpec struct {
 	Configuration AAQConfiguration `json:"configuration,omitempty"`
 	// TLSSecurityProfile is used by operators to apply cluster-wide TLS security settings to operands.
 	TLSSecurityProfile *TLSSecurityProfile `json:"tlsSecurityProfile,omitempty"`
+	// CustomizeComponents defines patches applied to the components deployed by the AAQ operator
+	// (e.g. to set the resources of the aaq-controller and aaq-server containers).
+	CustomizeComponents CustomizeComponents `json:"customizeComponents,omitempty"`
 }
+
+// CustomizeComponents defines patches for components deployed by the AAQ operator.
+type CustomizeComponents struct {
+	// Patches is a list of patches applied, in order, to the resources deployed by the AAQ operator.
+	// +listType=atomic
+	Patches []CustomizeComponentsPatch `json:"patches,omitempty"`
+}
+
+// CustomizeComponentsPatch defines a patch for some resource.
+type CustomizeComponentsPatch struct {
+	// ResourceName is the name of the resource to patch (e.g. aaq-controller), or "*" to match all names.
+	// +kubebuilder:validation:MinLength=1
+	ResourceName string `json:"resourceName"`
+	// ResourceType is the kind of the resource to patch (Deployment, Service, ValidatingWebhookConfiguration
+	// or MutatingWebhookConfiguration), or "*" to match all supported kinds.
+	// +kubebuilder:validation:MinLength=1
+	ResourceType string `json:"resourceType"`
+	// Patch is the patch content, its format depends on Type.
+	Patch string `json:"patch"`
+	// Type is the patch type: json, merge or strategic.
+	// +kubebuilder:validation:Enum=json;merge;strategic
+	Type PatchType `json:"type"`
+}
+
+// PatchType defines the patch type.
+type PatchType string
+
+const (
+	// JSONPatchType is a constant that represents the type of JSON patch.
+	JSONPatchType PatchType = "json"
+	// MergePatchType is a constant that represents the type of JSON Merge patch.
+	MergePatchType PatchType = "merge"
+	// StrategicMergePatchType is a constant that represents the type of Strategic Merge patch.
+	StrategicMergePatchType PatchType = "strategic"
+)
 
 // AAQConfiguration holds all AAQ configurations
 type AAQConfiguration struct {

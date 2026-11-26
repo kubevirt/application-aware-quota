@@ -17,6 +17,7 @@ import (
 	conditions "github.com/openshift/custom-resource-status/conditions/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -466,6 +467,97 @@ var _ = Describe("ALL Operator tests", Serial, func() {
 				validateCertConfig(serverSecret, "5m0s", "3m0s")
 				return nil
 			}, 2*time.Minute, 1*time.Second).Should(BeNil())
+		})
+	})
+
+	var _ = Describe("Customize components tests", func() {
+		f := framework.NewFramework("operator-customize-components-test")
+		var origCustomizeComponents *aaqv1.CustomizeComponents
+
+		getContainerResources := func(deploymentName string) (corev1.ResourceRequirements, error) {
+			deployment, err := f.K8sClient.AppsV1().Deployments(f.AAQInstallNs).Get(context.TODO(), deploymentName, metav1.GetOptions{})
+			if err != nil {
+				return corev1.ResourceRequirements{}, err
+			}
+			for _, c := range deployment.Spec.Template.Spec.Containers {
+				if c.Name == deploymentName {
+					return c.Resources, nil
+				}
+			}
+			return corev1.ResourceRequirements{}, fmt.Errorf("container %s not found", deploymentName)
+		}
+
+		updateCustomizeComponents := func(customizeComponents aaqv1.CustomizeComponents) {
+			Eventually(func() error {
+				cr, err := utils.GetAAQ(f.AaqClient)
+				if err != nil {
+					return err
+				}
+				cr.Spec.CustomizeComponents = customizeComponents
+				_, err = f.AaqClient.AaqV1alpha1().AAQs().Update(context.TODO(), cr, metav1.UpdateOptions{})
+				return err
+			}, 1*time.Minute, 1*time.Second).Should(Succeed())
+		}
+
+		BeforeEach(func() {
+			cr, err := utils.GetAAQ(f.AaqClient)
+			Expect(err).ToNot(HaveOccurred())
+			origCustomizeComponents = cr.Spec.CustomizeComponents.DeepCopy()
+		})
+
+		AfterEach(func() {
+			if origCustomizeComponents == nil {
+				return
+			}
+			updateCustomizeComponents(*origCustomizeComponents)
+			By("Waiting for the AAQ deployments to be available again")
+			for _, name := range []string{resourcesutils.ControllerResourceName, resourcesutils.AaqServerResourceName} {
+				Eventually(func() bool {
+					deployment, err := f.K8sClient.AppsV1().Deployments(f.AAQInstallNs).Get(context.TODO(), name, metav1.GetOptions{})
+					return err == nil && deployment.Status.AvailableReplicas > 0 && deployment.Status.UpdatedReplicas == deployment.Status.Replicas
+				}, 5*time.Minute, 2*time.Second).Should(BeTrue())
+			}
+		})
+
+		It("should apply and revert container resources set through customizeComponents patches", func() {
+			patch := func(name string) aaqv1.CustomizeComponentsPatch {
+				return aaqv1.CustomizeComponentsPatch{
+					ResourceName: name,
+					ResourceType: "Deployment",
+					Patch:        fmt.Sprintf(`{"spec":{"template":{"spec":{"containers":[{"name":%q,"resources":{"requests":{"cpu":"21m","memory":"151Mi"},"limits":{"memory":"301Mi"}}}]}}}}`, name),
+					Type:         aaqv1.StrategicMergePatchType,
+				}
+			}
+			names := []string{resourcesutils.ControllerResourceName, resourcesutils.AaqServerResourceName}
+			defaults := map[string]corev1.ResourceRequirements{}
+			for _, name := range names {
+				res, err := getContainerResources(name)
+				Expect(err).ToNot(HaveOccurred())
+				defaults[name] = res
+			}
+
+			By("Setting the resources of the AAQ deployments through customizeComponents")
+			updateCustomizeComponents(aaqv1.CustomizeComponents{
+				Patches: []aaqv1.CustomizeComponentsPatch{patch(names[0]), patch(names[1])},
+			})
+			for _, name := range names {
+				Eventually(func() string {
+					res, err := getContainerResources(name)
+					if err != nil {
+						return ""
+					}
+					return res.Requests.Cpu().String() + "/" + res.Requests.Memory().String() + "/" + res.Limits.Memory().String()
+				}, 2*time.Minute, 1*time.Second).Should(Equal("21m/151Mi/301Mi"), "deployment %s", name)
+			}
+
+			By("Removing the customizations, the operator defaults are restored")
+			updateCustomizeComponents(aaqv1.CustomizeComponents{})
+			for _, name := range names {
+				Eventually(func() bool {
+					res, err := getContainerResources(name)
+					return err == nil && equality.Semantic.DeepEqual(res, defaults[name])
+				}, 2*time.Minute, 1*time.Second).Should(BeTrue(), "deployment %s", name)
+			}
 		})
 	})
 

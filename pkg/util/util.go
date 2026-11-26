@@ -72,6 +72,8 @@ const (
 	VMICalculatorConfiguration = "VMI_CALCULATOR_CONFIGURATION"
 	// TlsLabel provides a constant to capture our env variable "TLS"
 	TlsLabel = "TLS"
+	// AnnCustomizeComponentHash is the annotation holding the hash of spec.customizeComponents on the resources it patched
+	AnnCustomizeComponentHash = "aaq.kubevirt.io/customizer-identifier"
 	// ConfigMapName is the name of the aaq configmap that own aaq resources
 	ConfigMapName                                                       = "aaq-config"
 	OperatorServiceAccountName                                          = "aaq-operator"
